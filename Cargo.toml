@@ -1,0 +1,17 @@
+[package]
+name = "forc-wallet"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0"
+clap = "3.1"
+fuel-types = "0.3"
+fuels-signers = "0.10"
+fuel-crypto = "0.4"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "0.5"
+tiny-bip39 = "0.8"
