@@ -2,6 +2,10 @@
 name = "forc-wallet"
 version = "0.1.0"
 edition = "2021"
+homepage = "https://fuel.network/"
+license = "Apache-2.0"
+repository = "https://github.com/FuelLabs/forc-wallet"
+description = "A forc plugin for generating or importing wallets using BIP39 phrases."
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
