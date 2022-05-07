@@ -1,9 +1,8 @@
-use bip39::Language::English;
-use bip39::{Mnemonic, MnemonicType, Seed};
+use crate::wallet::Wallet;
+use bip39::{Language::English, Mnemonic, MnemonicType};
 use clap::{ArgEnum, Parser, Subcommand};
-use fuel_crypto::{Hasher, SecretKey};
-use fuel_types::Address;
-use serde::{Deserialize, Serialize};
+
+pub(crate) mod wallet;
 
 #[derive(Debug, Parser)]
 #[clap(
@@ -14,7 +13,7 @@ use serde::{Deserialize, Serialize};
 struct App {
     #[clap(subcommand)]
     pub command: Command,
-    #[clap(arg_enum, default_value = "json")]
+    #[clap(arg_enum, long = "format", short = 'o', default_value = "json")]
     pub fmt: OutputFormat,
 }
 
@@ -59,32 +58,9 @@ fn import_phrase(phrase: String) -> anyhow::Result<Mnemonic> {
 
 fn print_wallet(wallet: Wallet, fmt: OutputFormat) {
     let wallet = match fmt {
-        OutputFormat::Json => serde_json::to_string(&wallet).unwrap(),
+        OutputFormat::Json => serde_json::to_string_pretty(&wallet).unwrap(),
         OutputFormat::Toml => toml::to_string(&wallet).unwrap(),
     };
 
     println!("{}", wallet);
-}
-
-#[derive(Serialize, Deserialize)]
-struct Wallet {
-    mnemonic: String,
-    secret: SecretKey,
-    address: Address,
-}
-
-impl From<Mnemonic> for Wallet {
-    fn from(mnemonic: Mnemonic) -> Self {
-        let seed = Seed::new(&mnemonic, "");
-        let seed_bytes: &[u8] = seed.as_bytes();
-        let secret_bytes = Hasher::hash(seed_bytes);
-        let secret = SecretKey::try_from(secret_bytes).unwrap();
-        let public_key = secret.public_key();
-        let address = Address::from(*public_key.hash());
-        Self {
-            mnemonic: mnemonic.phrase().to_string(),
-            secret,
-            address,
-        }
-    }
 }
