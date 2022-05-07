@@ -7,7 +7,7 @@ pub(crate) mod wallet;
 #[derive(Debug, Parser)]
 #[clap(
     name = "forc-wallet",
-    about = "Forc plugin for generating and saving Fuel wallets",
+    about = "A forc plugin for generating or importing wallets using BIP39 phrases.",
     version
 )]
 struct App {
