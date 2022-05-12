@@ -8,6 +8,7 @@ A forc plugin for generating or importing wallets using BIP39 phrases.
 ```shell
 cargo run -- --help
 ```
+
 ```
 USAGE:
     forc-wallet [OPTIONS] <SUBCOMMAND>
@@ -21,5 +22,4 @@ SUBCOMMANDS:
     generate    Randomly generate a new wallet
     help        Print this message or the help of the given subcommand(s)
     import      Import a wallet from mnemonic phrase
-
 ```
