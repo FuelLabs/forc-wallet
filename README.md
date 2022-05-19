@@ -1,7 +1,7 @@
 forc-wallet
 ===
 
-A forc plugin for generating or importing wallets using BIP39 phrases.
+A forc plugin for managing Fuel wallets.
 
 ## Instructions
 
@@ -19,7 +19,8 @@ OPTIONS:
     -V, --version         Print version information
 
 SUBCOMMANDS:
-    generate    Randomly generate a new wallet
-    help        Print this message or the help of the given subcommand(s)
-    import      Import a wallet from mnemonic phrase
+    help      Print this message or the help of the given subcommand(s)
+    import    Import a wallet from mnemonic phrase
+    list      Lists all wallets stored in ~/.fuel/wallets/
+    new       Randomly generate a new wallet. By default, wallets are stored in ~/.fuel/wallets/
 ```
