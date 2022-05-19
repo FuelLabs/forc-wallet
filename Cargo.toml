@@ -14,7 +14,13 @@ anyhow = "1.0"
 clap = { version = "3.1", features = ["derive"] }
 fuel-crypto = "0.4"
 fuel-types = "0.3"
+fuels = { git = "https://github.com/fuellabs/fuels-rs", branch = "master" }
+home = "0.5.3"
+rand = { version = "0.8.4", default-features = false }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+termion = "1.5.6"
 tiny-bip39 = "0.8"
 toml = "0.5"
+tokio = { version = "1.10.1", features = ["full"] }
+rpassword = "6.0.1"
