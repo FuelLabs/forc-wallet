@@ -14,7 +14,7 @@ anyhow = "1.0"
 clap = { version = "3.1", features = ["derive"] }
 fuel-crypto = "0.4"
 fuel-types = "0.3"
-fuels = { git = "https://github.com/fuellabs/fuels-rs", branch = "master" }
+fuels = { version = "0.19", default-features = false }
 home = "0.5.3"
 rand = { version = "0.8.4", default-features = false }
 rpassword = "6.0.1"
