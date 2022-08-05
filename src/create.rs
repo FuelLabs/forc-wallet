@@ -1,4 +1,4 @@
-use crate::get_next_wallet_index;
+use crate::list::get_wallets_list;
 use fuels::prelude::*;
 use fuels::signers::wallet::Wallet;
 use std::io::stdout;
@@ -7,6 +7,13 @@ use std::path::PathBuf;
 use termion::screen::AlternateScreen;
 
 pub(crate) const DEFAULT_WALLETS_VAULT_PATH: &str = ".fuel/wallets/";
+
+/// Walks through the wallets vault directory and returns the next index based on the number of
+/// wallets in the vault.
+pub(crate) fn get_next_wallet_index(dir: &str) -> Result<usize, Error> {
+    let sorted_wallets = get_wallets_list(dir)?;
+    Ok(sorted_wallets.last().unwrap().0 + 1)
+}
 
 pub(crate) async fn create_wallet(path: Option<PathBuf>) -> Result<(), Error> {
     // Generate wallet from mnenomic phrase.

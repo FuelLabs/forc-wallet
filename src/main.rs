@@ -3,7 +3,7 @@ mod list;
 mod utils;
 
 use crate::create::{create_wallet, DEFAULT_WALLETS_VAULT_PATH};
-use crate::list::{get_next_wallet_index, print_wallet_list};
+use crate::list::print_wallet_list;
 use clap::{ArgEnum, Parser, Subcommand};
 use fuels::prelude::*;
 use fuels::signers::wallet::Wallet;

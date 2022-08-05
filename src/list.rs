@@ -2,13 +2,6 @@ use crate::utils::parse_wallet_path;
 use crate::Error;
 use std::collections::HashMap;
 
-/// Walks through the wallets vault directory and returns the next index based on the number of
-/// wallets in the vault.
-pub(crate) fn get_next_wallet_index(dir: &str) -> Result<usize, Error> {
-    let sorted_wallets = get_wallets_list(dir)?;
-    Ok(sorted_wallets.last().unwrap().0 + 1)
-}
-
 /// Walks through the wallets vault directory `dir` and returns a Vec of the wallets as an
 /// `(index,address)` tuple.
 pub(crate) fn get_wallets_list(dir: &str) -> Result<Vec<(usize, String)>, Error> {
