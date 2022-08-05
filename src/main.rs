@@ -1,3 +1,4 @@
+use anyhow::{anyhow, bail, Result};
 use clap::{ArgEnum, Parser, Subcommand};
 use fuels::prelude::*;
 use fuels::signers::wallet::Wallet;
@@ -30,6 +31,11 @@ enum Command {
         #[clap(required = false, parse(from_os_str))]
         path: Option<PathBuf>,
     },
+    /// Get the address of a wallet given its index
+    Address {
+        /// Wallet index
+        wallet_index: usize,
+    },
     /// Import a wallet from mnemonic phrase
     Import {
         /// The Bip39 phrase to import the wallet from
@@ -52,8 +58,9 @@ async fn main() -> anyhow::Result<()> {
 
     match app.command {
         Command::New { path } => create_wallet(path).await,
+        Command::Address { wallet_index } => get_wallet_address(wallet_index)?,
         Command::Import { phrase } => import_wallet(phrase).await,
-        Command::List => list_wallets(),
+        Command::List => list_wallets()?,
     };
 
     Ok(())
@@ -81,7 +88,11 @@ async fn create_wallet(path: Option<PathBuf>) {
     let path = path.unwrap_or_else(|| {
         let mut path = home::home_dir().unwrap();
         path.push(DEFAULT_WALLETS_VAULT_PATH);
-        path.push(format!("{}_{}", get_next_wallet_index(), wallet.address()));
+        path.push(format!(
+            "{}_{}",
+            get_next_wallet_index().unwrap(),
+            wallet.address()
+        ));
 
         // create directory if it doesn't exist.
         if !path.exists() {
@@ -113,86 +124,90 @@ async fn import_wallet(phrase: String) {
     println!("Wallet imported: {}", wallet.address());
 }
 
-// Walks through ~/.fuel/wallets/ and returns the next index based
-// on the number of wallets in the vault.
-fn get_next_wallet_index() -> usize {
+fn with_traverse_wallets<F>(f: &mut F) -> Result<()>
+where
+    F: FnMut(Option<&String>, Option<&String>) -> Result<()>,
+{
     let mut path = home::home_dir().unwrap();
     path.push(DEFAULT_WALLETS_VAULT_PATH);
 
-    let dirs = match std::fs::read_dir(path) {
-        Ok(dirs) => dirs,
-        Err(_) => {
-            return 0;
-        }
-    };
-
-    let mut highest_index = 0;
-    for dir in dirs {
-        let dir = dir.unwrap();
-        let path = dir.path();
-
+    for dir in std::fs::read_dir(path)? {
+        let path = dir?.path();
         if path.is_dir() {
-            let last_component = path.components().last().unwrap();
-            let split: Vec<&str> = last_component
-                .as_os_str()
-                .to_str()
-                .unwrap()
-                .split('_')
-                .collect();
-            let index = split.first().unwrap().parse::<usize>().unwrap();
+            if let Some(last_component) = path.components().last() {
+                let split: Vec<String> = last_component
+                    .as_os_str()
+                    .to_str()
+                    .ok_or_else(|| anyhow!("Wroing wallet path: {:?}", path))?
+                    .split('_')
+                    .map(|s| s.to_string())
+                    .collect();
+                // Call given function
+                f(split.first(), split.last())?;
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Walks through ~/.fuel/wallets/ and returns the next index based
+/// on the number of wallets in the vault.
+fn get_next_wallet_index() -> Result<usize> {
+    let mut highest_index = 0;
+    with_traverse_wallets(&mut |index, _| {
+        if let Some(index) = index {
+            let index = index.parse::<usize>()?;
             if index > highest_index {
                 highest_index = index;
             }
         }
-    }
-
-    highest_index + 1
+        Ok(())
+    })?;
+    Ok(highest_index + 1)
 }
 
-fn list_wallets() {
-    let mut path = home::home_dir().unwrap();
-    path.push(DEFAULT_WALLETS_VAULT_PATH);
-
-    // list directories in the path
-    let dirs = match std::fs::read_dir(path) {
-        Ok(dirs) => dirs,
-        Err(_) => {
-            println!("No wallets found.");
-            return;
-        }
-    };
-
+/// Collect all wallets in the DEFAULT_WALLETS_VAULT_PATH
+///
+/// Returns a HashMap between wallet index and wallet address
+fn collect_all_wallets() -> Result<HashMap<usize, String>> {
     let mut wallets = HashMap::new();
+    with_traverse_wallets(&mut |index, address| {
+        if let (Some(index), Some(address)) = (index, address) {
+            let index = index.parse::<usize>()?;
+            wallets.insert(index, address.clone());
+        }
+        Ok(())
+    })?;
+    Ok(wallets)
+}
 
-    println!("Num.         Address.");
-    for dir in dirs {
-        let dir = dir.unwrap();
-        let path = dir.path();
+/// Print wallet address of a given wallet index.
+fn get_wallet_address(wallet_index: usize) -> Result<()> {
+    let wallets = collect_all_wallets()?;
 
-        if path.is_dir() {
-            // get the last component of the path
-            let last_component = path.components().last().unwrap();
-            let split: Vec<String> = last_component
-                .as_os_str()
-                .to_str()
-                .unwrap()
-                .split('_')
-                .map(|s| s.to_string())
-                .collect();
-
-            let index = split.first().unwrap().clone().parse::<usize>().unwrap();
-            let address = split.last().unwrap().clone();
-            let s = format!("[{}].         0x{}", index, address);
-            wallets.insert(index, s);
+    let wallet = wallets.get(&wallet_index);
+    match wallet {
+        Some(wallet) => {
+            println!("0x{}", wallet);
+        }
+        None => {
+            bail!("Wallet index {} does not exists", wallet_index);
         }
     }
+
+    Ok(())
+}
+
+fn list_wallets() -> Result<()> {
+    let wallets = collect_all_wallets()?;
 
     // Sort the wallets by index.
     let mut sorted_wallets = wallets.into_iter().collect::<Vec<_>>();
     sorted_wallets.sort_by(|a, b| a.0.cmp(&b.0));
 
     // Print the wallets.
-    for wallet in sorted_wallets {
-        println!("{}", wallet.1);
+    for (index, address) in sorted_wallets {
+        println!("[{}].         0x{}", index, address);
     }
+    Ok(())
 }
