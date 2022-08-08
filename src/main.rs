@@ -2,10 +2,11 @@ use anyhow::{anyhow, bail, Result};
 use clap::{ArgEnum, Parser, Subcommand};
 use fuels::prelude::*;
 use fuels::signers::wallet::Wallet;
-use std::collections::HashMap;
-use std::io::stdout;
-use std::io::Write;
-use std::path::PathBuf;
+use std::{
+    collections::HashMap,
+    io::{stdout, Write},
+    path::PathBuf,
+};
 use termion::screen::AlternateScreen;
 
 const DEFAULT_WALLETS_VAULT_PATH: &str = ".fuel/wallets/";
@@ -31,10 +32,10 @@ enum Command {
         #[clap(required = false, parse(from_os_str))]
         path: Option<PathBuf>,
     },
-    /// Get the address of a wallet given its index
-    Address {
-        /// Wallet index
-        wallet_index: usize,
+    /// Get the address of an account given its index
+    Account {
+        /// Account index
+        account_index: usize,
     },
     /// Import a wallet from mnemonic phrase
     Import {
@@ -58,7 +59,7 @@ async fn main() -> anyhow::Result<()> {
 
     match app.command {
         Command::New { path } => create_wallet(path).await,
-        Command::Address { wallet_index } => get_wallet_address(wallet_index)?,
+        Command::Account { account_index } => get_account_address(account_index)?,
         Command::Import { phrase } => import_wallet(phrase).await,
         Command::List => list_wallets()?,
     };
@@ -168,7 +169,7 @@ fn get_next_wallet_index() -> Result<usize> {
 
 /// Collect all wallets in the DEFAULT_WALLETS_VAULT_PATH
 ///
-/// Returns a HashMap between wallet index and wallet address
+/// Returns a map between wallet index and wallet address
 fn collect_all_wallets() -> Result<HashMap<usize, String>> {
     let mut wallets = HashMap::new();
     with_traverse_wallets(&mut |index, address| {
@@ -181,8 +182,8 @@ fn collect_all_wallets() -> Result<HashMap<usize, String>> {
     Ok(wallets)
 }
 
-/// Print wallet address of a given wallet index.
-fn get_wallet_address(wallet_index: usize) -> Result<()> {
+/// Print account address of a given account index.
+fn get_account_address(wallet_index: usize) -> Result<()> {
     let wallets = collect_all_wallets()?;
 
     let wallet = wallets.get(&wallet_index);
