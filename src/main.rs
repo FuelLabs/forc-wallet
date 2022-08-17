@@ -62,37 +62,8 @@ async fn main() -> anyhow::Result<()> {
 async fn create_wallet(path: Option<PathBuf>) {
     // Generate wallet from mnenomic phrase.
     let mnemonic = Wallet::generate_mnemonic_phrase(&mut rand::thread_rng(), 12).unwrap();
-
     let wallet = Wallet::new_from_mnemonic_phrase(&mnemonic, None).unwrap();
 
-    let password = request_password();
-    let path = path.unwrap_or_else(|| get_default_wallet_path(wallet.address()));
-
-    // Encrypt the wallet and store it in the vault.
-    let uuid = wallet.encrypt(path, password).unwrap();
-
-    report_discretely(mnemonic, wallet, uuid);
-}
-
-// Prints to an alternate screen.
-// This prevents the mnemonic phrase from being printed to the terminal.
-fn report_discretely(mnemonic: String, wallet: Wallet, uuid: String) {
-    let mut screen = AlternateScreen::from(stdout());
-    writeln!(screen, "JSON Wallet uuid: {}\n", uuid).unwrap();
-    writeln!(screen, "Wallet public address: {}\n", wallet.address()).unwrap();
-    writeln!(screen, "Wallet mnemonic phrase: {}\n", mnemonic).unwrap();
-    screen.flush().unwrap();
-
-    println!("### Do not share or lose this mnemonic phrase! Press any key to complete. ###");
-    wait_for_keypress();
-}
-
-fn wait_for_keypress() {
-    let mut single_key = [0u8];
-    io::stdin().read_exact(&mut single_key).unwrap();
-}
-
-fn request_password() -> String {
     let password =
         rpassword::prompt_password("Please enter a password to encrypt this private key: ")
             .unwrap();
@@ -103,9 +74,38 @@ fn request_password() -> String {
         println!("Passwords do not match -- try again!");
         std::process::exit(1);
     }
-    password
-}
 
+    // Wallets are created in ~/.fuel/wallets/ following the format below:
+    // <index>_<public_address>/<uuid>.
+    // The index is the wallet's index in the list of wallets.
+    let path = path.unwrap_or_else(|| {
+        let mut path = home::home_dir().unwrap();
+        path.push(DEFAULT_WALLETS_VAULT_PATH);
+        path.push(format!("{}_{}", get_next_wallet_index(), wallet.address()));
+
+        // create directory if it doesn't exist.
+        if !path.exists() {
+            std::fs::create_dir_all(&path).unwrap();
+        }
+
+        path
+    });
+
+    // Encrypt the wallet and store it in the vault.
+    let uuid = wallet.encrypt(path, password).unwrap();
+
+    // Prints to an alternate screen.
+    // This prevents the mnemonic phrase from being printed to the terminal.
+    let mut screen = AlternateScreen::from(stdout());
+    writeln!(screen, "JSON Wallet uuid: {}\n", uuid).unwrap();
+    writeln!(screen, "Wallet public address: {}\n", wallet.address()).unwrap();
+    writeln!(screen, "Wallet mnemonic phrase: {}\n", mnemonic).unwrap();
+    screen.flush().unwrap();
+
+    let mut input = String::new();
+    println!("### Do not share or lose this mnemonic phrase! Press any key to complete. ###");
+    std::io::stdin().read_line(&mut input).unwrap();
+}
 
 async fn import_wallet(phrase: String) {
     let wallet = Wallet::new_from_mnemonic_phrase(&phrase, None).unwrap();
