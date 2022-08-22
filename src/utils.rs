@@ -19,7 +19,7 @@ pub(crate) fn parse_wallet_path(filepath: PathBuf) -> Result<(usize, String), Er
             split.len()
         )));
     }
-    let index = split.first().unwrap().clone().parse::<usize>().unwrap();
+    let index = split.first().unwrap().parse::<usize>().unwrap();
     let address = split.last().unwrap().clone();
     Ok((index, address))
 }
