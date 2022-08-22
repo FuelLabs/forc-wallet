@@ -11,7 +11,7 @@ pub(crate) fn get_wallets_list(dir: &str) -> Result<Vec<(usize, String)>, Error>
     let dirs = std::fs::read_dir(&path)
         .map_err(|_| Error::WalletError(format!("Could not read directory {:?}", path)))?;
 
-    let mut wallets = HashMap::new();
+    let mut wallets = Vec::new();
 
     for dir in dirs {
         let dir = dir.unwrap();
@@ -20,7 +20,7 @@ pub(crate) fn get_wallets_list(dir: &str) -> Result<Vec<(usize, String)>, Error>
         if path.is_dir() {
             let (index, address) = parse_wallet_path(path)?;
             let s = format!("[{}].         0x{}", index, address);
-            wallets.insert(index, s);
+            wallets.push((index, s));
         }
     }
 
