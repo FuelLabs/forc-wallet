@@ -8,15 +8,8 @@ pub(crate) fn get_wallets_list(dir: &str) -> Result<Vec<(usize, String)>, Error>
     let path = home::home_dir().unwrap().join(dir);
 
     // list directories in the path
-    let dirs = match std::fs::read_dir(path.clone()) {
-        Ok(dirs) => dirs,
-        Err(_) => {
-            return Err(Error::WalletError(format!(
-                "Could not read directory {:?}",
-                path
-            )));
-        }
-    };
+    let dirs = std::fs::read_dir(&path)
+        .map_err(|_| Error::WalletError(format!("Could not read directory {:?}", path)))?;
 
     let mut wallets = HashMap::new();
 
