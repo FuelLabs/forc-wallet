@@ -1,6 +1,5 @@
 use crate::utils::parse_wallet_path;
 use crate::Error;
-use std::collections::HashMap;
 
 /// Walks through the wallets vault directory `dir` and returns a Vec of the wallets as an
 /// `(index,address)` tuple.
@@ -25,7 +24,7 @@ pub(crate) fn get_wallets_list(dir: &str) -> Result<Vec<(usize, String)>, Error>
     }
 
     let mut sorted_wallets = wallets.into_iter().collect::<Vec<_>>();
-    sorted_wallets.sort_by_key(|(index, _)| index);
+    sorted_wallets.sort_by_key(|k| k.0); // Sort by the index
     Ok(sorted_wallets)
 }
 
