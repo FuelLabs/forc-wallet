@@ -5,8 +5,7 @@ use std::collections::HashMap;
 /// Walks through the wallets vault directory `dir` and returns a Vec of the wallets as an
 /// `(index,address)` tuple.
 pub(crate) fn get_wallets_list(dir: &str) -> Result<Vec<(usize, String)>, Error> {
-    let mut path = home::home_dir().unwrap();
-    path.push(dir);
+    let path = home::home_dir().unwrap().join(dir);
 
     // list directories in the path
     let dirs = match std::fs::read_dir(path.clone()) {
