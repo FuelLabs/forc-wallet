@@ -47,7 +47,6 @@ enum OutputFormat {
 }
 
 #[tokio::main]
-<<<<<<< HEAD
 async fn main() -> Result<(), Error> {
     let app = App::parse();
 
