@@ -36,13 +36,14 @@ pub(crate) async fn create_wallet(path: Option<PathBuf>) -> Result<(), Error> {
     // <index>_<public_address>/<uuid>.
     // The index is the wallet's index in the list of wallets.
     let path = path.unwrap_or_else(|| {
-        let mut path = home::home_dir().unwrap();
-        path.push(DEFAULT_WALLETS_VAULT_PATH);
-        path.push(format!(
-            "{}_{}",
-            get_next_wallet_index(DEFAULT_WALLETS_VAULT_PATH).unwrap(),
-            wallet.address()
-        ));
+        let path = home::home_dir()
+            .unwrap()
+            .join(DEFAULT_WALLETS_VAULT_PATH)
+            .join(format!(
+                "{}_{}",
+                get_next_wallet_index(DEFAULT_WALLETS_VAULT_PATH).unwrap(),
+                wallet.address()
+            ));
 
         // create directory if it doesn't exist.
         if !path.exists() {
