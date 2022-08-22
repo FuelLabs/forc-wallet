@@ -25,7 +25,7 @@ pub(crate) fn get_wallets_list(dir: &str) -> Result<Vec<(usize, String)>, Error>
     }
 
     let mut sorted_wallets = wallets.into_iter().collect::<Vec<_>>();
-    sorted_wallets.sort_by(|a, b| a.0.cmp(&b.0));
+    sorted_wallets.sort_by_key(|(index, _)| index);
     Ok(sorted_wallets)
 }
 
