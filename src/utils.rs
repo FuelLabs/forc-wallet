@@ -4,10 +4,8 @@ use std::path::PathBuf;
 pub(crate) fn parse_wallet_path(filepath: PathBuf) -> Result<(usize, String), Error> {
     // Filename is the last component of the complete filepath
     let wallet_filename = filepath
-        .components()
-        .last()
+        .file_name()
         .unwrap()
-        .as_os_str()
         .to_str()
         .unwrap();
     // The filename format for a wallet (which is a directory) is <index>_<public_address>
