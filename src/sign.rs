@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use crate::utils::get_account_from_store;
+use crate::{utils::get_account_from_store, DEFAULT_WALLETS_VAULT_PATH};
 use anyhow::Result;
 use fuel_crypto::Message;
 use fuels::prelude::*;
@@ -12,7 +12,10 @@ pub(crate) async fn sign_transaction_manually(
     path: Option<String>,
 ) -> Result<(), Error> {
     let asset_id = AssetId::from_str(id).unwrap();
-    let wallet = get_account_from_store(account_index, &path.unwrap_or_else(|| "".to_string()))?;
+    let wallet = get_account_from_store(
+        account_index,
+        &path.unwrap_or_else(|| DEFAULT_WALLETS_VAULT_PATH.to_string()),
+    )?;
     let message = unsafe { Message::from_bytes_unchecked(*asset_id) };
     let sig = wallet.sign_message(message).await?;
     println!("sig: {sig}");
