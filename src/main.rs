@@ -1,12 +1,14 @@
 mod account;
 mod init;
 mod list;
+mod sign;
 mod utils;
 
 use crate::{
     account::{new_account, print_account_address},
     init::init_wallet,
     list::print_wallet_list,
+    sign::sign_transaction_manually,
 };
 use anyhow::Result;
 use clap::{ArgEnum, Parser, Subcommand};
@@ -39,6 +41,11 @@ enum Command {
         account_index: usize,
         path: Option<String>,
     },
+    Sign {
+        id: String,
+        account_index: usize,
+        path: Option<String>,
+    },
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, ArgEnum)]
@@ -60,6 +67,11 @@ async fn main() -> Result<()> {
             account_index,
             path,
         } => print_account_address(path, account_index)?,
+        Command::Sign {
+            id,
+            account_index,
+            path,
+        } => sign_transaction_manually(&id, account_index, path).await?,
     };
     Ok(())
 }

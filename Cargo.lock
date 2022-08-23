@@ -1185,6 +1185,7 @@ dependencies = [
  "fuel-crypto 0.6.0",
  "fuel-types",
  "fuels",
+ "fuels-signers",
  "home",
  "rand 0.8.5",
  "rpassword",
