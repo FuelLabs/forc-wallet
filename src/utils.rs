@@ -1,5 +1,6 @@
 use crate::Error;
-use std::path::PathBuf;
+use anyhow::Result;
+use std::{fs, path::PathBuf};
 
 pub(crate) fn parse_wallet_path(filepath: PathBuf) -> Result<(usize, String), Error> {
     // Filename is the last component of the complete filepath
@@ -16,4 +17,13 @@ pub(crate) fn parse_wallet_path(filepath: PathBuf) -> Result<(usize, String), Er
     let index = split.first().unwrap().parse::<usize>().unwrap();
     let address = split.last().unwrap().clone();
     Ok((index, address))
+}
+
+pub(crate) fn clear_wallets_vault(path: PathBuf) -> Result<()> {
+    if path.exists() {
+        for entry in fs::read_dir(path)? {
+            fs::remove_dir_all(entry?.path())?;
+        }
+    }
+    Ok(())
 }

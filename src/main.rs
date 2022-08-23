@@ -2,12 +2,11 @@ mod create;
 mod list;
 mod utils;
 
-use crate::create::{create_wallet, DEFAULT_WALLETS_VAULT_PATH};
+use crate::create::{new_account, new_wallet, DEFAULT_WALLETS_VAULT_PATH};
 use crate::list::print_wallet_list;
+use anyhow::{bail, Result};
 use clap::{ArgEnum, Parser, Subcommand};
 use fuels::prelude::*;
-use fuels::signers::wallet::Wallet;
-use std::path::PathBuf;
 
 #[derive(Debug, Parser)]
 #[clap(
@@ -25,15 +24,19 @@ struct App {
 #[derive(Debug, Subcommand)]
 #[clap(rename_all = "kebab-case")]
 enum Command {
-    /// Randomly generate a new wallet. By default, wallets are stored in ~/.fuel/wallets/.
+    /// Randomly generate a new wallet or create the next account for the given wallet. By default, wallets are stored in ~/.fuel/wallets/. Initializing a new HD wallet removes old vault
     New {
-        #[clap(required = false, parse(from_os_str))]
-        path: Option<PathBuf>,
-    },
-    /// Import a wallet from mnemonic phrase
-    Import {
-        /// The Bip39 phrase to import the wallet from
-        phrase: String,
+        #[clap(long)]
+        path: Option<String>,
+        /// Init a new HD wallet
+        #[clap(long)]
+        wallet: bool,
+        /// Create a new account with given phrase
+        #[clap(long)]
+        account: bool,
+        /// The Bip39 phrase to import a wallet from, if not provided it will be randomly generated
+        #[clap(long)]
+        phrase: Option<String>,
     },
     /// Lists all wallets stored in `path`, or in `~/.fuel/wallets/`.
     List { path: Option<String> },
@@ -47,22 +50,42 @@ enum OutputFormat {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Error> {
+async fn main() -> Result<()> {
     let app = App::parse();
 
-    let _ = match app.command {
-        Command::New { path } => create_wallet(path).await,
-        Command::Import { phrase } => import_wallet(phrase).await,
+    match app.command {
+        Command::New {
+            path,
+            wallet,
+            account,
+            phrase,
+        } => new_cli(path, wallet, account, phrase)?,
         Command::List { path } => {
-            print_wallet_list(path.unwrap_or_else(|| DEFAULT_WALLETS_VAULT_PATH.to_string()))
+            print_wallet_list(path.unwrap_or_else(|| DEFAULT_WALLETS_VAULT_PATH.to_string()))?
         }
     };
     Ok(())
 }
 
-async fn import_wallet(phrase: String) -> Result<(), Error> {
-    let wallet = Wallet::new_from_mnemonic_phrase(&phrase, None).unwrap();
-
-    println!("Wallet imported: {}", wallet.address());
+fn new_cli(
+    path: Option<String>,
+    wallet: bool,
+    account: bool,
+    phrase: Option<String>,
+) -> Result<()> {
+    if !wallet && !account {
+        bail!("Either --wallet or --account needed!");
+    }
+    if wallet {
+        new_wallet(path, phrase)?;
+    } else if phrase.is_none() {
+        bail!("To create an account --phrase needs to be provided!");
+    } else {
+        let phrase = phrase.unwrap();
+        let (wallet, uuid) = new_account(&phrase, path)?;
+        println!("Account created.");
+        println!("JSON Wallet uuid: {}\n", uuid);
+        println!("Wallet public address: {}\n", wallet.address());
+    }
     Ok(())
 }
