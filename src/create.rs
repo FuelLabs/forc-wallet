@@ -18,7 +18,8 @@ pub(crate) fn get_next_wallet_index(dir: &str) -> Result<usize, Error> {
 pub(crate) async fn create_wallet(path: Option<PathBuf>) -> Result<(), Error> {
     // Generate wallet from mnenomic phrase.
     let mnemonic = Wallet::generate_mnemonic_phrase(&mut rand::thread_rng(), 12).unwrap();
-    let wallet = Wallet::new_from_mnemonic_phrase(&mnemonic, None).unwrap();
+    let wallet =
+        Wallet::new_from_mnemonic_phrase_with_path(&mnemonic, None, "m/44'/60'/0'/0/0").unwrap();
 
     let password =
         rpassword::prompt_password("Please enter a password to encrypt this private key: ")
