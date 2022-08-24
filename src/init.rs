@@ -26,7 +26,7 @@ pub(crate) fn init_wallet(path: Option<String>) -> Result<()> {
         }
     };
     // Generate mnenomic phrase
-    let mnemonic = Wallet::generate_mnemonic_phrase(&mut rand::thread_rng(), 12)?;
+    let mnemonic = Wallet::generate_mnemonic_phrase(&mut rand::thread_rng(), 24)?;
     // Encyrpt and store it
     let mnemonic_bytes: Vec<u8> = mnemonic.bytes().collect();
     let password = rpassword::prompt_password(
