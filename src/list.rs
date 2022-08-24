@@ -1,36 +1,28 @@
-use crate::utils::parse_wallet_path;
+use crate::utils::{derived_wallets, DEFAULT_WALLETS_VAULT_PATH};
 use crate::Error;
+use fuels::prelude::*;
+use std::path::{Path, PathBuf};
 
-/// Walks through the wallets vault directory `dir` and returns a Vec of the wallets as an
-/// `(index,address)` tuple.
-pub(crate) fn get_wallets_list(dir: &str) -> Result<Vec<(usize, String)>, Error> {
-    let path = home::home_dir().unwrap().join(dir);
-
-    // list directories in the path
-    let dirs = std::fs::read_dir(&path)
-        .map_err(|_| Error::WalletError(format!("Could not read directory {:?}", path)))?;
-
-    let mut wallets = Vec::new();
-
-    for dir in dirs {
-        let dir = dir.unwrap();
-        let path = dir.path();
-
-        if path.is_dir() {
-            let (index, address) = parse_wallet_path(path)?;
-            let s = format!("[{}].         0x{}", index, address);
-            wallets.push((index, s));
-        }
-    }
-
-    let mut sorted_wallets = wallets.into_iter().collect::<Vec<_>>();
-    sorted_wallets.sort_by_key(|k| k.0); // Sort by the index
-    Ok(sorted_wallets)
+/// Returns index - public address pair for derived accounts
+pub(crate) fn get_wallets_list(path: &Path) -> Result<Vec<(usize, String)>, Error> {
+    let wallets = derived_wallets(path)?
+        .iter()
+        .enumerate()
+        .map(|(index, wallet)| (index, wallet.address().to_string()))
+        .collect();
+    Ok(wallets)
 }
 
-pub(crate) fn print_wallet_list(dir: String) -> Result<(), Error> {
-    for wallet in get_wallets_list(&dir)? {
-        println!("{}", wallet.1);
+pub(crate) fn print_wallet_list(path: Option<String>) -> Result<(), Error> {
+    let wallet_path = match &path {
+        Some(path) => PathBuf::from(path),
+        None => home::home_dir().unwrap().join(DEFAULT_WALLETS_VAULT_PATH),
+    };
+    let wallets = get_wallets_list(&wallet_path)?;
+    println!("#   address\n");
+    for wallet in wallets {
+        let (index, address) = wallet;
+        println!("[{}] {}", index, address);
     }
     Ok(())
 }

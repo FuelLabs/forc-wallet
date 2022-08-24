@@ -4,7 +4,7 @@ use anyhow::{bail, Result};
 use fuels::signers::wallet::Wallet;
 use termion::screen::AlternateScreen;
 
-use crate::{account::DEFAULT_WALLETS_VAULT_PATH, utils::clear_wallets_vault};
+use crate::utils::{clear_wallets_vault, DEFAULT_WALLETS_VAULT_PATH};
 
 pub(crate) fn init_wallet(path: Option<String>) -> Result<()> {
     let wallet_path = match &path {

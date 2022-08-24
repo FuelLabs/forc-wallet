@@ -3,12 +3,10 @@ mod init;
 mod list;
 mod utils;
 
-use crate::account::{new_account, DEFAULT_WALLETS_VAULT_PATH};
-use crate::list::print_wallet_list;
+use crate::{account::new_account, init::init_wallet, list::print_wallet_list};
 use anyhow::Result;
 use clap::{ArgEnum, Parser, Subcommand};
 use fuels::prelude::*;
-use init::init_wallet;
 
 #[derive(Debug, Parser)]
 #[clap(
@@ -26,11 +24,11 @@ struct App {
 #[derive(Debug, Subcommand)]
 #[clap(rename_all = "kebab-case")]
 enum Command {
-    /// Generate a new account for the initialized HD wallet
+    /// Generate a new account for the initialized HD wallet.
     New { path: Option<String> },
-    /// Initialize the HD wallet. If it is already initialized this will remove the old one
+    /// Initialize the HD wallet. If it is already initialized this will remove the old one.
     Init { path: Option<String> },
-    /// Lists all wallets stored in `path`, or in `~/.fuel/wallets/`.
+    /// Lists all accounts derived so far.
     List { path: Option<String> },
 }
 
@@ -47,9 +45,7 @@ async fn main() -> Result<()> {
 
     match app.command {
         Command::New { path } => new_account(path)?,
-        Command::List { path } => {
-            print_wallet_list(path.unwrap_or_else(|| DEFAULT_WALLETS_VAULT_PATH.to_string()))?
-        }
+        Command::List { path } => print_wallet_list(path)?,
         Command::Init { path } => init_wallet(path)?,
     };
     Ok(())
