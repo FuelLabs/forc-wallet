@@ -9,19 +9,19 @@ use crate::utils::{clear_wallets_vault, DEFAULT_WALLETS_VAULT_PATH};
 pub(crate) fn init_wallet(path: Option<String>) -> Result<()> {
     let wallet_path = match &path {
         Some(path) => {
-            // If the provided path does not exists create it
-            std::fs::create_dir_all(path)?;
             // If the provided path exists but used clear it
             clear_wallets_vault(&PathBuf::from(&path))?;
+            // If the provided path does not exists create it
+            std::fs::create_dir_all(path)?;
             PathBuf::from(path)
         }
         None => {
             let mut path = home::home_dir().unwrap();
             path.push(DEFAULT_WALLETS_VAULT_PATH);
-            // If the default vault path does not exists create it
-            std::fs::create_dir_all(&path)?;
             // If the default vault path exists but used clear it
             clear_wallets_vault(&path)?;
+            // If the default vault path does not exists create it
+            std::fs::create_dir_all(&path)?;
             path
         }
     };
