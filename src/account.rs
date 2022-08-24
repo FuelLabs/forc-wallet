@@ -1,5 +1,5 @@
 use crate::list::get_wallets_list;
-use anyhow::Result;
+use anyhow::{bail, Result};
 use fuels::prelude::*;
 use fuels::signers::wallet::Wallet;
 use std::path::PathBuf;
@@ -22,8 +22,12 @@ pub(crate) fn new_account(path: Option<String>) -> Result<()> {
         Some(path) => PathBuf::from(path),
         None => home::home_dir().unwrap().join(DEFAULT_WALLETS_VAULT_PATH),
     };
+    if !wallet_path.join(".wallet").exists() {
+        bail!("Wallet is not initialized, please initialize a wallet before creating an account! To initialize a wallet: \"forc-wallet init\"");
+    }
     let account_index =
         get_next_wallet_index(&path.unwrap_or_else(|| DEFAULT_WALLETS_VAULT_PATH.to_string()))?;
+    println!("Generating account with index: {}", account_index);
     let derive_path = format!("m/44'/60'/{}'/0/0", account_index);
     let password = rpassword::prompt_password(
         "Please enter your password to decrypt initialized wallet's phrases: ",
@@ -40,8 +44,7 @@ pub(crate) fn new_account(path: Option<String>) -> Result<()> {
     let confirmation = rpassword::prompt_password("Please confirm your password: ").unwrap();
 
     if password != confirmation {
-        println!("Passwords do not match -- try again!");
-        std::process::exit(1);
+        bail!("Passwords do not match -- try again!");
     }
 
     // TODO: check that the path has the right index??? not rly sure
@@ -62,8 +65,8 @@ pub(crate) fn new_account(path: Option<String>) -> Result<()> {
     // Encrypt the wallet and store it in the vault.
     let uuid = wallet.encrypt(wallet_path, password).unwrap();
 
-    println!("JSON Wallet uuid: {}\n", uuid);
-    println!("Wallet public address: {}\n", wallet.address());
+    println!("\nJSON Wallet uuid: {}", uuid);
+    println!("Wallet public address: {}", wallet.address());
 
     Ok(())
 }

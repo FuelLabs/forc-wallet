@@ -1,6 +1,6 @@
 use std::{io::Write, path::PathBuf};
 
-use anyhow::Result;
+use anyhow::{bail, Result};
 use fuels::signers::wallet::Wallet;
 use termion::screen::AlternateScreen;
 
@@ -29,7 +29,14 @@ pub(crate) fn init_wallet(path: Option<String>) -> Result<()> {
     let mnemonic = Wallet::generate_mnemonic_phrase(&mut rand::thread_rng(), 12)?;
     // Encyrpt and store it
     let mnemonic_bytes: Vec<u8> = mnemonic.bytes().collect();
-    let password = rpassword::prompt_password("Please enter a password to encrypt the phrases: ")?;
+    let password = rpassword::prompt_password(
+        "Mnemonic phrase generated. Please enter a password to encrypt the phrase: ",
+    )?;
+    let confirmation = rpassword::prompt_password("Please confirm your password: ")?;
+
+    if password != confirmation {
+        bail!("Passwords do not match -- try again!");
+    }
     eth_keystore::encrypt_key(
         &wallet_path,
         &mut rand::thread_rng(),

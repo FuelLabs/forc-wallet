@@ -21,6 +21,7 @@ pub(crate) fn parse_wallet_path(filepath: PathBuf) -> Result<(usize, String), Er
 
 pub(crate) fn clear_wallets_vault(path: &PathBuf) -> Result<()> {
     if path.exists() {
+        println!("Clearing existing vault\n");
         for entry in fs::read_dir(path)? {
             let entry = entry?;
             if entry.file_type()?.is_dir() {
