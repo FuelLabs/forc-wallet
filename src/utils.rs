@@ -19,10 +19,15 @@ pub(crate) fn parse_wallet_path(filepath: PathBuf) -> Result<(usize, String), Er
     Ok((index, address))
 }
 
-pub(crate) fn clear_wallets_vault(path: PathBuf) -> Result<()> {
+pub(crate) fn clear_wallets_vault(path: &PathBuf) -> Result<()> {
     if path.exists() {
         for entry in fs::read_dir(path)? {
-            fs::remove_dir_all(entry?.path())?;
+            let entry = entry?;
+            if entry.file_type()?.is_dir() {
+                fs::remove_dir_all(entry.path())?;
+            } else {
+                fs::remove_file(entry.path())?;
+            }
         }
     }
     Ok(())
