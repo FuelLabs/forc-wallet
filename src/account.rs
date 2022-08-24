@@ -28,7 +28,7 @@ pub(crate) fn new_account(path: Option<String>) -> Result<()> {
     let account_index =
         get_next_wallet_index(&path.unwrap_or_else(|| DEFAULT_WALLETS_VAULT_PATH.to_string()))?;
     println!("Generating account with index: {}", account_index);
-    let derive_path = format!("m/44'/60'/{}'/0/0", account_index);
+    let derive_path = format!("m/44'/1179993420'/{}'/0/0", account_index);
     let password = rpassword::prompt_password(
         "Please enter your password to decrypt initialized wallet's phrases: ",
     )?;
