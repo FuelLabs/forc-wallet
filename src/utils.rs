@@ -1,19 +1,54 @@
-use crate::Error;
-use std::path::PathBuf;
+use anyhow::Result;
+use fuels::signers::wallet::Wallet;
+use std::{fs, path::Path};
 
-pub(crate) fn parse_wallet_path(filepath: PathBuf) -> Result<(usize, String), Error> {
-    // Filename is the last component of the complete filepath
-    let wallet_filename = filepath.file_name().unwrap().to_str().unwrap();
-    // The filename format for a wallet (which is a directory) is <index>_<public_address>
-    let split: Vec<String> = wallet_filename.split('_').map(|s| s.to_string()).collect();
-    if split.len() != 2 {
-        return Err(Error::InvalidData(format!(
-            "Wallet filename `{}` has {} parts, expected 2",
-            wallet_filename,
-            split.len()
-        )));
+pub(crate) const DEFAULT_WALLETS_VAULT_PATH: &str = ".fuel/wallets/";
+
+pub(crate) fn clear_wallets_vault(path: &Path) -> Result<()> {
+    if path.exists() {
+        println!("Clearing existing vault\n");
+        for entry in fs::read_dir(path)? {
+            let entry = entry?;
+            if entry.file_type()?.is_dir() {
+                fs::remove_dir_all(entry.path())?;
+            } else {
+                fs::remove_file(entry.path())?;
+            }
+        }
     }
-    let index = split.first().unwrap().parse::<usize>().unwrap();
-    let address = split.last().unwrap().clone();
-    Ok((index, address))
+    Ok(())
+}
+
+/// Create the `.accounts` file which holds the number of derived accounts so far
+pub(crate) fn create_accounts_file(path: &Path, number_of_derived: usize) -> Result<()> {
+    fs::write(path.join(".accounts"), number_of_derived.to_string())?;
+    Ok(())
+}
+
+/// Read the number of accounts from `.accounts` file
+pub(crate) fn number_of_derived_accounts(path: &Path) -> Result<usize> {
+    let accounts_file_content = fs::read_to_string(path.join(".accounts"));
+    if let Ok(accounts_file_content) = accounts_file_content {
+        Ok(accounts_file_content.parse()?)
+    } else {
+        Ok(0)
+    }
+}
+
+/// Derives the already created accounts
+pub(crate) fn derived_wallets(path: &Path) -> Result<Vec<Wallet>> {
+    let mut wallets = Vec::new();
+    let number_of_previously_derived = number_of_derived_accounts(path)?;
+    let password = rpassword::prompt_password(
+        "Please enter your password to decrypt initialized wallet's phrases: ",
+    )?;
+    let phrase_recovered = eth_keystore::decrypt_key(path.join(".wallet"), password)?;
+    let phrase = String::from_utf8(phrase_recovered)?;
+
+    for account_index in 0..number_of_previously_derived {
+        let derive_path = format!("m/44'/1179993420'/{}'/0/0", account_index);
+        let wallet = Wallet::new_from_mnemonic_phrase_with_path(&phrase, None, &derive_path)?;
+        wallets.push(wallet);
+    }
+    Ok(wallets)
 }

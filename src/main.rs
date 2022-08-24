@@ -1,13 +1,12 @@
-mod create;
+mod account;
+mod init;
 mod list;
 mod utils;
 
-use crate::create::{create_wallet, DEFAULT_WALLETS_VAULT_PATH};
-use crate::list::print_wallet_list;
+use crate::{account::new_account, init::init_wallet, list::print_wallet_list};
+use anyhow::Result;
 use clap::{ArgEnum, Parser, Subcommand};
 use fuels::prelude::*;
-use fuels::signers::wallet::Wallet;
-use std::path::PathBuf;
 
 #[derive(Debug, Parser)]
 #[clap(
@@ -25,17 +24,11 @@ struct App {
 #[derive(Debug, Subcommand)]
 #[clap(rename_all = "kebab-case")]
 enum Command {
-    /// Randomly generate a new wallet. By default, wallets are stored in ~/.fuel/wallets/.
-    New {
-        #[clap(required = false, parse(from_os_str))]
-        path: Option<PathBuf>,
-    },
-    /// Import a wallet from mnemonic phrase
-    Import {
-        /// The Bip39 phrase to import the wallet from
-        phrase: String,
-    },
-    /// Lists all wallets stored in `path`, or in `~/.fuel/wallets/`.
+    /// Generate a new account for the initialized HD wallet.
+    New { path: Option<String> },
+    /// Initialize the HD wallet. If it is already initialized this will remove the old one.
+    Init { path: Option<String> },
+    /// Lists all accounts derived so far.
     List { path: Option<String> },
 }
 
@@ -47,22 +40,13 @@ enum OutputFormat {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Error> {
+async fn main() -> Result<()> {
     let app = App::parse();
 
-    let _ = match app.command {
-        Command::New { path } => create_wallet(path).await,
-        Command::Import { phrase } => import_wallet(phrase).await,
-        Command::List { path } => {
-            print_wallet_list(path.unwrap_or_else(|| DEFAULT_WALLETS_VAULT_PATH.to_string()))
-        }
+    match app.command {
+        Command::New { path } => new_account(path)?,
+        Command::List { path } => print_wallet_list(path)?,
+        Command::Init { path } => init_wallet(path)?,
     };
-    Ok(())
-}
-
-async fn import_wallet(phrase: String) -> Result<(), Error> {
-    let wallet = Wallet::new_from_mnemonic_phrase(&phrase, None).unwrap();
-
-    println!("Wallet imported: {}", wallet.address());
     Ok(())
 }

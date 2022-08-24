@@ -12,6 +12,7 @@ description = "A forc plugin for generating or importing wallets using BIP39 phr
 [dependencies]
 anyhow = "1.0"
 clap = { version = "3.1", features = ["derive"] }
+eth-keystore = { version = "0.4" }
 fuel-crypto = "0.6"
 fuel-types = "0.5"
 fuels = { version = "0.20", default-features = false }
