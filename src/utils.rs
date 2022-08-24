@@ -1,6 +1,7 @@
 use anyhow::{anyhow, Result};
 use fuel_crypto::SecretKey;
 use serde::{Deserialize, Serialize};
+use std::io::Read;
 use std::{fs, path::Path};
 
 pub(crate) const DEFAULT_WALLETS_VAULT_PATH: &str = ".fuel/wallets/";
@@ -73,4 +74,23 @@ pub(crate) fn derive_account_with_index(path: &Path, account_index: usize) -> Re
     let derive_path = format!("m/44'/1179993420'/{}'/0/0", account_index);
     let secret_key = SecretKey::new_from_mnemonic_phrase_with_path(&phrase, &derive_path)?;
     Ok(secret_key)
+}
+
+pub(crate) fn wait_for_keypress() {
+    let mut single_key = [0u8];
+    std::io::stdin().read_exact(&mut single_key).unwrap();
+}
+
+pub(crate) fn request_new_password() -> String {
+    let password =
+        rpassword::prompt_password("Please enter a password to encrypt this private key: ")
+            .unwrap();
+
+    let confirmation = rpassword::prompt_password("Please confirm your password: ").unwrap();
+
+    if password != confirmation {
+        println!("Passwords do not match -- try again!");
+        std::process::exit(1);
+    }
+    password
 }
