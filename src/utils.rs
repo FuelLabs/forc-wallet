@@ -46,14 +46,14 @@ pub(crate) fn clear_wallets_vault(path: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Create the `.accounts` file which holds the number of derived accounts so far
+/// Create the `.accounts` file which holds the addresses of accounts derived so far
 pub(crate) fn create_accounts_file(path: &Path, accounts: Vec<String>) -> Result<()> {
     let account_file = serde_json::to_string(&Accounts::new(accounts))?;
     fs::write(path.join(".accounts"), account_file)?;
     Ok(())
 }
 
-/// Read the number of accounts from `.accounts` file
+/// Returns the number of the accounts derived so far by reading the .accounts file from given path
 pub(crate) fn number_of_derived_accounts(path: &Path) -> usize {
     let accounts = Accounts::from_dir(path);
     if let Ok(accounts) = accounts {
