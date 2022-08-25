@@ -3,7 +3,11 @@ mod init;
 mod list;
 mod utils;
 
-use crate::{account::new_account, init::init_wallet, list::print_wallet_list};
+use crate::{
+    account::{new_account, print_account_address},
+    init::init_wallet,
+    list::print_wallet_list,
+};
 use anyhow::Result;
 use clap::{ArgEnum, Parser, Subcommand};
 use fuels::prelude::*;
@@ -30,6 +34,11 @@ enum Command {
     Init { path: Option<String> },
     /// Lists all accounts derived so far.
     List { path: Option<String> },
+    /// Get the address of an acccount from account index
+    Account {
+        account_index: usize,
+        path: Option<String>,
+    },
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, ArgEnum)]
@@ -47,6 +56,10 @@ async fn main() -> Result<()> {
         Command::New { path } => new_account(path)?,
         Command::List { path } => print_wallet_list(path)?,
         Command::Init { path } => init_wallet(path)?,
+        Command::Account {
+            account_index,
+            path,
+        } => print_account_address(path, account_index)?,
     };
     Ok(())
 }
