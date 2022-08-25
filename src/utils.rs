@@ -1,8 +1,35 @@
-use anyhow::Result;
-use fuels::signers::wallet::Wallet;
+use anyhow::{anyhow, Result};
+use serde::{Deserialize, Serialize};
 use std::{fs, path::Path};
 
 pub(crate) const DEFAULT_WALLETS_VAULT_PATH: &str = ".fuel/wallets/";
+
+#[derive(Serialize, Deserialize)]
+pub(crate) struct Accounts {
+    addresses: Vec<String>,
+}
+
+impl Accounts {
+    pub(crate) fn new(addresses: Vec<String>) -> Accounts {
+        Accounts { addresses }
+    }
+
+    pub(crate) fn from_dir(path: &Path) -> Result<Accounts> {
+        let accounts_file_path = path.join(".accounts");
+        if !accounts_file_path.exists() {
+            Ok(Accounts { addresses: vec![] })
+        } else {
+            let account_file = fs::read_to_string(path.join(".accounts"))?;
+            let accounts = serde_json::from_str(&account_file)
+                .map_err(|e| anyhow!("failed to parse .accounts: {}.", e))?;
+            Ok(accounts)
+        }
+    }
+
+    pub(crate) fn addresses(&self) -> &[String] {
+        &self.addresses
+    }
+}
 
 pub(crate) fn clear_wallets_vault(path: &Path) -> Result<()> {
     if path.exists() {
@@ -20,35 +47,18 @@ pub(crate) fn clear_wallets_vault(path: &Path) -> Result<()> {
 }
 
 /// Create the `.accounts` file which holds the number of derived accounts so far
-pub(crate) fn create_accounts_file(path: &Path, number_of_derived: usize) -> Result<()> {
-    fs::write(path.join(".accounts"), number_of_derived.to_string())?;
+pub(crate) fn create_accounts_file(path: &Path, accounts: Vec<String>) -> Result<()> {
+    let account_file = serde_json::to_string(&Accounts::new(accounts))?;
+    fs::write(path.join(".accounts"), account_file)?;
     Ok(())
 }
 
 /// Read the number of accounts from `.accounts` file
-pub(crate) fn number_of_derived_accounts(path: &Path) -> Result<usize> {
-    let accounts_file_content = fs::read_to_string(path.join(".accounts"));
-    if let Ok(accounts_file_content) = accounts_file_content {
-        Ok(accounts_file_content.parse()?)
+pub(crate) fn number_of_derived_accounts(path: &Path) -> usize {
+    let accounts = Accounts::from_dir(path);
+    if let Ok(accounts) = accounts {
+        accounts.addresses().len()
     } else {
-        Ok(0)
+        0
     }
-}
-
-/// Derives the already created accounts
-pub(crate) fn derived_wallets(path: &Path) -> Result<Vec<Wallet>> {
-    let mut wallets = Vec::new();
-    let number_of_previously_derived = number_of_derived_accounts(path)?;
-    let password = rpassword::prompt_password(
-        "Please enter your password to decrypt initialized wallet's phrases: ",
-    )?;
-    let phrase_recovered = eth_keystore::decrypt_key(path.join(".wallet"), password)?;
-    let phrase = String::from_utf8(phrase_recovered)?;
-
-    for account_index in 0..number_of_previously_derived {
-        let derive_path = format!("m/44'/1179993420'/{}'/0/0", account_index);
-        let wallet = Wallet::new_from_mnemonic_phrase_with_path(&phrase, None, &derive_path)?;
-        wallets.push(wallet);
-    }
-    Ok(wallets)
 }

@@ -1,14 +1,14 @@
-use crate::utils::{derived_wallets, DEFAULT_WALLETS_VAULT_PATH};
+use crate::utils::{Accounts, DEFAULT_WALLETS_VAULT_PATH};
 use crate::Error;
-use fuels::prelude::*;
 use std::path::{Path, PathBuf};
 
 /// Returns index - public address pair for derived accounts
 pub(crate) fn get_wallets_list(path: &Path) -> Result<Vec<(usize, String)>, Error> {
-    let wallets = derived_wallets(path)?
+    let wallets = Accounts::from_dir(path)?
+        .addresses()
         .iter()
         .enumerate()
-        .map(|(index, wallet)| (index, wallet.address().to_string()))
+        .map(|(index, address)| (index, address.clone()))
         .collect();
     Ok(wallets)
 }
