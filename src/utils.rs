@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Result};
+use fuels::signers::wallet::Wallet;
 use serde::{Deserialize, Serialize};
 use std::{fs, path::Path};
 

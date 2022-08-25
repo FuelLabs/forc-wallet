@@ -41,6 +41,7 @@ enum Command {
         account_index: usize,
         path: Option<String>,
     },
+    /// Sign a transaction by providing its ID and the signing account's index
     Sign {
         id: String,
         account_index: usize,
