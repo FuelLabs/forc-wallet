@@ -6,6 +6,20 @@ use fuels::prelude::*;
 use fuels::signers::wallet::Wallet;
 use std::path::PathBuf;
 
+pub(crate) fn print_account_address(path: Option<String>, account_index: usize) -> Result<()> {
+    let wallet_path = match &path {
+        Some(path) => PathBuf::from(path),
+        None => home::home_dir().unwrap().join(DEFAULT_WALLETS_VAULT_PATH),
+    };
+    let existing_accounts = Accounts::from_dir(&wallet_path)?;
+    if let Some(account) = existing_accounts.addresses().iter().nth(account_index) {
+        println!("Account {} address: 0x{}", account_index, account);
+    } else {
+        eprintln!("Account {} is not derived yet!", account_index);
+    }
+    Ok(())
+}
+
 pub(crate) fn new_account(path: Option<String>) -> Result<()> {
     let wallet_path = match &path {
         Some(path) => PathBuf::from(path),
