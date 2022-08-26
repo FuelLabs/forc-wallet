@@ -1,6 +1,10 @@
 use crate::utils::{Accounts, DEFAULT_WALLETS_VAULT_PATH};
 use crate::Error;
-use std::path::{Path, PathBuf};
+use fuels::prelude::*;
+use std::{
+    path::{Path, PathBuf},
+    str::FromStr,
+};
 
 /// Returns index - public address pair for derived accounts
 pub(crate) fn get_wallets_list(path: &Path) -> Result<Vec<(usize, String)>, Error> {
@@ -22,7 +26,7 @@ pub(crate) fn print_wallet_list(path: Option<String>) -> Result<(), Error> {
     println!("#   address\n");
     for wallet in wallets {
         let (index, address) = wallet;
-        println!("[{}] {}", index, address);
+        println!("[{}] 0x{}", index, Bech32Address::from_str(&address)?.hash())
     }
     Ok(())
 }

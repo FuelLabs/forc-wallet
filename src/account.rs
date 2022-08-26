@@ -2,8 +2,7 @@ use crate::utils::{
     create_accounts_file, number_of_derived_accounts, Accounts, DEFAULT_WALLETS_VAULT_PATH,
 };
 use anyhow::{bail, Result};
-use fuels::prelude::*;
-use fuels::signers::wallet::Wallet;
+use fuels::{prelude::*, signers::wallet::Wallet};
 use std::path::PathBuf;
 
 pub(crate) fn print_account_address(path: Option<String>, account_index: usize) -> Result<()> {
@@ -13,7 +12,7 @@ pub(crate) fn print_account_address(path: Option<String>, account_index: usize) 
     };
     let existing_accounts = Accounts::from_dir(&wallet_path)?;
     if let Some(account) = existing_accounts.addresses().iter().nth(account_index) {
-        println!("Account {} address: 0x{}", account_index, account);
+        println!("Account {} address: {}", account_index, account);
     } else {
         eprintln!("Account {} is not derived yet!", account_index);
     }
@@ -43,6 +42,7 @@ pub(crate) fn new_account(path: Option<String>) -> Result<()> {
     account_addresses.push(wallet.address().to_string());
     create_accounts_file(&wallet_path, account_addresses)?;
 
-    println!("Wallet public address: {}", wallet.address());
+    println!("Wallet address: {}", wallet.address());
+    println!("Wallet plain address: {}", wallet.address().hash());
     Ok(())
 }
