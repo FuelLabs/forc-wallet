@@ -26,7 +26,11 @@ pub(crate) fn print_wallet_list(path: Option<String>) -> Result<(), Error> {
     println!("#   address\n");
     for wallet in wallets {
         let (index, address) = wallet;
-        println!("[{}] 0x{}", index, Bech32Address::from_str(&address)?.hash())
+        println!(
+            "[{}] 0x{}",
+            index,
+            Bech32Address::from_str(&address)?.hash()
+        )
     }
     Ok(())
 }
