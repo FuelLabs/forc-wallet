@@ -43,6 +43,5 @@ pub(crate) fn new_account(path: Option<String>) -> Result<()> {
     create_accounts_file(&wallet_path, account_addresses)?;
 
     println!("Wallet address: {}", wallet.address());
-    println!("Wallet plain address: {}", wallet.address().hash());
     Ok(())
 }

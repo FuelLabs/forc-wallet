@@ -16,8 +16,8 @@ pub(crate) async fn sign_transaction_manually(
     };
     let tx_id = Bytes32::from_str(id).map_err(|e| anyhow!("{}", e))?;
     let secret_key = derive_account_with_index(&wallet_path, account_index)?;
-    let message = unsafe { Message::from_bytes_unchecked(*tx_id) };
-    let sig = Signature::sign(&secret_key, &message);
+    let message_hash = unsafe { Message::from_bytes_unchecked(*tx_id) };
+    let sig = Signature::sign(&secret_key, &message_hash);
     println!("Signature: {sig}");
     Ok(())
 }
