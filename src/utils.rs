@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Result};
+use fuel_crypto::SecretKey;
 use serde::{Deserialize, Serialize};
 use std::{fs, path::Path};
 
@@ -61,4 +62,15 @@ pub(crate) fn number_of_derived_accounts(path: &Path) -> usize {
     } else {
         0
     }
+}
+
+pub(crate) fn derive_account_with_index(path: &Path, account_index: usize) -> Result<SecretKey> {
+    let password = rpassword::prompt_password(
+        "Please enter your password to decrypt initialized wallet's phrases: ",
+    )?;
+    let phrase_recovered = eth_keystore::decrypt_key(path.join(".wallet"), password)?;
+    let phrase = String::from_utf8(phrase_recovered)?;
+    let derive_path = format!("m/44'/1179993420'/{}'/0/0", account_index);
+    let secret_key = SecretKey::new_from_mnemonic_phrase_with_path(&phrase, &derive_path)?;
+    Ok(secret_key)
 }
