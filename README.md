@@ -7,7 +7,7 @@ A forc plugin for managing Fuel wallets.
 To install `forc-wallet` you can use `cargo install`:
 
 ```sh
-cargo install fuel-wallet
+cargo install forc-wallet
 ```
 
 ### Initialize
