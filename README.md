@@ -1,26 +1,57 @@
-forc-wallet
-===
+# forc-wallet
 
 A forc plugin for managing Fuel wallets.
 
-## Instructions
+## Quickstart
 
-```shell
-cargo run -- --help
+To install `forc-wallet` you can use `cargo install`:
+
+```sh
+cargo install forc-wallet
 ```
 
+### Initialize
+
+Before creating accounts and signing transactions with them you need to initialize a new HD wallet. To do so:
+
+```sh
+forc-wallet init
 ```
-USAGE:
-    forc-wallet [OPTIONS] <SUBCOMMAND>
 
-OPTIONS:
-    -h, --help            Print help information
-    -o, --format <FMT>    [default: json] [possible values: json, toml]
-    -V, --version         Print version information
+This will require a password for encyrpting the wallet. After the initialization is done you will be given the mnemonic phrase of the wallet.
 
-SUBCOMMANDS:
-    help      Print this message or the help of the given subcommand(s)
-    import    Import a wallet from mnemonic phrase
-    list      Lists all wallets stored in ~/.fuel/wallets/
-    new       Randomly generate a new wallet. By default, wallets are stored in ~/.fuel/wallets/
+### Create an account
+
+To create an account for the initialized wallet, you can run:
+
+```sh
+forc-wallet new
+```
+
+This will require your wallet password (the one that you choosed in the initialization step). This will always derive the next account.
+
+### Sign a transaction
+
+To sign a transaction, you need to have the transaction ID. You can generate a transaction and get its ID using `forc-client`. Signing the transaction once you have the ID is simple:
+
+```sh
+forc-wallet sign <transaction_id> <account_index>
+```
+
+## Other useful commands
+
+### List accounts
+
+To list all accounts derived so far:
+
+```sh
+forc-wallet list
+```
+
+### Get address of an account
+
+To retrieve the address of a specific account, you can use:
+
+```sh
+forc-wallet account <account_index>
 ```
