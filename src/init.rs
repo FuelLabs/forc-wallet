@@ -1,32 +1,21 @@
-use std::{io::Write, path::PathBuf};
+use std::io::Write;
 
+use crate::Error;
 use anyhow::Result;
 use fuels::signers::wallet::Wallet;
 use termion::screen::AlternateScreen;
 
-use crate::utils::{
-    clear_wallets_vault, request_new_password, wait_for_keypress, DEFAULT_WALLETS_VAULT_PATH,
-};
+use crate::utils::{handle_vault_path_option, request_new_password, wait_for_keypress};
 
-pub(crate) fn init_wallet(path: Option<String>) -> Result<()> {
-    let wallet_path = match &path {
-        Some(path) => {
-            // If the provided path exists but used clear it
-            clear_wallets_vault(&PathBuf::from(&path))?;
-            // If the provided path does not exists create it
-            std::fs::create_dir_all(path)?;
-            PathBuf::from(path)
-        }
-        None => {
-            let mut path = home::home_dir().unwrap();
-            path.push(DEFAULT_WALLETS_VAULT_PATH);
-            // If the default vault path exists but is used clear it
-            clear_wallets_vault(&path)?;
-            // If the default vault path does not exists create it
-            std::fs::create_dir_all(&path)?;
-            path
-        }
-    };
+pub(crate) fn init_wallet(path: Option<String>) -> Result<(), Error> {
+    let vault_path = handle_vault_path_option(path)?;
+    if vault_path.exists() {
+        // TODO(?): add CLI interactivity to override
+        return Err(Error::WalletError(format!(
+            "Cannot init vault at {:?}, the directory already exists!",
+            vault_path
+        )));
+    }
     // Generate mnemonic phrase
     let mnemonic = Wallet::generate_mnemonic_phrase(&mut rand::thread_rng(), 24)?;
     // Encrypt and store it
@@ -34,12 +23,18 @@ pub(crate) fn init_wallet(path: Option<String>) -> Result<()> {
     let password = request_new_password();
 
     eth_keystore::encrypt_key(
-        &wallet_path,
+        &vault_path,
         &mut rand::thread_rng(),
         mnemonic_bytes,
         &password,
         Some(".wallet"),
-    )?;
+    )
+    .unwrap_or_else(|error| {
+        panic!(
+            "Cannot create eth_keystore at {:?}: {:?}",
+            vault_path, error
+        )
+    });
     // Print to an alternate screen, so the mnemonic phrase isn't printed to the terminal.
     let mut screen = AlternateScreen::from(std::io::stdout());
     writeln!(screen, "Wallet mnemonic phrase: {}\n", mnemonic)?;
