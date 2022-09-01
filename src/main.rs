@@ -33,7 +33,12 @@ enum Command {
     /// Generate a new account for the initialized HD wallet.
     New { path: Option<String> },
     /// Initialize the HD wallet. If it is already initialized this will remove the old one.
-    Init { path: Option<String> },
+    Init {
+        #[clap(long)]
+        phrase: Option<String>,
+        #[clap(long)]
+        path: Option<String>,
+    },
     /// Lists all accounts derived so far.
     List { path: Option<String> },
     /// Get the address of an acccount from account index
@@ -63,7 +68,7 @@ async fn main() -> Result<()> {
     match app.command {
         Command::New { path } => new_account(path)?,
         Command::List { path } => print_wallet_list(path)?,
-        Command::Init { path } => init_wallet(path)?,
+        Command::Init { phrase, path } => init_wallet(phrase, path)?,
         Command::Account {
             account_index,
             path,

@@ -6,7 +6,7 @@ use termion::screen::AlternateScreen;
 
 use crate::utils::{clear_wallets_vault, DEFAULT_WALLETS_VAULT_PATH};
 
-pub(crate) fn init_wallet(path: Option<String>) -> Result<()> {
+pub(crate) fn init_wallet(phrase: Option<String>, path: Option<String>) -> Result<()> {
     let wallet_path = match &path {
         Some(path) => {
             // If the provided path exists but used clear it
@@ -25,8 +25,18 @@ pub(crate) fn init_wallet(path: Option<String>) -> Result<()> {
             path
         }
     };
-    // Generate mnenomic phrase
-    let mnemonic = Wallet::generate_mnemonic_phrase(&mut rand::thread_rng(), 24)?;
+
+    let mnemonic = if let Some(phrase) = phrase {
+        // Check users's phrase by trying to create a wallet from it
+        if let Err(e) = Wallet::new_from_mnemonic_phrase(&phrase, None) {
+            bail!("Please check your phrase: {e}");
+        }
+        // Use users's phrase
+        phrase
+    } else {
+        // Generate mnenomic phrase
+        Wallet::generate_mnemonic_phrase(&mut rand::thread_rng(), 24)?
+    };
     // Encyrpt and store it
     let mnemonic_bytes: Vec<u8> = mnemonic.bytes().collect();
     let password = rpassword::prompt_password(
