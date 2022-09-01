@@ -6,7 +6,7 @@ use termion::screen::AlternateScreen;
 
 use crate::utils::{clear_wallets_vault, DEFAULT_WALLETS_VAULT_PATH};
 
-pub(crate) fn init_wallet(phrase: Option<String>, path: Option<String>) -> Result<()> {
+pub(crate) fn init_wallet(import: bool, path: Option<String>) -> Result<()> {
     let wallet_path = match &path {
         Some(path) => {
             // If the provided path exists but used clear it
@@ -26,7 +26,8 @@ pub(crate) fn init_wallet(phrase: Option<String>, path: Option<String>) -> Resul
         }
     };
 
-    let mnemonic = if let Some(phrase) = phrase {
+    let mnemonic = if import {
+        let phrase = rpassword::prompt_password("Please enter your mnemonic phrase: ")?;
         // Check users's phrase by trying to create a wallet from it
         if let Err(e) = Wallet::new_from_mnemonic_phrase(&phrase, None) {
             bail!("Please check your phrase: {e}");
@@ -35,13 +36,13 @@ pub(crate) fn init_wallet(phrase: Option<String>, path: Option<String>) -> Resul
         phrase
     } else {
         // Generate mnenomic phrase
-        Wallet::generate_mnemonic_phrase(&mut rand::thread_rng(), 24)?
+        let phrase = Wallet::generate_mnemonic_phrase(&mut rand::thread_rng(), 24)?;
+        println!("Mnemonic phrase generated.");
+        phrase
     };
     // Encyrpt and store it
     let mnemonic_bytes: Vec<u8> = mnemonic.bytes().collect();
-    let password = rpassword::prompt_password(
-        "Mnemonic phrase generated. Please enter a password to encrypt the phrase: ",
-    )?;
+    let password = rpassword::prompt_password("Please enter a password to encrypt the phrase: ")?;
     let confirmation = rpassword::prompt_password("Please confirm your password: ")?;
 
     if password != confirmation {
@@ -54,11 +55,13 @@ pub(crate) fn init_wallet(phrase: Option<String>, path: Option<String>) -> Resul
         &password,
         Some(".wallet"),
     )?;
-    let mut screen = AlternateScreen::from(std::io::stdout());
-    writeln!(screen, "Wallet mnemonic phrase: {}\n", mnemonic)?;
-    screen.flush()?;
-    let mut input = String::new();
-    println!("### Do not share or lose this mnemonic phrase! Press any key to complete. ###");
-    std::io::stdin().read_line(&mut input)?;
+    if !import {
+        let mut screen = AlternateScreen::from(std::io::stdout());
+        writeln!(screen, "Wallet mnemonic phrase: {}\n", mnemonic)?;
+        screen.flush()?;
+        let mut input = String::new();
+        println!("### Do not share or lose this mnemonic phrase! Press any key to complete. ###");
+        std::io::stdin().read_line(&mut input)?;
+    }
     Ok(())
 }

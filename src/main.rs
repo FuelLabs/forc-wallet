@@ -35,7 +35,7 @@ enum Command {
     /// Initialize the HD wallet. If it is already initialized this will remove the old one.
     Init {
         #[clap(long)]
-        phrase: Option<String>,
+        import: bool,
         #[clap(long)]
         path: Option<String>,
     },
@@ -68,7 +68,7 @@ async fn main() -> Result<()> {
     match app.command {
         Command::New { path } => new_account(path)?,
         Command::List { path } => print_wallet_list(path)?,
-        Command::Init { phrase, path } => init_wallet(phrase, path)?,
+        Command::Init { import, path } => init_wallet(import, path)?,
         Command::Account {
             account_index,
             path,
