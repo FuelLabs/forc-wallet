@@ -20,6 +20,9 @@ forc-wallet init
 
 This will require a password for encyrpting the wallet. After the initialization is done you will be given the mnemonic phrase of the wallet.
 
+You can also initialize a wallet with your existing mnemonic phrase by passing `--import` to
+`forc-wallet init`.
+
 ### Create an account
 
 To create an account for the initialized wallet, you can run:
