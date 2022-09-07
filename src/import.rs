@@ -1,12 +1,9 @@
-use std::{io::Write, path::PathBuf};
-
+use crate::utils::{clear_wallets_vault, DEFAULT_WALLETS_VAULT_PATH};
 use anyhow::{bail, Result};
 use fuels::signers::wallet::Wallet;
-use termion::screen::AlternateScreen;
+use std::path::PathBuf;
 
-use crate::utils::{clear_wallets_vault, DEFAULT_WALLETS_VAULT_PATH};
-
-pub(crate) fn init_wallet(path: Option<String>) -> Result<()> {
+pub(crate) fn import_wallet(path: Option<String>) -> Result<()> {
     let wallet_path = match &path {
         Some(path) => {
             // If the provided path exists but used clear it
@@ -26,9 +23,11 @@ pub(crate) fn init_wallet(path: Option<String>) -> Result<()> {
         }
     };
 
-    // Generate mnenomic phrase
-    let mnemonic = Wallet::generate_mnemonic_phrase(&mut rand::thread_rng(), 24)?;
-    println!("Mnemonic phrase generated.");
+    let mnemonic = rpassword::prompt_password("Please enter your mnemonic phrase: ")?;
+    // Check users's phrase by trying to create a wallet from it
+    if let Err(e) = Wallet::new_from_mnemonic_phrase(&mnemonic, None) {
+        bail!("Please check your phrase: {e}");
+    }
     // Encyrpt and store it
     let mnemonic_bytes: Vec<u8> = mnemonic.bytes().collect();
     let password = rpassword::prompt_password("Please enter a password to encrypt the phrase: ")?;
@@ -44,11 +43,5 @@ pub(crate) fn init_wallet(path: Option<String>) -> Result<()> {
         &password,
         Some(".wallet"),
     )?;
-    let mut screen = AlternateScreen::from(std::io::stdout());
-    writeln!(screen, "Wallet mnemonic phrase: {}\n", mnemonic)?;
-    screen.flush()?;
-    let mut input = String::new();
-    println!("### Do not share or lose this mnemonic phrase! Press any key to complete. ###");
-    std::io::stdin().read_line(&mut input)?;
     Ok(())
 }
