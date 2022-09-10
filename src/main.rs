@@ -6,7 +6,7 @@ mod sign;
 mod utils;
 
 use crate::{
-    account::{new_account, print_account_address},
+    account::{new_account, print_account},
     import::import_wallet,
     init::init_wallet,
     list::print_wallet_list,
@@ -51,6 +51,9 @@ enum Command {
     /// Get the address of an acccount from account index
     Account {
         account_index: usize,
+        #[clap(long)]
+        export: bool,
+        #[clap(long)]
         path: Option<String>,
     },
     /// Sign a transaction by providing its ID and the signing account's index
@@ -78,8 +81,9 @@ async fn main() -> Result<()> {
         Command::Init { path } => init_wallet(path)?,
         Command::Account {
             account_index,
+            export,
             path,
-        } => print_account_address(path, account_index)?,
+        } => print_account(path, account_index, export)?,
         Command::Sign {
             id,
             account_index,
