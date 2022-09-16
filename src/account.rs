@@ -1,20 +1,40 @@
 use crate::utils::{
-    create_accounts_file, number_of_derived_accounts, Accounts, DEFAULT_WALLETS_VAULT_PATH,
+    create_accounts_file, derive_account_with_index, number_of_derived_accounts, Accounts,
+    DEFAULT_WALLETS_VAULT_PATH,
 };
 use anyhow::{bail, Result};
 use fuels::{prelude::*, signers::wallet::Wallet};
-use std::path::PathBuf;
+use std::{io::Write, path::PathBuf};
+use termion::screen::AlternateScreen;
 
-pub(crate) fn print_account_address(path: Option<String>, account_index: usize) -> Result<()> {
+pub(crate) fn print_account(
+    path: Option<String>,
+    account_index: usize,
+    export: bool,
+) -> Result<()> {
     let wallet_path = match &path {
         Some(path) => PathBuf::from(path),
         None => home::home_dir().unwrap().join(DEFAULT_WALLETS_VAULT_PATH),
     };
-    let existing_accounts = Accounts::from_dir(&wallet_path)?;
-    if let Some(account) = existing_accounts.addresses().iter().nth(account_index) {
-        println!("Account {} address: {}", account_index, account);
+    if export {
+        let secret_key = derive_account_with_index(&wallet_path, account_index)?;
+        let mut screen = AlternateScreen::from(std::io::stdout());
+        writeln!(
+            screen,
+            "Secret key for account {}: {}\n",
+            account_index, secret_key
+        )?;
+        screen.flush()?;
+        let mut input = String::new();
+        println!("### Press any key to complete. ###");
+        std::io::stdin().read_line(&mut input)?;
     } else {
-        eprintln!("Account {} is not derived yet!", account_index);
+        let existing_accounts = Accounts::from_dir(&wallet_path)?;
+        if let Some(account) = existing_accounts.addresses().iter().nth(account_index) {
+            println!("Account {} address: {}", account_index, account);
+        } else {
+            eprintln!("Account {} is not derived yet!", account_index);
+        }
     }
     Ok(())
 }

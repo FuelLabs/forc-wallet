@@ -1,11 +1,13 @@
 mod account;
+mod import;
 mod init;
 mod list;
 mod sign;
 mod utils;
 
 use crate::{
-    account::{new_account, print_account_address},
+    account::{new_account, print_account},
+    import::import_wallet,
     init::init_wallet,
     list::print_wallet_list,
     sign::sign_transaction_manually,
@@ -32,10 +34,15 @@ struct App {
 enum Command {
     /// Generate a new account for the initialized HD wallet.
     New { path: Option<String> },
-    /// Initialize the HD wallet. If it is already initialized this will remove the old one.
+    /// Initialize the HD wallet from a random mnemonic phrase. If it is already initialized this
+    /// will remove the old one.
     Init {
         #[clap(long)]
-        import: bool,
+        path: Option<String>,
+    },
+    /// Initialize the HD wallet from the provided mnemonic phrase. If it is already initialized this
+    /// will remove the old one.
+    Import {
         #[clap(long)]
         path: Option<String>,
     },
@@ -44,6 +51,9 @@ enum Command {
     /// Get the address of an acccount from account index
     Account {
         account_index: usize,
+        #[clap(long)]
+        export: bool,
+        #[clap(long)]
         path: Option<String>,
     },
     /// Sign a transaction by providing its ID and the signing account's index
@@ -68,16 +78,18 @@ async fn main() -> Result<()> {
     match app.command {
         Command::New { path } => new_account(path)?,
         Command::List { path } => print_wallet_list(path)?,
-        Command::Init { import, path } => init_wallet(import, path)?,
+        Command::Init { path } => init_wallet(path)?,
         Command::Account {
             account_index,
+            export,
             path,
-        } => print_account_address(path, account_index)?,
+        } => print_account(path, account_index, export)?,
         Command::Sign {
             id,
             account_index,
             path,
         } => sign_transaction_manually(&id, account_index, path).await?,
+        Command::Import { path } => import_wallet(path)?,
     };
     Ok(())
 }
