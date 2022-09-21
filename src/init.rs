@@ -1,7 +1,7 @@
 use std::{io::Write, path::PathBuf};
 
 use anyhow::{bail, Result};
-use fuels::signers::wallet::Wallet;
+use fuels::signers::wallet::generate_mnemonic_phrase;
 use termion::screen::AlternateScreen;
 
 use crate::utils::{clear_wallets_vault, DEFAULT_WALLETS_VAULT_PATH};
@@ -27,7 +27,7 @@ pub(crate) fn init_wallet(path: Option<String>) -> Result<()> {
     };
 
     // Generate mnenomic phrase
-    let mnemonic = Wallet::generate_mnemonic_phrase(&mut rand::thread_rng(), 24)?;
+    let mnemonic = generate_mnemonic_phrase(&mut rand::thread_rng(), 24)?;
     println!("Mnemonic phrase generated.");
     // Encyrpt and store it
     let mnemonic_bytes: Vec<u8> = mnemonic.bytes().collect();
