@@ -1,6 +1,6 @@
 use crate::utils::{clear_wallets_vault, DEFAULT_WALLETS_VAULT_PATH};
 use anyhow::{bail, Result};
-use fuels::signers::wallet::Wallet;
+use fuels::signers::wallet::WalletUnlocked;
 use std::path::PathBuf;
 
 pub(crate) fn import_wallet(path: Option<String>) -> Result<()> {
@@ -25,7 +25,7 @@ pub(crate) fn import_wallet(path: Option<String>) -> Result<()> {
 
     let mnemonic = rpassword::prompt_password("Please enter your mnemonic phrase: ")?;
     // Check users's phrase by trying to create a wallet from it
-    if let Err(e) = Wallet::new_from_mnemonic_phrase(&mnemonic, None) {
+    if let Err(e) = WalletUnlocked::new_from_mnemonic_phrase(&mnemonic, None) {
         bail!("Please check your phrase: {e}");
     }
     // Encyrpt and store it
