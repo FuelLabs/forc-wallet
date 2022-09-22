@@ -76,7 +76,7 @@ pub(crate) fn derive_account_with_index(path: &Path, account_index: usize) -> Re
     Ok(secret_key)
 }
 
-/// Returns the derivation path with accound index using the default derivation path from SDK
+/// Returns the derivation path with account index using the default derivation path from SDK
 pub(crate) fn get_derivation_path(account_index: usize) -> String {
     format!("{}/{}'/0/0", DEFAULT_DERIVATION_PATH_PREFIX, account_index)
 }
