@@ -1,10 +1,8 @@
-use std::io::Write;
-
+use crate::utils::{
+    display_string_discreetly, handle_vault_path_argument, request_new_password, wait_for_keypress,
+};
 use crate::Error;
 use fuels::signers::wallet::generate_mnemonic_phrase;
-use termion::screen::AlternateScreen;
-
-use crate::utils::{handle_vault_path_argument, request_new_password, wait_for_keypress};
 
 pub(crate) fn init_wallet(path: Option<String>) -> Result<(), Error> {
     let vault_path = handle_vault_path_argument(path)?;
@@ -34,10 +32,8 @@ pub(crate) fn init_wallet(path: Option<String>) -> Result<(), Error> {
             vault_path, error
         )
     });
-    // Print to an alternate screen, so the mnemonic phrase isn't printed to the terminal.
-    let mut screen = AlternateScreen::from(std::io::stdout());
-    writeln!(screen, "Wallet mnemonic phrase: {}\n", mnemonic)?;
-    screen.flush()?;
+    let mnemonic_string = format!("Wallet mnemonic phrase: {}\n", mnemonic);
+    display_string_discreetly(mnemonic_string)?;
     println!("### Do not share or lose this mnemonic phrase! Press any key to complete. ###");
     wait_for_keypress();
     Ok(())

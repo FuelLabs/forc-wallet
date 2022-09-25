@@ -4,9 +4,10 @@ use fuel_crypto::SecretKey;
 use fuels_signers::wallet::DEFAULT_DERIVATION_PATH_PREFIX;
 use home::home_dir;
 use serde::{Deserialize, Serialize};
-use std::io::Read;
+use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::{fs, path::Path};
+use termion::screen::AlternateScreen;
 
 pub(crate) const DEFAULT_RELATIVE_VAULT_PATH: &str = ".fuel/wallets/";
 
@@ -82,6 +83,13 @@ pub(crate) fn request_new_password() -> String {
         std::process::exit(1);
     }
     password
+}
+
+/// Print a string to an alternate screen, so the string isn't printed to the terminal.
+pub(crate) fn display_string_discreetly(discreet_string: String) -> Result<(), Error> {
+    let mut screen = AlternateScreen::from(std::io::stdout());
+    writeln!(screen, "{}", discreet_string)?;
+    Ok(screen.flush()?)
 }
 
 /// Handle the default path argument and return the right path, error out if the path is not
