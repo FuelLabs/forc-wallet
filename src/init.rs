@@ -4,10 +4,10 @@ use crate::Error;
 use fuels::signers::wallet::generate_mnemonic_phrase;
 use termion::screen::AlternateScreen;
 
-use crate::utils::{handle_vault_path_option, request_new_password, wait_for_keypress};
+use crate::utils::{handle_vault_path_argument, request_new_password, wait_for_keypress};
 
 pub(crate) fn init_wallet(path: Option<String>) -> Result<(), Error> {
-    let vault_path = handle_vault_path_option(path)?;
+    let vault_path = handle_vault_path_argument(path)?;
     if vault_path.exists() {
         // TODO(?): add CLI interactivity to override
         return Err(Error::WalletError(format!(

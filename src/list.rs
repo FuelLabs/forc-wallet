@@ -1,4 +1,4 @@
-use crate::utils::{handle_vault_path_option, Accounts};
+use crate::utils::{handle_vault_path_argument, Accounts};
 use crate::Error;
 use std::path::Path;
 
@@ -14,7 +14,7 @@ pub(crate) fn get_wallets_list(path: &Path) -> Result<Vec<(usize, String)>, Erro
 }
 
 pub(crate) fn print_wallet_list(path: Option<String>) -> Result<(), Error> {
-    let vault_path = handle_vault_path_option(path)?;
+    let vault_path = handle_vault_path_argument(path)?;
     if !vault_path.exists() {
         return Err(Error::WalletError(format!(
             "No wallets found at path {:?}",

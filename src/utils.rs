@@ -85,7 +85,7 @@ pub(crate) fn request_new_password() -> String {
 
 /// Handle the default path argument and return the right path, error out if the path is not
 /// relative to the home directory.
-pub(crate) fn handle_vault_path_option(path: Option<String>) -> Result<PathBuf, Error> {
+pub(crate) fn handle_vault_path_argument(path: Option<String>) -> Result<PathBuf, Error> {
     let vault_path = match path {
         Some(path) => PathBuf::from(path),
         None => {
@@ -110,26 +110,26 @@ mod tests {
     use super::*;
 
     #[test]
-    fn handle_none_option() -> Result<()> {
+    fn handle_none_argument() -> Result<()> {
         let mut default_relative = home_dir().unwrap();
         default_relative.push(DEFAULT_RELATIVE_VAULT_PATH);
-        assert_eq!(default_relative, handle_vault_path_option(None)?);
+        assert_eq!(default_relative, handle_vault_path_argument(None)?);
         Ok(())
     }
 
     #[test]
-    fn handle_relative_path_option() -> Result<()> {
+    fn handle_relative_path_argument() -> Result<()> {
         let mut some_relative = home_dir().unwrap();
         some_relative.push("bimbamboum");
         let some_argument = Some(some_relative.display().to_string());
-        assert_eq!(some_relative, handle_vault_path_option(some_argument)?);
+        assert_eq!(some_relative, handle_vault_path_argument(some_argument)?);
         Ok(())
     }
 
     #[test]
-    fn handle_absolute_path_option() {
+    fn handle_absolute_path_argument() {
         let absolute_path = "/bimbamboum".to_string();
-        let result = handle_vault_path_option(Some(absolute_path));
+        let result = handle_vault_path_argument(Some(absolute_path));
         let error_message = result.unwrap_err().to_string();
         assert!(error_message.contains("Please provide a path relative to the home directory!"));
     }
