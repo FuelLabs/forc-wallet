@@ -7,7 +7,7 @@ mod sign;
 mod utils;
 
 use crate::{
-    account::{new_account, print_account},
+    account::{new_account, print_account_address},
     import::import_wallet,
     init::init_wallet,
     list::print_wallet_list,
@@ -89,7 +89,7 @@ async fn main() -> Result<()> {
         Command::Account {
             account_index,
             path,
-        } => print_account(path, account_index)?,
+        } => print_account_address(path, account_index)?,
         Command::Sign {
             id,
             account_index,

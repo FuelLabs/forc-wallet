@@ -2,7 +2,7 @@ use crate::utils::{
     create_accounts_file, handle_vault_path_option, number_of_derived_accounts, Accounts,
 };
 use anyhow::{bail, Result};
-use fuels::{prelude::*, signers::wallet::Wallet};
+use fuels::prelude::*;
 
 pub(crate) fn print_account_address(path: Option<String>, account_index: usize) -> Result<()> {
     let vault_path = handle_vault_path_option(path)?;

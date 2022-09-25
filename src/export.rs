@@ -1,4 +1,4 @@
-use crate::utils::{derive_account_with_index, DEFAULT_WALLETS_VAULT_PATH};
+use crate::utils::{derive_account_with_index, DEFAULT_RELATIVE_VAULT_PATH};
 use anyhow::Result;
 use std::{io::Write, path::PathBuf};
 use termion::screen::AlternateScreen;
@@ -6,7 +6,7 @@ use termion::screen::AlternateScreen;
 pub(crate) fn export_account(path: Option<String>, account_index: usize) -> Result<()> {
     let wallet_path = match &path {
         Some(path) => PathBuf::from(path),
-        None => home::home_dir().unwrap().join(DEFAULT_WALLETS_VAULT_PATH),
+        None => home::home_dir().unwrap().join(DEFAULT_RELATIVE_VAULT_PATH),
     };
 
     let secret_key = derive_account_with_index(&wallet_path, account_index)?;

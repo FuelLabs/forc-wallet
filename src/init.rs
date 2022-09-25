@@ -1,8 +1,7 @@
 use std::io::Write;
 
 use crate::Error;
-use anyhow::Result;
-use fuels::signers::wallet::Wallet;
+use fuels::signers::wallet::generate_mnemonic_phrase;
 use termion::screen::AlternateScreen;
 
 use crate::utils::{handle_vault_path_option, request_new_password, wait_for_keypress};
@@ -17,7 +16,7 @@ pub(crate) fn init_wallet(path: Option<String>) -> Result<(), Error> {
         )));
     }
     // Generate mnemonic phrase
-    let mnemonic = Wallet::generate_mnemonic_phrase(&mut rand::thread_rng(), 24)?;
+    let mnemonic = generate_mnemonic_phrase(&mut rand::thread_rng(), 24)?;
     // Encrypt and store it
     let mnemonic_bytes: Vec<u8> = mnemonic.bytes().collect();
     let password = request_new_password();
