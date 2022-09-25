@@ -29,7 +29,7 @@ pub(crate) fn new_account(path: Option<String>) -> Result<()> {
     )?;
     let phrase_recovered = eth_keystore::decrypt_key(vault_path.join(".wallet"), password)?;
     let phrase = String::from_utf8(phrase_recovered)?;
-    let wallet = Wallet::new_from_mnemonic_phrase_with_path(&phrase, None, &derive_path)?;
+    let wallet = WalletUnlocked::new_from_mnemonic_phrase_with_path(&phrase, None, &derive_path)?;
 
     let mut account_addresses = Vec::from(existing_accounts.addresses());
     account_addresses.push(wallet.address().to_string());

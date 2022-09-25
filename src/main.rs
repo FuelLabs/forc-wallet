@@ -1,17 +1,21 @@
 mod account;
+mod export;
+mod import;
 mod init;
 mod list;
 mod sign;
 mod utils;
 
 use crate::{
-    account::{new_account, print_account_address},
+    account::{new_account, print_account},
+    import::import_wallet,
     init::init_wallet,
     list::print_wallet_list,
     sign::sign_transaction_manually,
 };
 use anyhow::Result;
 use clap::{ArgEnum, Parser, Subcommand};
+use export::export_account;
 use fuels::prelude::*;
 
 #[derive(Debug, Parser)]
@@ -32,13 +36,24 @@ struct App {
 enum Command {
     /// Generate a new account for the initialized HD wallet.
     New { path: Option<String> },
-    /// Initialize the HD wallet. If it is already initialized this will remove the old one.
-    Init { path: Option<String> },
+    /// Initialize the HD wallet from a random mnemonic phrase. If it is already initialized this
+    /// will remove the old one.
+    Init {
+        #[clap(long)]
+        path: Option<String>,
+    },
+    /// Initialize the HD wallet from the provided mnemonic phrase. If it is already initialized this
+    /// will remove the old one.
+    Import {
+        #[clap(long)]
+        path: Option<String>,
+    },
     /// Lists all accounts derived so far.
     List { path: Option<String> },
     /// Get the address of an acccount from account index
     Account {
         account_index: usize,
+        #[clap(long)]
         path: Option<String>,
     },
     /// Sign a transaction by providing its ID and the signing account's index
@@ -46,6 +61,13 @@ enum Command {
         id: String,
         account_index: usize,
         path: Option<String>,
+    },
+    /// Get the private key of an account from its index
+    Export {
+        #[clap(long)]
+        path: Option<String>,
+        #[clap(long)]
+        account_index: usize,
     },
 }
 
@@ -67,12 +89,17 @@ async fn main() -> Result<()> {
         Command::Account {
             account_index,
             path,
-        } => print_account_address(path, account_index)?,
+        } => print_account(path, account_index)?,
         Command::Sign {
             id,
             account_index,
             path,
         } => sign_transaction_manually(&id, account_index, path).await?,
+        Command::Import { path } => import_wallet(path)?,
+        Command::Export {
+            path,
+            account_index,
+        } => export_account(path, account_index)?,
     };
     Ok(())
 }
