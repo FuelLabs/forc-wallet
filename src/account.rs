@@ -2,7 +2,8 @@ use crate::utils::{
     create_accounts_file, handle_vault_path_argument, number_of_derived_accounts, Accounts,
 };
 use anyhow::{bail, Result};
-use fuels::prelude::*;
+use fuels::prelude::WalletUnlocked;
+use fuels_signers::wallet::DEFAULT_DERIVATION_PATH_PREFIX;
 
 pub(crate) fn print_account_address(path: Option<String>, account_index: usize) -> Result<()> {
     let vault_path = handle_vault_path_argument(path)?;
@@ -23,7 +24,7 @@ pub(crate) fn new_account(path: Option<String>) -> Result<()> {
     }
     let account_index = number_of_derived_accounts(&vault_path);
     println!("Generating account with index: {}", account_index);
-    let derive_path = format!("m/44'/1179993420'/{}'/0/0", account_index);
+    let derive_path = format!("{}/{}'/0/0", DEFAULT_DERIVATION_PATH_PREFIX, account_index);
     let password = rpassword::prompt_password(
         "Please enter your password to decrypt initialized wallet's phrases: ",
     )?;
