@@ -15,9 +15,11 @@ pub(crate) fn import_wallet(path: Option<String>) -> Result<(), Error> {
     let mnemonic = rpassword::prompt_password("Please enter your mnemonic phrase: ")?;
     // Check users's phrase by trying to create a wallet from it
     if WalletUnlocked::new_from_mnemonic_phrase(&mnemonic, None).is_err() {
-        return Err(Error::WalletError(format!(
-            "Cannot generate a wallet from provided mnemonics, please check your mnemonic phrase",
-        )));
+        return Err(Error::WalletError(
+            "Cannot generate a wallet from provided mnemonics, please \
+        check your mnemonic phrase"
+                .to_string(),
+        ));
     }
     // Encyrpt and store it
     let mnemonic_bytes: Vec<u8> = mnemonic.bytes().collect();
