@@ -1,6 +1,6 @@
 use crate::utils::{
-    create_accounts_file, get_derivation_path,
-    number_of_derived_accounts, Accounts, DEFAULT_WALLETS_VAULT_PATH,
+    create_accounts_file, get_derivation_path, number_of_derived_accounts, Accounts,
+    DEFAULT_WALLETS_VAULT_PATH,
 };
 use anyhow::{bail, Result};
 use fuels::{prelude::*, signers::wallet::WalletUnlocked};
