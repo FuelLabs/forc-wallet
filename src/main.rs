@@ -1,4 +1,5 @@
 mod account;
+mod export;
 mod import;
 mod init;
 mod list;
@@ -14,6 +15,7 @@ use crate::{
 };
 use anyhow::Result;
 use clap::{ArgEnum, Parser, Subcommand};
+use export::export_account;
 use fuels::prelude::*;
 
 #[derive(Debug, Parser)]
@@ -52,8 +54,6 @@ enum Command {
     Account {
         account_index: usize,
         #[clap(long)]
-        export: bool,
-        #[clap(long)]
         path: Option<String>,
     },
     /// Sign a transaction by providing its ID and the signing account's index
@@ -61,6 +61,13 @@ enum Command {
         id: String,
         account_index: usize,
         path: Option<String>,
+    },
+    /// Get the private key of an account from its index
+    Export {
+        #[clap(long)]
+        path: Option<String>,
+        #[clap(long)]
+        account_index: usize,
     },
 }
 
@@ -81,15 +88,18 @@ async fn main() -> Result<()> {
         Command::Init { path } => init_wallet(path)?,
         Command::Account {
             account_index,
-            export,
             path,
-        } => print_account(path, account_index, export)?,
+        } => print_account(path, account_index)?,
         Command::Sign {
             id,
             account_index,
             path,
         } => sign_transaction_manually(&id, account_index, path).await?,
         Command::Import { path } => import_wallet(path)?,
+        Command::Export {
+            path,
+            account_index,
+        } => export_account(path, account_index)?,
     };
     Ok(())
 }
