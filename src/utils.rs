@@ -1,5 +1,6 @@
 use anyhow::{anyhow, Result};
 use fuel_crypto::SecretKey;
+use fuels_signers::wallet::DEFAULT_DERIVATION_PATH_PREFIX;
 use serde::{Deserialize, Serialize};
 use std::{fs, path::Path};
 
@@ -70,7 +71,12 @@ pub(crate) fn derive_account_with_index(path: &Path, account_index: usize) -> Re
     )?;
     let phrase_recovered = eth_keystore::decrypt_key(path.join(".wallet"), password)?;
     let phrase = String::from_utf8(phrase_recovered)?;
-    let derive_path = format!("m/44'/1179993420'/{}'/0/0", account_index);
+    let derive_path = get_derivation_path(account_index);
     let secret_key = SecretKey::new_from_mnemonic_phrase_with_path(&phrase, &derive_path)?;
     Ok(secret_key)
+}
+
+/// Returns the derivation path with account index using the default derivation path from SDK
+pub(crate) fn get_derivation_path(account_index: usize) -> String {
+    format!("{}/{}'/0/0", DEFAULT_DERIVATION_PATH_PREFIX, account_index)
 }
