@@ -61,7 +61,7 @@ pub(crate) fn derive_account_with_index(path: &Path, account_index: usize) -> Re
     )?;
     let phrase_recovered = eth_keystore::decrypt_key(path.join(".wallet"), password)?;
     let phrase = String::from_utf8(phrase_recovered)?;
-    let derive_path = format!("{}/{}'/0/0", DEFAULT_DERIVATION_PATH_PREFIX, account_index);
+    let derive_path = get_derivation_path(account_index);
     let secret_key = SecretKey::new_from_mnemonic_phrase_with_path(&phrase, &derive_path)?;
     Ok(secret_key)
 }
@@ -69,6 +69,11 @@ pub(crate) fn derive_account_with_index(path: &Path, account_index: usize) -> Re
 pub(crate) fn wait_for_keypress() {
     let mut single_key = [0u8];
     std::io::stdin().read_exact(&mut single_key).unwrap();
+}
+
+/// Returns the derivation path with account index using the default derivation path from SDK
+pub(crate) fn get_derivation_path(account_index: usize) -> String {
+    format!("{}/{}'/0/0", DEFAULT_DERIVATION_PATH_PREFIX, account_index)
 }
 
 pub(crate) fn request_new_password() -> String {
