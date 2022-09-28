@@ -1,4 +1,4 @@
-use crate::utils::{derive_account_with_index, DEFAULT_WALLETS_VAULT_PATH};
+use crate::utils::{derive_account_with_index, DEFAULT_RELATIVE_VAULT_PATH};
 use anyhow::{anyhow, Result};
 use fuel_crypto::{Message, Signature};
 use fuel_types::Bytes32;
@@ -10,12 +10,12 @@ pub(crate) async fn sign_transaction_manually(
     account_index: usize,
     path: Option<String>,
 ) -> Result<(), Error> {
-    let wallet_path = match &path {
+    let vault_path = match &path {
         Some(path) => PathBuf::from(path),
-        None => home::home_dir().unwrap().join(DEFAULT_WALLETS_VAULT_PATH),
+        None => home::home_dir().unwrap().join(DEFAULT_RELATIVE_VAULT_PATH),
     };
     let tx_id = Bytes32::from_str(id).map_err(|e| anyhow!("{}", e))?;
-    let secret_key = derive_account_with_index(&wallet_path, account_index)?;
+    let secret_key = derive_account_with_index(&vault_path, account_index)?;
     let message_hash = unsafe { Message::from_bytes_unchecked(*tx_id) };
     let sig = Signature::sign(&secret_key, &message_hash);
     println!("Signature: {sig}");

@@ -1,47 +1,42 @@
-use crate::utils::{clear_wallets_vault, DEFAULT_WALLETS_VAULT_PATH};
-use anyhow::{bail, Result};
-use fuels::signers::wallet::Wallet;
-use std::path::PathBuf;
+use crate::utils::{handle_vault_path_argument, request_new_password};
+use crate::Error;
+use fuels::signers::wallet::WalletUnlocked;
 
-pub(crate) fn import_wallet(path: Option<String>) -> Result<()> {
-    let wallet_path = match &path {
-        Some(path) => {
-            // If the provided path exists but used clear it
-            clear_wallets_vault(&PathBuf::from(&path))?;
-            // If the provided path does not exists create it
-            std::fs::create_dir_all(path)?;
-            PathBuf::from(path)
-        }
-        None => {
-            let mut path = home::home_dir().unwrap();
-            path.push(DEFAULT_WALLETS_VAULT_PATH);
-            // If the default vault path exists but used clear it
-            clear_wallets_vault(&path)?;
-            // If the default vault path does not exists create it
-            std::fs::create_dir_all(&path)?;
-            path
-        }
-    };
+pub(crate) fn import_wallet(path: Option<String>) -> Result<(), Error> {
+    let vault_path = handle_vault_path_argument(path)?;
+    if vault_path.exists() {
+        // TODO(?): add CLI interactivity to override
+        return Err(Error::WalletError(format!(
+            "Cannot import wallet at {:?}, the directory already exists!",
+            vault_path
+        )));
+    }
 
     let mnemonic = rpassword::prompt_password("Please enter your mnemonic phrase: ")?;
     // Check users's phrase by trying to create a wallet from it
-    if let Err(e) = Wallet::new_from_mnemonic_phrase(&mnemonic, None) {
-        bail!("Please check your phrase: {e}");
+    if WalletUnlocked::new_from_mnemonic_phrase(&mnemonic, None).is_err() {
+        return Err(Error::WalletError(
+            "Cannot generate a wallet from provided mnemonics, please \
+        check your mnemonic phrase"
+                .to_string(),
+        ));
     }
     // Encyrpt and store it
     let mnemonic_bytes: Vec<u8> = mnemonic.bytes().collect();
-    let password = rpassword::prompt_password("Please enter a password to encrypt the phrase: ")?;
-    let confirmation = rpassword::prompt_password("Please confirm your password: ")?;
+    let password = request_new_password();
 
-    if password != confirmation {
-        bail!("Passwords do not match -- try again!");
-    }
     eth_keystore::encrypt_key(
-        &wallet_path,
+        &vault_path,
         &mut rand::thread_rng(),
         mnemonic_bytes,
         &password,
         Some(".wallet"),
-    )?;
+    )
+    .unwrap_or_else(|error| {
+        panic!(
+            "Cannot import eth_keystore at {:?}: {:?}",
+            vault_path, error
+        )
+    });
     Ok(())
 }
