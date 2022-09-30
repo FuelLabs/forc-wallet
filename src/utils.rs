@@ -91,10 +91,16 @@ pub(crate) fn request_new_password() -> String {
 }
 
 /// Print a string to an alternate screen, so the string isn't printed to the terminal.
-pub(crate) fn display_string_discreetly(discreet_string: String) -> Result<(), Error> {
+pub(crate) fn display_string_discreetly(
+    discreet_string: &str,
+    continue_message: &str,
+) -> Result<(), Error> {
     let mut screen = AlternateScreen::from(std::io::stdout());
     writeln!(screen, "{}", discreet_string)?;
-    Ok(screen.flush()?)
+    screen.flush()?;
+    println!("{}", continue_message);
+    wait_for_keypress();
+    Ok(())
 }
 
 /// Handle the default path argument and return the right path, error out if the path is not
