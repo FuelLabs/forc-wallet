@@ -7,10 +7,11 @@ pub(crate) fn import_wallet(path: Option<String>) -> Result<(), Error> {
     if vault_path.exists() {
         // TODO(?): add CLI interactivity to override
         return Err(Error::WalletError(format!(
-            "Cannot import wallet at {:?}, the directory already exists!",
+            "Cannot import wallet at {:?}, the directory already exists! You can clear the given path and re-use the same path",
             vault_path
         )));
     }
+    std::fs::create_dir_all(&vault_path)?;
 
     let mnemonic = rpassword::prompt_password("Please enter your mnemonic phrase: ")?;
     // Check users's phrase by trying to create a wallet from it
