@@ -36,14 +36,12 @@ struct App {
 enum Command {
     /// Generate a new account for the initialized HD wallet.
     New { path: Option<String> },
-    /// Initialize the HD wallet from a random mnemonic phrase. If it is already initialized this
-    /// will remove the old one.
+    /// Initialize the HD wallet from a random mnemonic phrase.
     Init {
         #[clap(long)]
         path: Option<String>,
     },
-    /// Initialize the HD wallet from the provided mnemonic phrase. If it is already initialized this
-    /// will remove the old one.
+    /// Initialize the HD wallet from the provided mnemonic phrase.
     Import {
         #[clap(long)]
         path: Option<String>,
