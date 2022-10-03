@@ -11,7 +11,7 @@ use crate::{
     import::import_wallet,
     init::init_wallet,
     list::print_wallet_list,
-    sign::sign_transaction_manually,
+    sign::sign_transaction_cli,
 };
 use anyhow::Result;
 use clap::{ArgEnum, Parser, Subcommand};
@@ -92,7 +92,7 @@ async fn main() -> Result<()> {
             id,
             account_index,
             path,
-        } => sign_transaction_manually(&id, account_index, path).await?,
+        } => sign_transaction_cli(&id, account_index, path)?,
         Command::Import { path } => import_wallet(path)?,
         Command::Export {
             path,

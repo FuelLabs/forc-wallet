@@ -55,12 +55,15 @@ pub(crate) fn number_of_derived_accounts(path: &Path) -> usize {
     }
 }
 
-pub(crate) fn derive_account_with_index(
-    path: &Path,
+pub(crate) fn derive_account_with_index<
+    P: AsRef<std::path::Path> + std::convert::AsRef<std::ffi::OsStr>,
+>(
+    path: &P,
     account_index: usize,
     password: &str,
 ) -> Result<SecretKey> {
-    let phrase_recovered = eth_keystore::decrypt_key(path.join(".wallet"), password)?;
+    let path_buf = PathBuf::from(path);
+    let phrase_recovered = eth_keystore::decrypt_key(path_buf.join(".wallet"), password)?;
     let phrase = String::from_utf8(phrase_recovered)?;
     let derive_path = get_derivation_path(account_index);
     let secret_key = SecretKey::new_from_mnemonic_phrase_with_path(&phrase, &derive_path)?;
@@ -151,33 +154,8 @@ pub(crate) fn save_phrase_to_disk<P: AsRef<std::path::Path> + std::fmt::Debug>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use home::home_dir;
+    use crate::utils::test_utils::{save_dummy_wallet_file, with_tmp_folder, TEST_MNEMONIC};
     use serial_test::serial;
-    use std::{panic, path::PathBuf};
-
-    const TEST_MNEMONIC: &str = "rapid mechanic escape victory bacon switch soda math embrace frozen novel document wait motor thrive ski addict ripple bid magnet horse merge brisk exile";
-    /// Create a tmp folder and execute the given test function `f`
-    fn with_tmp_folder<F>(f: F)
-    where
-        F: FnOnce(&PathBuf) + panic::UnwindSafe,
-    {
-        let home_dir = home_dir().unwrap();
-        let tmp_dir = home_dir.join("forc-wallet-tests-tmp");
-        if tmp_dir.exists() {
-            std::fs::remove_dir_all(&tmp_dir).unwrap();
-        }
-        std::fs::create_dir_all(&tmp_dir).unwrap();
-        let panic = panic::catch_unwind(|| f(&tmp_dir));
-        std::fs::remove_dir_all(&tmp_dir).unwrap();
-        if let Err(e) = panic {
-            panic::resume_unwind(e);
-        }
-    }
-
-    /// Saves a default test mnemonic to the disk
-    fn save_dummy_wallet_file<P: AsRef<std::path::Path> + std::fmt::Debug>(path: &P) {
-        save_phrase_to_disk(path, TEST_MNEMONIC, "1234");
-    }
 
     #[test]
     fn handle_none_argument() -> Result<()> {
@@ -232,5 +210,36 @@ mod tests {
                 "961bf9754dd036dd13b1d543b3c0f74062bc4ac668ea89d38ce8d712c591f5cf"
             )
         });
+    }
+}
+
+#[cfg(test)]
+pub(crate) mod test_utils {
+    use super::*;
+    use home::home_dir;
+    use std::{panic, path::PathBuf};
+
+    pub(crate) const TEST_MNEMONIC: &str = "rapid mechanic escape victory bacon switch soda math embrace frozen novel document wait motor thrive ski addict ripple bid magnet horse merge brisk exile";
+
+    /// Create a tmp folder and execute the given test function `f`
+    pub(crate) fn with_tmp_folder<F>(f: F)
+    where
+        F: FnOnce(&PathBuf) + panic::UnwindSafe,
+    {
+        let home_dir = home_dir().unwrap();
+        let tmp_dir = home_dir.join("forc-wallet-tests-tmp");
+        if tmp_dir.exists() {
+            std::fs::remove_dir_all(&tmp_dir).unwrap();
+        }
+        std::fs::create_dir_all(&tmp_dir).unwrap();
+        let panic = panic::catch_unwind(|| f(&tmp_dir));
+        std::fs::remove_dir_all(&tmp_dir).unwrap();
+        if let Err(e) = panic {
+            panic::resume_unwind(e);
+        }
+    }
+    /// Saves a default test mnemonic to the disk
+    pub(crate) fn save_dummy_wallet_file<P: AsRef<std::path::Path> + std::fmt::Debug>(path: &P) {
+        save_phrase_to_disk(path, TEST_MNEMONIC, "1234");
     }
 }
