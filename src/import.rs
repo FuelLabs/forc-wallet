@@ -1,5 +1,7 @@
-use crate::utils::{handle_vault_path_argument, request_new_password};
-use crate::Error;
+use crate::{
+    utils::{handle_vault_path_argument, request_new_password, save_phrase_to_disk},
+    Error,
+};
 use fuels::signers::wallet::WalletUnlocked;
 
 pub(crate) fn import_wallet(path: Option<String>) -> Result<(), Error> {
@@ -22,22 +24,9 @@ pub(crate) fn import_wallet(path: Option<String>) -> Result<(), Error> {
                 .to_string(),
         ));
     }
-    // Encyrpt and store it
-    let mnemonic_bytes: Vec<u8> = mnemonic.bytes().collect();
     let password = request_new_password();
+    // Encyrpt and store it
+    save_phrase_to_disk(&vault_path, &mnemonic, &password);
 
-    eth_keystore::encrypt_key(
-        &vault_path,
-        &mut rand::thread_rng(),
-        mnemonic_bytes,
-        &password,
-        Some(".wallet"),
-    )
-    .unwrap_or_else(|error| {
-        panic!(
-            "Cannot import eth_keystore at {:?}: {:?}",
-            vault_path, error
-        )
-    });
     Ok(())
 }

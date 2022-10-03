@@ -15,7 +15,10 @@ pub(crate) async fn sign_transaction_manually(
         None => home::home_dir().unwrap().join(DEFAULT_RELATIVE_VAULT_PATH),
     };
     let tx_id = Bytes32::from_str(id).map_err(|e| anyhow!("{}", e))?;
-    let secret_key = derive_account_with_index(&vault_path, account_index)?;
+    let password = rpassword::prompt_password(
+        "Please enter your password to decrypt initialized wallet's phrases: ",
+    )?;
+    let secret_key = derive_account_with_index(&vault_path, account_index, &password)?;
     let message_hash = unsafe { Message::from_bytes_unchecked(*tx_id) };
     let sig = Signature::sign(&secret_key, &message_hash);
     println!("Signature: {sig}");

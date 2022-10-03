@@ -55,10 +55,11 @@ pub(crate) fn number_of_derived_accounts(path: &Path) -> usize {
     }
 }
 
-pub(crate) fn derive_account_with_index(path: &Path, account_index: usize) -> Result<SecretKey> {
-    let password = rpassword::prompt_password(
-        "Please enter your password to decrypt initialized wallet's phrases: ",
-    )?;
+pub(crate) fn derive_account_with_index(
+    path: &Path,
+    account_index: usize,
+    password: &str,
+) -> Result<SecretKey> {
     let phrase_recovered = eth_keystore::decrypt_key(path.join(".wallet"), password)?;
     let phrase = String::from_utf8(phrase_recovered)?;
     let derive_path = get_derivation_path(account_index);
@@ -125,9 +126,58 @@ pub(crate) fn handle_vault_path_argument(path: Option<String>) -> Result<PathBuf
     Ok(vault_path)
 }
 
+/// Encrypts and saves the mnemonic phrase to disk
+pub(crate) fn save_phrase_to_disk<P: AsRef<std::path::Path> + std::fmt::Debug>(
+    vault_path: &P,
+    mnemonic: &str,
+    password: &str,
+) {
+    let mnemonic_bytes: Vec<u8> = mnemonic.bytes().collect();
+    eth_keystore::encrypt_key(
+        &vault_path,
+        &mut rand::thread_rng(),
+        mnemonic_bytes,
+        &password,
+        Some(".wallet"),
+    )
+    .unwrap_or_else(|error| {
+        panic!(
+            "Cannot create eth_keystore at {:?}: {:?}",
+            vault_path, error
+        )
+    });
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use home::home_dir;
+    use serial_test::serial;
+    use std::{panic, path::PathBuf};
+
+    const TEST_MNEMONIC: &str = "rapid mechanic escape victory bacon switch soda math embrace frozen novel document wait motor thrive ski addict ripple bid magnet horse merge brisk exile";
+    /// Create a tmp folder and execute the given test function `f`
+    fn with_tmp_folder<F>(f: F)
+    where
+        F: FnOnce(&PathBuf) + panic::UnwindSafe,
+    {
+        let home_dir = home_dir().unwrap();
+        let tmp_dir = home_dir.join("forc-wallet-tests-tmp");
+        if tmp_dir.exists() {
+            std::fs::remove_dir_all(&tmp_dir).unwrap();
+        }
+        std::fs::create_dir_all(&tmp_dir).unwrap();
+        let panic = panic::catch_unwind(|| f(&tmp_dir));
+        std::fs::remove_dir_all(&tmp_dir).unwrap();
+        if let Err(e) = panic {
+            panic::resume_unwind(e);
+        }
+    }
+
+    /// Saves a default test mnemonic to the disk
+    fn save_dummy_wallet_file<P: AsRef<std::path::Path> + std::fmt::Debug>(path: &P) {
+        save_phrase_to_disk(path, TEST_MNEMONIC, "1234");
+    }
 
     #[test]
     fn handle_none_argument() -> Result<()> {
@@ -152,5 +202,35 @@ mod tests {
         let result = handle_vault_path_argument(Some(absolute_path));
         let error_message = result.unwrap_err().to_string();
         assert!(error_message.contains("Please provide a path relative to the home directory!"));
+    }
+    #[test]
+    fn derivation_path() {
+        let derivation_path = get_derivation_path(0);
+        assert_eq!(derivation_path, "m/44'/1179993420'/0'/0/0");
+    }
+    #[test]
+    #[serial]
+    fn encrypt_and_save_phrase() {
+        with_tmp_folder(|tmp_folder| {
+            save_dummy_wallet_file(&tmp_folder);
+            let phrase_recovered =
+                eth_keystore::decrypt_key(&tmp_folder.join(".wallet"), "1234").unwrap();
+            let phrase = String::from_utf8(phrase_recovered).unwrap();
+            assert_eq!(phrase, TEST_MNEMONIC)
+        });
+    }
+    #[test]
+    #[serial]
+    fn derive_account_by_index() {
+        with_tmp_folder(|tmp_folder| {
+            // initialize a wallet
+            save_dummy_wallet_file(&tmp_folder);
+            // derive account with account index 0
+            let private_key = derive_account_with_index(tmp_folder, 0, "1234").unwrap();
+            assert_eq!(
+                private_key.to_string(),
+                "961bf9754dd036dd13b1d543b3c0f74062bc4ac668ea89d38ce8d712c591f5cf"
+            )
+        });
     }
 }

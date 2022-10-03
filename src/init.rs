@@ -1,5 +1,10 @@
-use crate::utils::{display_string_discreetly, handle_vault_path_argument, request_new_password};
-use crate::Error;
+use crate::{
+    utils::{
+        display_string_discreetly, handle_vault_path_argument, request_new_password,
+        save_phrase_to_disk,
+    },
+    Error,
+};
 use fuels::signers::wallet::generate_mnemonic_phrase;
 
 pub(crate) fn init_wallet(path: Option<String>) -> Result<(), Error> {
@@ -13,25 +18,12 @@ pub(crate) fn init_wallet(path: Option<String>) -> Result<(), Error> {
     }
     std::fs::create_dir_all(&vault_path)?;
 
+    let password = request_new_password();
     // Generate mnemonic phrase
     let mnemonic = generate_mnemonic_phrase(&mut rand::thread_rng(), 24)?;
     // Encrypt and store it
-    let mnemonic_bytes: Vec<u8> = mnemonic.bytes().collect();
-    let password = request_new_password();
+    save_phrase_to_disk(&vault_path, &mnemonic, &password);
 
-    eth_keystore::encrypt_key(
-        &vault_path,
-        &mut rand::thread_rng(),
-        mnemonic_bytes,
-        &password,
-        Some(".wallet"),
-    )
-    .unwrap_or_else(|error| {
-        panic!(
-            "Cannot create eth_keystore at {:?}: {:?}",
-            vault_path, error
-        )
-    });
     let mnemonic_string = format!("Wallet mnemonic phrase: {}\n", mnemonic);
     display_string_discreetly(
         &mnemonic_string,
