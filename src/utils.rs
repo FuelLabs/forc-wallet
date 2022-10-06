@@ -21,12 +21,16 @@ impl Accounts {
         Accounts { addresses }
     }
 
-    pub(crate) fn from_dir(path: &Path) -> Result<Accounts> {
-        let accounts_file_path = path.join(".accounts");
+    pub(crate) fn from_dir<P>(path: P) -> Result<Accounts>
+    where
+        P: Into<PathBuf>,
+    {
+        let path_buf = path.into();
+        let accounts_file_path = path_buf.join(".accounts");
         if !accounts_file_path.exists() {
             Ok(Accounts { addresses: vec![] })
         } else {
-            let account_file = fs::read_to_string(path.join(".accounts"))?;
+            let account_file = fs::read_to_string(path_buf.join(".accounts"))?;
             let accounts = serde_json::from_str(&account_file)
                 .map_err(|e| anyhow!("failed to parse .accounts: {}.", e))?;
             Ok(accounts)
@@ -66,8 +70,11 @@ pub(crate) fn handle_vault_path(
 }
 
 /// Returns the number of the accounts derived so far by reading the .accounts file from given path
-pub(crate) fn number_of_derived_accounts(path: &Path) -> usize {
-    let accounts = Accounts::from_dir(path);
+pub(crate) fn number_of_derived_accounts<P>(path: P) -> usize
+where
+    P: Into<PathBuf>,
+{
+    let accounts = Accounts::from_dir(path.into());
     if let Ok(accounts) = accounts {
         accounts.addresses().len()
     } else {
@@ -174,7 +181,9 @@ pub(crate) fn save_phrase_to_disk<P: AsRef<std::path::Path> + std::fmt::Debug>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::utils::test_utils::{save_dummy_wallet_file, with_tmp_folder, TEST_MNEMONIC};
+    use crate::utils::test_utils::{
+        save_dummy_wallet_file, with_tmp_folder, TEST_MNEMONIC, TEST_PASSWORD,
+    };
     use serial_test::serial;
 
     #[test]
@@ -237,9 +246,9 @@ mod tests {
     #[serial]
     fn encrypt_and_save_phrase() {
         with_tmp_folder(|tmp_folder| {
-            save_phrase_to_disk(&tmp_folder, TEST_MNEMONIC, "1234");
+            save_phrase_to_disk(&tmp_folder, TEST_MNEMONIC, TEST_PASSWORD);
             let phrase_recovered =
-                eth_keystore::decrypt_key(&tmp_folder.join(".wallet"), "1234").unwrap();
+                eth_keystore::decrypt_key(&tmp_folder.join(".wallet"), TEST_PASSWORD).unwrap();
             let phrase = String::from_utf8(phrase_recovered).unwrap();
             assert_eq!(phrase, TEST_MNEMONIC)
         });
@@ -251,7 +260,7 @@ mod tests {
             // initialize a wallet
             save_dummy_wallet_file(&tmp_folder);
             // derive account with account index 0
-            let private_key = derive_account_with_index(tmp_folder, 0, "1234").unwrap();
+            let private_key = derive_account_with_index(tmp_folder, 0, TEST_PASSWORD).unwrap();
             assert_eq!(
                 private_key.to_string(),
                 "961bf9754dd036dd13b1d543b3c0f74062bc4ac668ea89d38ce8d712c591f5cf"
@@ -267,6 +276,8 @@ pub(crate) mod test_utils {
     use std::{panic, path::PathBuf};
 
     pub(crate) const TEST_MNEMONIC: &str = "rapid mechanic escape victory bacon switch soda math embrace frozen novel document wait motor thrive ski addict ripple bid magnet horse merge brisk exile";
+
+    pub(crate) const TEST_PASSWORD: &str = "1234";
 
     /// Create a tmp folder and execute the given test function `f`
     pub(crate) fn with_tmp_folder<F>(f: F)
@@ -287,6 +298,6 @@ pub(crate) mod test_utils {
     }
     /// Saves a default test mnemonic to the disk
     pub(crate) fn save_dummy_wallet_file<P: AsRef<std::path::Path> + std::fmt::Debug>(path: &P) {
-        save_phrase_to_disk(path, TEST_MNEMONIC, "1234");
+        save_phrase_to_disk(path, TEST_MNEMONIC, TEST_PASSWORD);
     }
 }

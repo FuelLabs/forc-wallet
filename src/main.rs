@@ -7,7 +7,7 @@ mod sign;
 mod utils;
 
 use crate::{
-    account::{new_account, print_account_address},
+    account::{new_account_cli, print_account_address},
     export::export_account,
     import::import_wallet,
     init::init_wallet_cli,
@@ -81,7 +81,7 @@ async fn main() -> Result<()> {
     let app = App::parse();
 
     match app.command {
-        Command::New { path } => new_account(path)?,
+        Command::New { path } => new_account_cli(path)?,
         Command::List { path } => print_wallet_list(path)?,
         Command::Init { path } => init_wallet_cli(path)?,
         Command::Account {

@@ -1,10 +1,13 @@
 use crate::utils::{handle_vault_path, Accounts};
 use crate::Error;
-use std::path::Path;
+use std::path::PathBuf;
 
 /// Returns index - public address pair for derived accounts
-pub(crate) fn get_wallets_list(path: &Path) -> Result<Vec<(usize, String)>, Error> {
-    let wallets = Accounts::from_dir(path)?
+pub(crate) fn get_wallets_list<P>(path: P) -> Result<Vec<(usize, String)>, Error>
+where
+    P: Into<PathBuf>,
+{
+    let wallets = Accounts::from_dir(path.into())?
         .addresses()
         .iter()
         .enumerate()

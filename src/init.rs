@@ -32,7 +32,7 @@ pub(crate) fn init_wallet_cli(path: Option<String>) -> Result<(), Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::utils::test_utils::with_tmp_folder;
+    use crate::utils::test_utils::{with_tmp_folder, TEST_PASSWORD};
     use fuels::signers::WalletUnlocked;
     use serial_test::serial;
 
@@ -40,7 +40,7 @@ mod tests {
     #[test]
     fn initialize_wallet() {
         with_tmp_folder(|tmp_folder| {
-            let mnemonic = init_wallet(tmp_folder, "1234").unwrap();
+            let mnemonic = init_wallet(tmp_folder, TEST_PASSWORD).unwrap();
             let wallet_success = WalletUnlocked::new_from_mnemonic_phrase(&mnemonic, None).is_ok();
             assert!(wallet_success)
         })
