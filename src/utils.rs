@@ -4,9 +4,12 @@ use fuel_crypto::SecretKey;
 use fuels_signers::wallet::DEFAULT_DERIVATION_PATH_PREFIX;
 use home::home_dir;
 use serde::{Deserialize, Serialize};
-use std::io::{Read, Write};
-use std::path::PathBuf;
-use std::{fs, path::Path};
+use std::{
+    fmt::Debug,
+    fs,
+    io::{Read, Write},
+    path::{Path, PathBuf},
+};
 use termion::screen::AlternateScreen;
 
 pub(crate) const DEFAULT_RELATIVE_VAULT_PATH: &str = ".fuel/wallets/";
@@ -82,14 +85,15 @@ where
     }
 }
 
-pub(crate) fn derive_account_with_index<
-    P: AsRef<std::path::Path> + std::convert::AsRef<std::ffi::OsStr>,
->(
-    path: &P,
+pub(crate) fn derive_account_with_index<P>(
+    path: P,
     account_index: usize,
     password: &str,
-) -> Result<SecretKey> {
-    let path_buf = PathBuf::from(path);
+) -> Result<SecretKey>
+where
+    P: Into<PathBuf>,
+{
+    let path_buf = path.into();
     let phrase_recovered = eth_keystore::decrypt_key(path_buf.join(".wallet"), password)?;
     let phrase = String::from_utf8(phrase_recovered)?;
     let derive_path = get_derivation_path(account_index);
@@ -157,11 +161,10 @@ fn handle_vault_path_argument(path: Option<String>) -> Result<PathBuf, Error> {
 }
 
 /// Encrypts and saves the mnemonic phrase to disk
-pub(crate) fn save_phrase_to_disk<P: AsRef<std::path::Path> + std::fmt::Debug>(
-    vault_path: &P,
-    mnemonic: &str,
-    password: &str,
-) {
+pub(crate) fn save_phrase_to_disk<P>(vault_path: &P, mnemonic: &str, password: &str)
+where
+    P: AsRef<Path> + Debug,
+{
     let mnemonic_bytes: Vec<u8> = mnemonic.bytes().collect();
     eth_keystore::encrypt_key(
         &vault_path,

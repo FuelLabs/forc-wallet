@@ -5,12 +5,15 @@ use fuel_types::Bytes32;
 use fuels::prelude::*;
 use std::{path::PathBuf, str::FromStr};
 
-fn sign_transaction<P: AsRef<std::path::Path> + std::convert::AsRef<std::ffi::OsStr>>(
+fn sign_transaction<P>(
     tx_id: Bytes32,
     account_index: usize,
     password: &str,
-    path: &P,
-) -> Result<Signature> {
+    path: P,
+) -> Result<Signature>
+where
+    P: Into<PathBuf>,
+{
     let secret_key = derive_account_with_index(path, account_index, password)?;
     let message_hash = unsafe { Message::from_bytes_unchecked(*tx_id) };
     let sig = Signature::sign(&secret_key, &message_hash);

@@ -5,11 +5,12 @@ use crate::{
     Error,
 };
 use fuels::signers::wallet::generate_mnemonic_phrase;
+use std::{fmt::Debug, path::Path};
 
-fn init_wallet<P: AsRef<std::path::Path> + std::fmt::Debug>(
-    path: &P,
-    password: &str,
-) -> Result<String, Error> {
+fn init_wallet<P>(path: P, password: &str) -> Result<String, Error>
+where
+    P: AsRef<Path> + Debug,
+{
     // Generate mnemonic phrase
     let mnemonic = generate_mnemonic_phrase(&mut rand::thread_rng(), 24)?;
     // Encrypt and store it
