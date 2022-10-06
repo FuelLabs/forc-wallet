@@ -8,14 +8,14 @@ mod utils;
 
 use crate::{
     account::{new_account, print_account_address},
+    export::export_account,
     import::import_wallet,
-    init::init_wallet,
+    init::init_wallet_cli,
     list::print_wallet_list,
     sign::sign_transaction_cli,
 };
 use anyhow::Result;
 use clap::{ArgEnum, Parser, Subcommand};
-use export::export_account;
 use fuels::prelude::*;
 
 #[derive(Debug, Parser)]
@@ -83,7 +83,7 @@ async fn main() -> Result<()> {
     match app.command {
         Command::New { path } => new_account(path)?,
         Command::List { path } => print_wallet_list(path)?,
-        Command::Init { path } => init_wallet(path)?,
+        Command::Init { path } => init_wallet_cli(path)?,
         Command::Account {
             account_index,
             path,

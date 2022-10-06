@@ -45,6 +45,26 @@ pub(crate) fn create_accounts_file(path: &Path, accounts: Vec<String>) -> Result
     Ok(())
 }
 
+/// Handles vault path creatation/retriveal. If should_create is true `handle_vault_path` will be
+/// trying to create the vault path.
+pub(crate) fn handle_vault_path(
+    should_create: bool,
+    path_argument: Option<String>,
+) -> Result<PathBuf, Error> {
+    let vault_path = handle_vault_path_argument(path_argument)?;
+    if should_create {
+        if vault_path.exists() {
+            // TODO(?): add CLI interactivity to override
+            return Err(Error::WalletError(format!(
+            "Cannot import wallet at {:?}, the directory already exists! You can clear the given path and re-use the same path",
+            vault_path
+        )));
+        }
+        std::fs::create_dir_all(&vault_path)?;
+    }
+    Ok(vault_path)
+}
+
 /// Returns the number of the accounts derived so far by reading the .accounts file from given path
 pub(crate) fn number_of_derived_accounts(path: &Path) -> usize {
     let accounts = Accounts::from_dir(path);
@@ -109,7 +129,7 @@ pub(crate) fn display_string_discreetly(
 
 /// Handle the default path argument and return the right path, error out if the path is not
 /// relative to the home directory.
-pub(crate) fn handle_vault_path_argument(path: Option<String>) -> Result<PathBuf, Error> {
+fn handle_vault_path_argument(path: Option<String>) -> Result<PathBuf, Error> {
     let vault_path = match path {
         Some(path) => PathBuf::from(path),
         None => {
@@ -158,6 +178,33 @@ mod tests {
     use serial_test::serial;
 
     #[test]
+    #[serial]
+    fn handle_vault_path_should_success() {
+        with_tmp_folder(|tmp_folder| {
+            let test_vault_path = tmp_folder.join("handle_vault_path_success_dir");
+            let test_vault_path_str = test_vault_path
+                .to_str()
+                .map(|path_str| path_str.to_string());
+            let vault_path_status = handle_vault_path(true, test_vault_path_str).is_ok();
+            assert!(vault_path_status)
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn handle_vault_path_should_fail() {
+        with_tmp_folder(|tmp_folder| {
+            let test_vault_path = tmp_folder.join("handle_vault_path_fail_dir");
+            std::fs::create_dir_all(&test_vault_path).unwrap();
+            let test_vault_path_str = test_vault_path
+                .to_str()
+                .map(|path_str| path_str.to_string());
+            let vault_path_status = handle_vault_path(true, test_vault_path_str).is_err();
+            assert!(vault_path_status)
+        });
+    }
+
+    #[test]
     fn handle_none_argument() -> Result<()> {
         let mut default_relative = home_dir().unwrap();
         default_relative.push(DEFAULT_RELATIVE_VAULT_PATH);
@@ -190,7 +237,7 @@ mod tests {
     #[serial]
     fn encrypt_and_save_phrase() {
         with_tmp_folder(|tmp_folder| {
-            save_dummy_wallet_file(&tmp_folder);
+            save_phrase_to_disk(&tmp_folder, TEST_MNEMONIC, "1234");
             let phrase_recovered =
                 eth_keystore::decrypt_key(&tmp_folder.join(".wallet"), "1234").unwrap();
             let phrase = String::from_utf8(phrase_recovered).unwrap();

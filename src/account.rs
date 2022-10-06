@@ -1,12 +1,12 @@
 use crate::utils::{
-    create_accounts_file, get_derivation_path, handle_vault_path_argument,
-    number_of_derived_accounts, Accounts,
+    create_accounts_file, get_derivation_path, handle_vault_path, number_of_derived_accounts,
+    Accounts,
 };
 use anyhow::{bail, Result};
 use fuels::prelude::WalletUnlocked;
 
 pub(crate) fn print_account_address(path: Option<String>, account_index: usize) -> Result<()> {
-    let vault_path = handle_vault_path_argument(path)?;
+    let vault_path = handle_vault_path(false, path)?;
     let existing_accounts = Accounts::from_dir(&vault_path)?;
     if let Some(account) = existing_accounts.addresses().iter().nth(account_index) {
         println!("Account {} address: {}", account_index, account);
@@ -17,7 +17,7 @@ pub(crate) fn print_account_address(path: Option<String>, account_index: usize) 
 }
 
 pub(crate) fn new_account(path: Option<String>) -> Result<()> {
-    let vault_path = handle_vault_path_argument(path)?;
+    let vault_path = handle_vault_path(false, path)?;
     let existing_accounts = Accounts::from_dir(&vault_path)?;
     if !vault_path.join(".wallet").exists() {
         bail!("Wallet is not initialized, please initialize a wallet before creating an account! To initialize a wallet: \"forc-wallet init\"");
