@@ -8,8 +8,8 @@ mod utils;
 
 use crate::{
     account::{new_account_cli, print_account_address},
-    export::export_account,
-    import::import_wallet,
+    export::export_account_cli,
+    import::import_wallet_cli,
     init::init_wallet_cli,
     list::print_wallet_list,
     sign::sign_transaction_cli,
@@ -93,11 +93,11 @@ async fn main() -> Result<()> {
             account_index,
             path,
         } => sign_transaction_cli(&id, account_index, path)?,
-        Command::Import { path } => import_wallet(path)?,
+        Command::Import { path } => import_wallet_cli(path)?,
         Command::Export {
             path,
             account_index,
-        } => export_account(path, account_index)?,
+        } => export_account_cli(path, account_index)?,
     };
     Ok(())
 }
