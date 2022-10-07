@@ -13,8 +13,8 @@ pub(crate) fn get_wallets_list(path: &Path) -> Result<Vec<(usize, String)>> {
     Ok(wallets)
 }
 
-pub(crate) fn print_wallet_list(path_opt: Option<String>) -> Result<()> {
-    let path = path_opt.map_or_else(default_vault_path, PathBuf::from);
+pub(crate) fn print_wallet_list(path_opt: Option<PathBuf>) -> Result<()> {
+    let path = path_opt.unwrap_or_else(default_vault_path);
     validate_vault_path(&path)?;
     if !path.exists() {
         bail!("No wallets found in {:?}", path);

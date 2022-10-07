@@ -185,8 +185,8 @@ mod tests {
 
     #[test]
     fn handle_none_argument() {
-        let path_opt: Option<String> = None;
-        let path = path_opt.map_or_else(default_vault_path, PathBuf::from);
+        let path_opt: Option<PathBuf> = None;
+        let path = path_opt.unwrap_or_else(default_vault_path);
         validate_vault_path(&path).unwrap();
         let home_dir = home_dir().unwrap();
         let default_path = home_dir.join(DEFAULT_RELATIVE_VAULT_PATH);
@@ -197,8 +197,8 @@ mod tests {
     fn handle_relative_path_argument() {
         let home_dir = home_dir().unwrap();
         let test_dir = home_dir.join("forc_wallet_test_dir");
-        let path_opt: Option<String> = test_dir.to_str().map(|path_str| path_str.to_owned());
-        let path = path_opt.map_or_else(default_vault_path, PathBuf::from);
+        let path_opt = Some(test_dir);
+        let path = path_opt.unwrap_or_else(default_vault_path);
         validate_vault_path(&path).unwrap();
         let default_path = home_dir.join("forc_wallet_test_dir");
         assert_eq!(path, default_path)
@@ -206,8 +206,8 @@ mod tests {
 
     #[test]
     fn handle_absolute_path_argument() {
-        let path_opt: Option<String> = Some("forc_wallet_test_dir".to_owned());
-        let path = path_opt.map_or_else(default_vault_path, PathBuf::from);
+        let path_opt: Option<PathBuf> = Some(PathBuf::from("/forc_wallet_test_dir"));
+        let path = path_opt.unwrap_or_else(default_vault_path);
         let path_validation = validate_vault_path(&path).is_err();
         assert!(path_validation)
     }

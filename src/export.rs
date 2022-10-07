@@ -5,8 +5,8 @@ use crate::utils::{
 };
 use anyhow::Result;
 
-pub(crate) fn export_account_cli(path_opt: Option<String>, account_index: usize) -> Result<()> {
-    let path = path_opt.map_or_else(default_vault_path, PathBuf::from);
+pub(crate) fn export_account_cli(path_opt: Option<PathBuf>, account_index: usize) -> Result<()> {
+    let path = path_opt.unwrap_or_else(default_vault_path);
     validate_vault_path(&path)?;
 
     let password = rpassword::prompt_password(

@@ -14,8 +14,8 @@ fn check_mnemonic(mnemonic: &str) -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn import_wallet_cli(path_opt: Option<String>) -> Result<()> {
-    let path = path_opt.map_or_else(default_vault_path, PathBuf::from);
+pub(crate) fn import_wallet_cli(path_opt: Option<PathBuf>) -> Result<()> {
+    let path = path_opt.unwrap_or_else(default_vault_path);
     validate_vault_path(&path)?;
     let mnemonic = rpassword::prompt_password("Please enter your mnemonic phrase: ")?;
     check_mnemonic(&mnemonic)?;

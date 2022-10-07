@@ -6,6 +6,8 @@ mod list;
 mod sign;
 mod utils;
 
+use std::path::PathBuf;
+
 use crate::{
     account::{new_account_cli, print_account_address},
     export::export_account_cli,
@@ -35,35 +37,45 @@ struct App {
 #[clap(rename_all = "kebab-case")]
 enum Command {
     /// Generate a new account for the initialized HD wallet.
-    New { path: Option<String> },
+    New {
+        #[clap(long)]
+        path: Option<PathBuf>,
+    },
     /// Initialize the HD wallet from a random mnemonic phrase.
     Init {
         #[clap(long)]
-        path: Option<String>,
+        path: Option<PathBuf>,
     },
     /// Initialize the HD wallet from the provided mnemonic phrase.
     Import {
         #[clap(long)]
-        path: Option<String>,
+        path: Option<PathBuf>,
     },
     /// Lists all accounts derived so far.
-    List { path: Option<String> },
+    List {
+        #[clap(long)]
+        path: Option<PathBuf>,
+    },
     /// Get the address of an acccount from account index
     Account {
+        #[clap(long)]
         account_index: usize,
         #[clap(long)]
-        path: Option<String>,
+        path: Option<PathBuf>,
     },
     /// Sign a transaction by providing its ID and the signing account's index
     Sign {
+        #[clap(long)]
         id: String,
+        #[clap(long)]
         account_index: usize,
-        path: Option<String>,
+        #[clap(long)]
+        path: Option<PathBuf>,
     },
     /// Get the private key of an account from its index
     Export {
         #[clap(long)]
-        path: Option<String>,
+        path: Option<PathBuf>,
         #[clap(long)]
         account_index: usize,
     },

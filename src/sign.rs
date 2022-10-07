@@ -25,7 +25,7 @@ fn sign_transaction(
 pub(crate) fn sign_transaction_cli(
     id: &str,
     account_index: usize,
-    path_opt: Option<String>,
+    path_opt: Option<PathBuf>,
 ) -> Result<(), Error> {
     let path = path_opt.map_or_else(default_vault_path, PathBuf::from);
     validate_vault_path(&path)?;
@@ -46,7 +46,7 @@ mod tests {
     fn sign_dummy_transaction() {
         with_tmp_folder(|tmp_folder| {
             // initialize a wallet
-            save_dummy_wallet_file(&tmp_folder);
+            save_dummy_wallet_file(tmp_folder);
             let tx_id = Bytes32::from_str(
                 "0x6c226b276bd2028c0582229b6396f91801c913973487491b0262c5c7b3cd6e39",
             )
