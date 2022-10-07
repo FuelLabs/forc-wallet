@@ -1,11 +1,10 @@
 use crate::Error;
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, bail, Result};
 use fuel_crypto::SecretKey;
 use fuels_signers::wallet::DEFAULT_DERIVATION_PATH_PREFIX;
 use home::home_dir;
 use serde::{Deserialize, Serialize};
 use std::{
-    fmt::Debug,
     fs,
     io::{Read, Write},
     path::{Path, PathBuf},
@@ -24,11 +23,8 @@ impl Accounts {
         Accounts { addresses }
     }
 
-    pub(crate) fn from_dir<P>(path: P) -> Result<Accounts>
-    where
-        P: Into<PathBuf>,
-    {
-        let path_buf = path.into();
+    pub(crate) fn from_dir(path: &Path) -> Result<Accounts> {
+        let path_buf = PathBuf::from(path);
         let accounts_file_path = path_buf.join(".accounts");
         if !accounts_file_path.exists() {
             Ok(Accounts { addresses: vec![] })
@@ -52,32 +48,37 @@ pub(crate) fn create_accounts_file(path: &Path, accounts: Vec<String>) -> Result
     Ok(())
 }
 
-/// Handles vault path creatation/retriveal. If should_create is true `handle_vault_path` will be
-/// trying to create the vault path.
-pub(crate) fn handle_vault_path(
-    should_create: bool,
-    path_argument: Option<String>,
-) -> Result<PathBuf, Error> {
-    let vault_path = handle_vault_path_argument(path_argument)?;
-    if should_create {
-        if vault_path.exists() {
-            // TODO(?): add CLI interactivity to override
-            return Err(Error::WalletError(format!(
-            "Cannot import wallet at {:?}, the directory already exists! You can clear the given path and re-use the same path",
-            vault_path
-        )));
-        }
-        std::fs::create_dir_all(&vault_path)?;
+/// Creates the wallet vault if it does not exists.
+pub(crate) fn create_vault(path: &Path) -> Result<()> {
+    if path.exists() {
+        bail!(format!("Cannot import wallet at {:?}, the directory already exists! You can clear the given path and re-use the same path", path))
+    } else {
+        std::fs::create_dir_all(path)?;
     }
-    Ok(vault_path)
+    Ok(())
+}
+
+/// If the path is not relative to the home directory, error out.
+pub(crate) fn validate_vault_path(path: &Path) -> Result<()> {
+    let home_dir = home_dir().ok_or_else(|| anyhow!("Cannot get home directory!"))?;
+    if !path.starts_with(home_dir) {
+        bail!(
+            "Please provide a path relative to the home directory! Provided path: {:?}",
+            path
+        )
+    }
+    Ok(())
+}
+
+/// Returns default vault path which is $HOME/.fuel/wallets
+pub(crate) fn default_vault_path() -> PathBuf {
+    let home_dir = home_dir().expect("Cannot get home directory!");
+    home_dir.join(DEFAULT_RELATIVE_VAULT_PATH)
 }
 
 /// Returns the number of the accounts derived so far by reading the .accounts file from given path
-pub(crate) fn number_of_derived_accounts<P>(path: P) -> usize
-where
-    P: Into<PathBuf>,
-{
-    let accounts = Accounts::from_dir(path.into());
+pub(crate) fn number_of_derived_accounts(path: &Path) -> usize {
+    let accounts = Accounts::from_dir(path);
     if let Ok(accounts) = accounts {
         accounts.addresses().len()
     } else {
@@ -85,15 +86,12 @@ where
     }
 }
 
-pub(crate) fn derive_account_with_index<P>(
-    path: P,
+pub(crate) fn derive_account_with_index(
+    path: &Path,
     account_index: usize,
     password: &str,
-) -> Result<SecretKey>
-where
-    P: Into<PathBuf>,
-{
-    let path_buf = path.into();
+) -> Result<SecretKey> {
+    let path_buf = PathBuf::from(path);
     let phrase_recovered = eth_keystore::decrypt_key(path_buf.join(".wallet"), password)?;
     let phrase = String::from_utf8(phrase_recovered)?;
     let derive_path = get_derivation_path(account_index);
@@ -138,33 +136,8 @@ pub(crate) fn display_string_discreetly(
     Ok(())
 }
 
-/// Handle the default path argument and return the right path, error out if the path is not
-/// relative to the home directory.
-fn handle_vault_path_argument(path: Option<String>) -> Result<PathBuf, Error> {
-    let vault_path = match path {
-        Some(path) => PathBuf::from(path),
-        None => {
-            let mut default_relative = home_dir().unwrap();
-            default_relative.push(DEFAULT_RELATIVE_VAULT_PATH);
-            default_relative
-        }
-    };
-    // If the path is not relative to the home directory, error out.
-    // This should never happen if the `path` argument was `None`.
-    if !vault_path.starts_with(home_dir().unwrap()) {
-        return Err(Error::WalletError(format!(
-            "Please provide a path relative to the home directory! Provided path: {:?}",
-            vault_path
-        )));
-    }
-    Ok(vault_path)
-}
-
 /// Encrypts and saves the mnemonic phrase to disk
-pub(crate) fn save_phrase_to_disk<P>(vault_path: &P, mnemonic: &str, password: &str)
-where
-    P: AsRef<Path> + Debug,
-{
+pub(crate) fn save_phrase_to_disk(vault_path: &Path, mnemonic: &str, password: &str) {
     let mnemonic_bytes: Vec<u8> = mnemonic.bytes().collect();
     eth_keystore::encrypt_key(
         &vault_path,
@@ -191,54 +164,52 @@ mod tests {
 
     #[test]
     #[serial]
-    fn handle_vault_path_should_success() {
+    fn create_vault_should_success() {
         with_tmp_folder(|tmp_folder| {
             let test_vault_path = tmp_folder.join("handle_vault_path_success_dir");
-            let test_vault_path_str = test_vault_path
-                .to_str()
-                .map(|path_str| path_str.to_string());
-            let vault_path_status = handle_vault_path(true, test_vault_path_str).is_ok();
-            assert!(vault_path_status)
+            let create_vault_status = create_vault(&test_vault_path).is_ok();
+            assert!(create_vault_status)
         });
     }
 
     #[test]
     #[serial]
-    fn handle_vault_path_should_fail() {
+    fn create_vault_should_fail() {
         with_tmp_folder(|tmp_folder| {
             let test_vault_path = tmp_folder.join("handle_vault_path_fail_dir");
             std::fs::create_dir_all(&test_vault_path).unwrap();
-            let test_vault_path_str = test_vault_path
-                .to_str()
-                .map(|path_str| path_str.to_string());
-            let vault_path_status = handle_vault_path(true, test_vault_path_str).is_err();
-            assert!(vault_path_status)
+            let create_vault_status = create_vault(&test_vault_path).is_err();
+            assert!(create_vault_status)
         });
     }
 
     #[test]
-    fn handle_none_argument() -> Result<()> {
-        let mut default_relative = home_dir().unwrap();
-        default_relative.push(DEFAULT_RELATIVE_VAULT_PATH);
-        assert_eq!(default_relative, handle_vault_path_argument(None)?);
-        Ok(())
+    fn handle_none_argument() {
+        let path_opt: Option<String> = None;
+        let path = path_opt.map_or_else(default_vault_path, PathBuf::from);
+        validate_vault_path(&path).unwrap();
+        let home_dir = home_dir().unwrap();
+        let default_path = home_dir.join(DEFAULT_RELATIVE_VAULT_PATH);
+        assert_eq!(path, default_path)
     }
 
     #[test]
-    fn handle_relative_path_argument() -> Result<()> {
-        let mut some_relative = home_dir().unwrap();
-        some_relative.push("bimbamboum");
-        let some_argument = Some(some_relative.display().to_string());
-        assert_eq!(some_relative, handle_vault_path_argument(some_argument)?);
-        Ok(())
+    fn handle_relative_path_argument() {
+        let home_dir = home_dir().unwrap();
+        let test_dir = home_dir.join("forc_wallet_test_dir");
+        let path_opt: Option<String> = test_dir.to_str().map(|path_str| path_str.to_owned());
+        let path = path_opt.map_or_else(default_vault_path, PathBuf::from);
+        validate_vault_path(&path).unwrap();
+        let default_path = home_dir.join("forc_wallet_test_dir");
+        assert_eq!(path, default_path)
     }
 
     #[test]
     fn handle_absolute_path_argument() {
-        let absolute_path = "/bimbamboum".to_string();
-        let result = handle_vault_path_argument(Some(absolute_path));
-        let error_message = result.unwrap_err().to_string();
-        assert!(error_message.contains("Please provide a path relative to the home directory!"));
+        let path_opt: Option<String> = Some("forc_wallet_test_dir".to_owned());
+        let path = path_opt.map_or_else(default_vault_path, PathBuf::from);
+        let path_validation = validate_vault_path(&path).is_err();
+        assert!(path_validation)
     }
     #[test]
     fn derivation_path() {
@@ -249,7 +220,7 @@ mod tests {
     #[serial]
     fn encrypt_and_save_phrase() {
         with_tmp_folder(|tmp_folder| {
-            save_phrase_to_disk(&tmp_folder, TEST_MNEMONIC, TEST_PASSWORD);
+            save_phrase_to_disk(tmp_folder, TEST_MNEMONIC, TEST_PASSWORD);
             let phrase_recovered =
                 eth_keystore::decrypt_key(&tmp_folder.join(".wallet"), TEST_PASSWORD).unwrap();
             let phrase = String::from_utf8(phrase_recovered).unwrap();
@@ -261,7 +232,7 @@ mod tests {
     fn derive_account_by_index() {
         with_tmp_folder(|tmp_folder| {
             // initialize a wallet
-            save_dummy_wallet_file(&tmp_folder);
+            save_dummy_wallet_file(tmp_folder);
             // derive account with account index 0
             let private_key = derive_account_with_index(tmp_folder, 0, TEST_PASSWORD).unwrap();
             assert_eq!(
@@ -300,7 +271,7 @@ pub(crate) mod test_utils {
         }
     }
     /// Saves a default test mnemonic to the disk
-    pub(crate) fn save_dummy_wallet_file<P: AsRef<std::path::Path> + std::fmt::Debug>(path: &P) {
+    pub(crate) fn save_dummy_wallet_file(path: &Path) {
         save_phrase_to_disk(path, TEST_MNEMONIC, TEST_PASSWORD);
     }
 }

@@ -1,14 +1,15 @@
 use crate::utils::{
-    create_accounts_file, get_derivation_path, handle_vault_path, number_of_derived_accounts,
-    Accounts,
+    create_accounts_file, default_vault_path, get_derivation_path, number_of_derived_accounts,
+    validate_vault_path, Accounts,
 };
 use anyhow::{bail, Result};
 use fuels::prelude::WalletUnlocked;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
-pub(crate) fn print_account_address(path: Option<String>, account_index: usize) -> Result<()> {
-    let vault_path = handle_vault_path(false, path)?;
-    let existing_accounts = Accounts::from_dir(vault_path)?;
+pub(crate) fn print_account_address(path_opt: Option<String>, account_index: usize) -> Result<()> {
+    let path = path_opt.map_or_else(default_vault_path, PathBuf::from);
+    validate_vault_path(&path)?;
+    let existing_accounts = Accounts::from_dir(&path)?;
     if let Some(account) = existing_accounts.addresses().iter().nth(account_index) {
         println!("Account {} address: {}", account_index, account);
     } else {
@@ -17,11 +18,8 @@ pub(crate) fn print_account_address(path: Option<String>, account_index: usize) 
     Ok(())
 }
 
-fn new_account<P>(vault_path: P, password: &str) -> Result<WalletUnlocked>
-where
-    P: Into<PathBuf>,
-{
-    let vault_path_buf = vault_path.into();
+fn new_account(vault_path: &Path, password: &str) -> Result<WalletUnlocked> {
+    let vault_path_buf = PathBuf::from(vault_path);
     let account_index = number_of_derived_accounts(&vault_path_buf);
     println!("Generating account with index: {}", account_index);
     let derive_path = get_derivation_path(account_index);
@@ -32,21 +30,22 @@ where
     Ok(wallet)
 }
 
-pub(crate) fn new_account_cli(path: Option<String>) -> Result<()> {
-    let vault_path = handle_vault_path(false, path)?;
-    let existing_accounts = Accounts::from_dir(vault_path.clone())?;
-    if !vault_path.join(".wallet").exists() {
+pub(crate) fn new_account_cli(path_opt: Option<String>) -> Result<()> {
+    let path = path_opt.map_or_else(default_vault_path, PathBuf::from);
+    validate_vault_path(&path)?;
+    let existing_accounts = Accounts::from_dir(&path)?;
+    if !path.join(".wallet").exists() {
         bail!("Wallet is not initialized, please initialize a wallet before creating an account! To initialize a wallet: \"forc-wallet init\"");
     }
     let password = rpassword::prompt_password(
         "Please enter your password to decrypt initialized wallet's phrases: ",
     )?;
 
-    let wallet = new_account(&vault_path, &password)?;
+    let wallet = new_account(&path, &password)?;
 
     let mut account_addresses = Vec::from(existing_accounts.addresses());
     account_addresses.push(wallet.address().to_string());
-    create_accounts_file(&vault_path, account_addresses)?;
+    create_accounts_file(&path, account_addresses)?;
 
     println!("Wallet address: {}", wallet.address());
     Ok(())

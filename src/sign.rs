@@ -1,19 +1,21 @@
-use crate::utils::{derive_account_with_index, request_new_password, DEFAULT_RELATIVE_VAULT_PATH};
+use crate::utils::{
+    default_vault_path, derive_account_with_index, request_new_password, validate_vault_path,
+};
 use anyhow::{anyhow, Result};
 use fuel_crypto::{Message, Signature};
 use fuel_types::Bytes32;
 use fuels::prelude::*;
-use std::{path::PathBuf, str::FromStr};
+use std::{
+    path::{Path, PathBuf},
+    str::FromStr,
+};
 
-fn sign_transaction<P>(
+fn sign_transaction(
     tx_id: Bytes32,
     account_index: usize,
     password: &str,
-    path: P,
-) -> Result<Signature>
-where
-    P: Into<PathBuf>,
-{
+    path: &Path,
+) -> Result<Signature> {
     let secret_key = derive_account_with_index(path, account_index, password)?;
     let message_hash = unsafe { Message::from_bytes_unchecked(*tx_id) };
     let sig = Signature::sign(&secret_key, &message_hash);
@@ -23,15 +25,13 @@ where
 pub(crate) fn sign_transaction_cli(
     id: &str,
     account_index: usize,
-    path: Option<String>,
+    path_opt: Option<String>,
 ) -> Result<(), Error> {
-    let vault_path = match &path {
-        Some(path) => PathBuf::from(path),
-        None => home::home_dir().unwrap().join(DEFAULT_RELATIVE_VAULT_PATH),
-    };
+    let path = path_opt.map_or_else(default_vault_path, PathBuf::from);
+    validate_vault_path(&path)?;
     let password = request_new_password();
     let tx_id = Bytes32::from_str(id).map_err(|e| anyhow!("{}", e))?;
-    let signature = sign_transaction(tx_id, account_index, &password, &vault_path)?;
+    let signature = sign_transaction(tx_id, account_index, &password, &path)?;
     println!("Signature: {signature}");
     Ok(())
 }

@@ -28,4 +28,4 @@ tokio = { version = "1.10.1", features = ["full"] }
 toml = "0.5"
 
 [dev-dependencies]
-serial_test = "*"
+serial_test = "0.9"
