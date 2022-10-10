@@ -6,16 +6,18 @@ mod list;
 mod sign;
 mod utils;
 
+use std::path::PathBuf;
+
 use crate::{
-    account::{new_account, print_account_address},
-    import::import_wallet,
-    init::init_wallet,
+    account::{new_account_cli, print_account_address},
+    export::export_account_cli,
+    import::import_wallet_cli,
+    init::init_wallet_cli,
     list::print_wallet_list,
-    sign::sign_transaction_manually,
+    sign::sign_transaction_cli,
 };
 use anyhow::Result;
 use clap::{ArgEnum, Parser, Subcommand};
-use export::export_account;
 use fuels::prelude::*;
 
 #[derive(Debug, Parser)]
@@ -35,35 +37,45 @@ struct App {
 #[clap(rename_all = "kebab-case")]
 enum Command {
     /// Generate a new account for the initialized HD wallet.
-    New { path: Option<String> },
+    New {
+        #[clap(long)]
+        path: Option<PathBuf>,
+    },
     /// Initialize the HD wallet from a random mnemonic phrase.
     Init {
         #[clap(long)]
-        path: Option<String>,
+        path: Option<PathBuf>,
     },
     /// Initialize the HD wallet from the provided mnemonic phrase.
     Import {
         #[clap(long)]
-        path: Option<String>,
+        path: Option<PathBuf>,
     },
     /// Lists all accounts derived so far.
-    List { path: Option<String> },
+    List {
+        #[clap(long)]
+        path: Option<PathBuf>,
+    },
     /// Get the address of an acccount from account index
     Account {
+        #[clap(long)]
         account_index: usize,
         #[clap(long)]
-        path: Option<String>,
+        path: Option<PathBuf>,
     },
     /// Sign a transaction by providing its ID and the signing account's index
     Sign {
+        #[clap(long)]
         id: String,
+        #[clap(long)]
         account_index: usize,
-        path: Option<String>,
+        #[clap(long)]
+        path: Option<PathBuf>,
     },
     /// Get the private key of an account from its index
     Export {
         #[clap(long)]
-        path: Option<String>,
+        path: Option<PathBuf>,
         #[clap(long)]
         account_index: usize,
     },
@@ -81,9 +93,9 @@ async fn main() -> Result<()> {
     let app = App::parse();
 
     match app.command {
-        Command::New { path } => new_account(path)?,
+        Command::New { path } => new_account_cli(path)?,
         Command::List { path } => print_wallet_list(path)?,
-        Command::Init { path } => init_wallet(path)?,
+        Command::Init { path } => init_wallet_cli(path)?,
         Command::Account {
             account_index,
             path,
@@ -92,12 +104,12 @@ async fn main() -> Result<()> {
             id,
             account_index,
             path,
-        } => sign_transaction_manually(&id, account_index, path).await?,
-        Command::Import { path } => import_wallet(path)?,
+        } => sign_transaction_cli(&id, account_index, path)?,
+        Command::Import { path } => import_wallet_cli(path)?,
         Command::Export {
             path,
             account_index,
-        } => export_account(path, account_index)?,
+        } => export_account_cli(path, account_index)?,
     };
     Ok(())
 }

@@ -1,41 +1,49 @@
-use crate::utils::{display_string_discreetly, handle_vault_path_argument, request_new_password};
-use crate::Error;
+use crate::{
+    utils::{
+        create_vault, default_vault_path, display_string_discreetly, request_new_password,
+        save_phrase_to_disk, validate_vault_path,
+    },
+    Error,
+};
 use fuels::signers::wallet::generate_mnemonic_phrase;
+use std::path::{Path, PathBuf};
 
-pub(crate) fn init_wallet(path: Option<String>) -> Result<(), Error> {
-    let vault_path = handle_vault_path_argument(path)?;
-    if vault_path.exists() {
-        // TODO(?): add CLI interactivity to override
-        return Err(Error::WalletError(format!(
-            "Cannot init vault at {:?}, the directory already exists! You can clear the given path and re-use the same path",
-            vault_path
-        )));
-    }
-    std::fs::create_dir_all(&vault_path)?;
-
+fn init_wallet(path: &Path, password: &str) -> Result<String, Error> {
     // Generate mnemonic phrase
     let mnemonic = generate_mnemonic_phrase(&mut rand::thread_rng(), 24)?;
     // Encrypt and store it
-    let mnemonic_bytes: Vec<u8> = mnemonic.bytes().collect();
-    let password = request_new_password();
+    save_phrase_to_disk(path, &mnemonic, password);
+    Ok(mnemonic)
+}
 
-    eth_keystore::encrypt_key(
-        &vault_path,
-        &mut rand::thread_rng(),
-        mnemonic_bytes,
-        &password,
-        Some(".wallet"),
-    )
-    .unwrap_or_else(|error| {
-        panic!(
-            "Cannot create eth_keystore at {:?}: {:?}",
-            vault_path, error
-        )
-    });
+pub(crate) fn init_wallet_cli(path_opt: Option<PathBuf>) -> Result<(), Error> {
+    let path = path_opt.unwrap_or_else(default_vault_path);
+    validate_vault_path(&path)?;
+    create_vault(&path)?;
+    let password = request_new_password();
+    let mnemonic = init_wallet(&path, &password)?;
     let mnemonic_string = format!("Wallet mnemonic phrase: {}\n", mnemonic);
     display_string_discreetly(
         &mnemonic_string,
         "### Do not share or lose this mnemonic phrase! Press any key to complete. ###",
     )?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::utils::test_utils::{with_tmp_folder, TEST_PASSWORD};
+    use fuels::signers::WalletUnlocked;
+    use serial_test::serial;
+
+    #[serial]
+    #[test]
+    fn initialize_wallet() {
+        with_tmp_folder(|tmp_folder| {
+            let mnemonic = init_wallet(tmp_folder, TEST_PASSWORD).unwrap();
+            let wallet_success = WalletUnlocked::new_from_mnemonic_phrase(&mnemonic, None).is_ok();
+            assert!(wallet_success)
+        })
+    }
 }
