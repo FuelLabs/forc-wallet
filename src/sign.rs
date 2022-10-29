@@ -2,7 +2,7 @@ use crate::utils::{
     default_vault_path, derive_account_with_index, request_new_password, validate_vault_path,
 };
 use anyhow::{anyhow, Result};
-use fuel_crypto::{Message, Signature};
+use fuel_crypto::{Message, SecretKey, Signature};
 use fuel_types::Bytes32;
 use fuels::prelude::*;
 use std::{
@@ -20,6 +20,15 @@ fn sign_transaction(
     let message_hash = unsafe { Message::from_bytes_unchecked(*tx_id) };
     let sig = Signature::sign(&secret_key, &message_hash);
     Ok(sig)
+}
+
+pub fn sign_transaction_with_private_key(tx_id: String, secret_key: String) -> Result<()> {
+    let tx_id = Bytes32::from_str(&tx_id).map_err(|e| anyhow!("{}", e))?;
+    let secret_key = SecretKey::from_str(&secret_key)?;
+    let message_hash = unsafe { Message::from_bytes_unchecked(*tx_id) };
+    let sig = Signature::sign(&secret_key, &message_hash);
+    println!("{sig}");
+    Ok(())
 }
 
 pub(crate) fn sign_transaction_cli(

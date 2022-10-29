@@ -19,6 +19,7 @@ use crate::{
 use anyhow::Result;
 use clap::{ArgEnum, Parser, Subcommand};
 use fuels::prelude::*;
+use sign::sign_transaction_with_private_key;
 
 #[derive(Debug, Parser)]
 #[clap(
@@ -72,6 +73,12 @@ enum Command {
         #[clap(long)]
         path: Option<PathBuf>,
     },
+    SignPrivate {
+        #[clap(long)]
+        id: String,
+        #[clap(long)]
+        private_key: String,
+    },
     /// Get the private key of an account from its index
     Export {
         #[clap(long)]
@@ -110,6 +117,9 @@ async fn main() -> Result<()> {
             path,
             account_index,
         } => export_account_cli(path, account_index)?,
+        Command::SignPrivate { id, private_key } => {
+            sign_transaction_with_private_key(id, private_key)?
+        }
     };
     Ok(())
 }
