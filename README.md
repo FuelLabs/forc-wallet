@@ -57,3 +57,19 @@ To retrieve the address of a specific account, you can use:
 ```sh
 forc-wallet account <account_index>
 ```
+
+### Get private key of an account
+
+To retrieve the private key of a specific account, you can use:
+
+```sh
+forc-wallet export <account_index>
+```
+
+### Initialize from existing mnemonic phrase
+
+To initialize a new HD wallet from an existing mnemonic phrase:
+
+```sh
+forc-wallet import
+```
