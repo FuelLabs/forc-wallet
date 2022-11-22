@@ -140,10 +140,10 @@ pub(crate) fn display_string_discreetly(
 pub(crate) fn save_phrase_to_disk(vault_path: &Path, mnemonic: &str, password: &str) {
     let mnemonic_bytes: Vec<u8> = mnemonic.bytes().collect();
     eth_keystore::encrypt_key(
-        &vault_path,
+        vault_path,
         &mut rand::thread_rng(),
         mnemonic_bytes,
-        &password,
+        password,
         Some(".wallet"),
     )
     .unwrap_or_else(|error| {
