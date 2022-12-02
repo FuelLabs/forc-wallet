@@ -4,7 +4,27 @@ A forc plugin for managing Fuel wallets.
 
 ## Quickstart
 
-To install `forc-wallet` you can use `cargo install`:
+### Installation through fuelup (recommended)
+
+`forc-wallet` is packaged alongside the default distributed toolchains when installed using
+[fuelup](https://github.com/fuellabs/fuelup). If you have the `latest` toolchain installed,
+you should already have `forc-wallet` available:
+
+```console
+$ fuelup toolchain install latest
+$ forc-wallet --version
+forc-wallet 0.1.2
+```
+
+For usage in [custom toolchains](https://fuellabs.github.io/fuelup/master/concepts/toolchains.html#custom-toolchains):
+
+```sh
+fuelup component add forc-wallet
+```
+
+### Installation through cargo 
+
+Otherwise, you may use cargo:
 
 ```sh
 cargo install forc-wallet
