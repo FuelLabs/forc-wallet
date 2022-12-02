@@ -22,7 +22,7 @@ For usage in [custom toolchains](https://fuellabs.github.io/fuelup/master/concep
 fuelup component add forc-wallet
 ```
 
-### Installation through cargo 
+### Installation through cargo
 
 Otherwise, you may use cargo:
 
