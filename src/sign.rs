@@ -17,17 +17,21 @@ fn sign_transaction(
     path: &Path,
 ) -> Result<Signature> {
     let secret_key = derive_account_with_index(path, account_index, password)?;
+    sign_transaction_with_private_key(tx_id, secret_key)
+}
+
+fn sign_transaction_with_private_key(tx_id: Bytes32, secret_key: SecretKey) -> Result<Signature> {
     let message_hash = unsafe { Message::from_bytes_unchecked(*tx_id) };
     let sig = Signature::sign(&secret_key, &message_hash);
     Ok(sig)
 }
 
-pub fn sign_transaction_with_private_key(tx_id: String, secret_key: String) -> Result<()> {
-    let tx_id = Bytes32::from_str(&tx_id).map_err(|e| anyhow!("{}", e))?;
-    let secret_key = SecretKey::from_str(&secret_key)?;
-    let message_hash = unsafe { Message::from_bytes_unchecked(*tx_id) };
-    let sig = Signature::sign(&secret_key, &message_hash);
-    println!("{sig}");
+pub(crate) fn sign_transaction_with_private_key_cli(id: &str) -> Result<()> {
+    let tx_id = Bytes32::from_str(id).map_err(|e| anyhow!("{}", e))?;
+    let secret_key_input = request_new_password();
+    let secret_key = SecretKey::from_str(&secret_key_input)?;
+    let signature = sign_transaction_with_private_key(tx_id, secret_key)?;
+    println!("Signature: {signature}");
     Ok(())
 }
 

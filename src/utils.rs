@@ -140,10 +140,10 @@ pub(crate) fn display_string_discreetly(
 pub(crate) fn save_phrase_to_disk(vault_path: &Path, mnemonic: &str, password: &str) {
     let mnemonic_bytes: Vec<u8> = mnemonic.bytes().collect();
     eth_keystore::encrypt_key(
-        &vault_path,
+        vault_path,
         &mut rand::thread_rng(),
         mnemonic_bytes,
-        &password,
+        password,
         Some(".wallet"),
     )
     .unwrap_or_else(|error| {
@@ -222,7 +222,7 @@ mod tests {
         with_tmp_folder(|tmp_folder| {
             save_phrase_to_disk(tmp_folder, TEST_MNEMONIC, TEST_PASSWORD);
             let phrase_recovered =
-                eth_keystore::decrypt_key(&tmp_folder.join(".wallet"), TEST_PASSWORD).unwrap();
+                eth_keystore::decrypt_key(tmp_folder.join(".wallet"), TEST_PASSWORD).unwrap();
             let phrase = String::from_utf8(phrase_recovered).unwrap();
             assert_eq!(phrase, TEST_MNEMONIC)
         });
