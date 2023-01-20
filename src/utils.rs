@@ -222,7 +222,7 @@ mod tests {
         with_tmp_folder(|tmp_folder| {
             save_phrase_to_disk(tmp_folder, TEST_MNEMONIC, TEST_PASSWORD);
             let phrase_recovered =
-                eth_keystore::decrypt_key(&tmp_folder.join(".wallet"), TEST_PASSWORD).unwrap();
+                eth_keystore::decrypt_key(tmp_folder.join(".wallet"), TEST_PASSWORD).unwrap();
             let phrase = String::from_utf8(phrase_recovered).unwrap();
             assert_eq!(phrase, TEST_MNEMONIC)
         });
