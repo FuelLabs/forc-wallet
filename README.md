@@ -4,7 +4,27 @@ A forc plugin for managing Fuel wallets.
 
 ## Quickstart
 
-To install `forc-wallet` you can use `cargo install`:
+### Installation through fuelup (recommended)
+
+`forc-wallet` is packaged alongside the default distributed toolchains when installed using
+[fuelup](https://github.com/fuellabs/fuelup). If you have the `latest` toolchain installed,
+you should already have `forc-wallet` available:
+
+```console
+$ fuelup toolchain install latest
+$ forc-wallet --version
+forc-wallet 0.1.2
+```
+
+For usage in [custom toolchains](https://fuellabs.github.io/fuelup/master/concepts/toolchains.html#custom-toolchains):
+
+```sh
+fuelup component add forc-wallet
+```
+
+### Installation through cargo
+
+Otherwise, you may use cargo:
 
 ```sh
 cargo install forc-wallet
@@ -56,4 +76,20 @@ To retrieve the address of a specific account, you can use:
 
 ```sh
 forc-wallet account <account_index>
+```
+
+### Get private key of an account
+
+To retrieve the private key of a specific account, you can use:
+
+```sh
+forc-wallet export --account-index <account_index>
+```
+
+### Initialize from existing mnemonic phrase
+
+To initialize a new HD wallet from an existing mnemonic phrase:
+
+```sh
+forc-wallet import
 ```
