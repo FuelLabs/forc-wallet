@@ -75,7 +75,7 @@ enum Command {
     /// Sign a transaction by providing its ID and the signing account's private key.
     SignPrivate {
         #[clap(long)]
-        id: String,
+        tx_id: String,
     },
     /// Get the private key of an account from its index
     Export {
