@@ -14,7 +14,7 @@ use crate::{
     import::import_wallet_cli,
     init::init_wallet_cli,
     list::print_wallet_list,
-    sign::sign_transaction_cli,
+    sign::{sign_transaction_cli, sign_transaction_with_private_key_cli},
 };
 use anyhow::Result;
 use clap::{ArgEnum, Parser, Subcommand};
@@ -72,6 +72,11 @@ enum Command {
         #[clap(long)]
         path: Option<PathBuf>,
     },
+    /// Sign a transaction by providing its ID and the signing account's private key.
+    SignPrivate {
+        #[clap(long)]
+        tx_id: String,
+    },
     /// Get the private key of an account from its index
     Export {
         #[clap(long)]
@@ -110,6 +115,7 @@ async fn main() -> Result<()> {
             path,
             account_index,
         } => export_account_cli(path, account_index)?,
+        Command::SignPrivate { tx_id } => sign_transaction_with_private_key_cli(&tx_id)?,
     };
     Ok(())
 }
