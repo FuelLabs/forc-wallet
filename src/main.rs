@@ -115,7 +115,7 @@ async fn main() -> Result<()> {
             path,
             account_index,
         } => export_account_cli(path, account_index)?,
-        Command::SignPrivate { id } => sign_transaction_with_private_key_cli(&id)?,
+        Command::SignPrivate { tx_id } => sign_transaction_with_private_key_cli(&tx_id)?,
     };
     Ok(())
 }

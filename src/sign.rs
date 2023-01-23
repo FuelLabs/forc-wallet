@@ -27,7 +27,7 @@ fn sign_transaction_with_private_key(tx_id: Bytes32, secret_key: SecretKey) -> R
 }
 
 pub(crate) fn sign_transaction_with_private_key_cli(tx_id: &str) -> Result<()> {
-    let tx_id = Bytes32::from_str(id).map_err(|e| anyhow!("{}", e))?;
+    let tx_id = Bytes32::from_str(tx_id).map_err(|e| anyhow!("{}", e))?;
     let secret_key_input = request_new_password();
     let secret_key = SecretKey::from_str(&secret_key_input)?;
     let signature = sign_transaction_with_private_key(tx_id, secret_key)?;
