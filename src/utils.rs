@@ -146,11 +146,7 @@ pub(crate) fn save_phrase_to_disk(vault_path: &Path, mnemonic: &str, password: &
         password,
         Some(".wallet"),
     )
-    .unwrap_or_else(|error| {
-        panic!(
-            "Cannot create eth_keystore at {vault_path:?}: {error:?}"
-        )
-    });
+    .unwrap_or_else(|error| panic!("Cannot create eth_keystore at {vault_path:?}: {error:?}"));
 }
 
 #[cfg(test)]
