@@ -22,7 +22,7 @@ pub(crate) fn init_wallet_cli(path_opt: Option<PathBuf>) -> Result<(), Error> {
     create_vault(&path)?;
     let password = request_new_password();
     let mnemonic = init_wallet(&path, &password)?;
-    let mnemonic_string = format!("Wallet mnemonic phrase: {}\n", mnemonic);
+    let mnemonic_string = format!("Wallet mnemonic phrase: {mnemonic}\n");
     display_string_discreetly(
         &mnemonic_string,
         "### Do not share or lose this mnemonic phrase! Press any key to complete. ###",
