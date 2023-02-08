@@ -51,7 +51,7 @@ pub(crate) fn create_accounts_file(path: &Path, accounts: Vec<String>) -> Result
 /// Creates the wallet vault if it does not exists.
 pub(crate) fn create_vault(path: &Path) -> Result<()> {
     if path.exists() {
-        bail!(format!("Cannot import wallet at {:?}, the directory already exists! You can clear the given path and re-use the same path", path))
+        bail!(format!("Cannot import wallet at {path:?}, the directory already exists! You can clear the given path and re-use the same path"))
     } else {
         std::fs::create_dir_all(path)?;
     }
@@ -106,7 +106,7 @@ pub(crate) fn wait_for_keypress() {
 
 /// Returns the derivation path with account index using the default derivation path from SDK
 pub(crate) fn get_derivation_path(account_index: usize) -> String {
-    format!("{}/{}'/0/0", DEFAULT_DERIVATION_PATH_PREFIX, account_index)
+    format!("{DEFAULT_DERIVATION_PATH_PREFIX}/{account_index}'/0/0")
 }
 
 pub(crate) fn request_new_password() -> String {
@@ -129,9 +129,9 @@ pub(crate) fn display_string_discreetly(
     continue_message: &str,
 ) -> Result<(), Error> {
     let mut screen = AlternateScreen::from(std::io::stdout());
-    writeln!(screen, "{}", discreet_string)?;
+    writeln!(screen, "{discreet_string}")?;
     screen.flush()?;
-    println!("{}", continue_message);
+    println!("{continue_message}");
     wait_for_keypress();
     Ok(())
 }
@@ -146,12 +146,7 @@ pub(crate) fn save_phrase_to_disk(vault_path: &Path, mnemonic: &str, password: &
         password,
         Some(".wallet"),
     )
-    .unwrap_or_else(|error| {
-        panic!(
-            "Cannot create eth_keystore at {:?}: {:?}",
-            vault_path, error
-        )
-    });
+    .unwrap_or_else(|error| panic!("Cannot create eth_keystore at {vault_path:?}: {error:?}"));
 }
 
 #[cfg(test)]

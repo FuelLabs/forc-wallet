@@ -11,9 +11,9 @@ pub(crate) fn print_account_address(path_opt: Option<PathBuf>, account_index: us
     validate_vault_path(&path)?;
     let existing_accounts = Accounts::from_dir(&path)?;
     if let Some(account) = existing_accounts.addresses().iter().nth(account_index) {
-        println!("Account {} address: {}", account_index, account);
+        println!("Account {account_index} address: {account}");
     } else {
-        eprintln!("Account {} is not derived yet!", account_index);
+        eprintln!("Account {account_index} is not derived yet!");
     }
     Ok(())
 }
@@ -21,7 +21,7 @@ pub(crate) fn print_account_address(path_opt: Option<PathBuf>, account_index: us
 fn new_account(vault_path: &Path, password: &str) -> Result<WalletUnlocked> {
     let vault_path_buf = PathBuf::from(vault_path);
     let account_index = number_of_derived_accounts(&vault_path_buf);
-    println!("Generating account with index: {}", account_index);
+    println!("Generating account with index: {account_index}");
     let derive_path = get_derivation_path(account_index);
 
     let phrase_recovered = eth_keystore::decrypt_key(vault_path_buf.join(".wallet"), password)?;
