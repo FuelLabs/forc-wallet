@@ -23,7 +23,7 @@ pub(crate) fn print_wallet_list(path_opt: Option<PathBuf>) -> Result<()> {
     println!("#   address\n");
     for wallet in wallets {
         let (index, address) = wallet;
-        println!("[{}] {}", index, address);
+        println!("[{index}] {address}");
     }
     Ok(())
 }
