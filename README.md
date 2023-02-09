@@ -13,7 +13,7 @@ you should already have `forc-wallet` available:
 ```console
 $ fuelup toolchain install latest
 $ forc-wallet --version
-forc-wallet 0.1.2
+forc-wallet 0.1.3
 ```
 
 For usage in [custom toolchains](https://fuellabs.github.io/fuelup/master/concepts/toolchains.html#custom-toolchains):
@@ -57,7 +57,7 @@ This will require your wallet password (the one that you choosed in the initiali
 To sign a transaction, you need to have the transaction ID. You can generate a transaction and get its ID using `forc-client`. Signing the transaction once you have the ID is simple:
 
 ```sh
-forc-wallet sign <transaction_id> <account_index>
+forc-wallet sign --id <transaction_id> --account-index <account_index>
 ```
 
 ## Other useful commands
@@ -75,7 +75,7 @@ forc-wallet list
 To retrieve the address of a specific account, you can use:
 
 ```sh
-forc-wallet account <account_index>
+forc-wallet account --account-index <account_index>
 ```
 
 ### Get private key of an account
