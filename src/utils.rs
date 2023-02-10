@@ -9,7 +9,6 @@ use std::{
     io::{Read, Write},
     path::{Path, PathBuf},
 };
-use termion::screen::AlternateScreen;
 
 /// The user's fuel directory (stores state related to fuel-core, wallet, etc).
 pub fn user_fuel_dir() -> PathBuf {
@@ -108,7 +107,8 @@ pub(crate) fn display_string_discreetly(
     discreet_string: &str,
     continue_message: &str,
 ) -> Result<(), Error> {
-    let mut screen = AlternateScreen::from(std::io::stdout());
+    use termion::screen::IntoAlternateScreen;
+    let mut screen = std::io::stdout().into_alternate_screen()?;
     writeln!(screen, "{discreet_string}")?;
     screen.flush()?;
     println!("{continue_message}");
