@@ -33,7 +33,7 @@ pub(crate) fn print_account_address(path_opt: Option<PathBuf>, account_ix: usize
 }
 
 fn new_account(wallet_path: &Path, password: &str) -> Result<WalletUnlocked> {
-    let wallet = load_wallet(&wallet_path)?;
+    let wallet = load_wallet(wallet_path)?;
     let addresses = read_cached_account_addresses(&wallet.crypto.ciphertext)?;
     let account_index = addresses.len();
     println!("Generating account with index: {account_index}");
@@ -71,7 +71,7 @@ fn wallet_account_address_cache_dir_name(wallet_ciphertext: &[u8]) -> String {
     let hasher = &mut std::collections::hash_map::DefaultHasher::default();
     wallet_ciphertext.iter().for_each(|byte| byte.hash(hasher));
     let hash = hasher.finish();
-    format!("{:x}", hash)
+    format!("{hash:x}")
 }
 
 /// The path in which a wallet's account addresses will be cached.

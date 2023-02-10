@@ -49,7 +49,7 @@ pub fn validate_wallet_path(wallet_path: &Path) -> Result<()> {
 
 /// Load a wallet from the given path.
 pub fn load_wallet(wallet_path: &Path) -> Result<EthKeystore> {
-    let file = fs::File::open(&wallet_path).context("failed to open wallet file")?;
+    let file = fs::File::open(wallet_path).context("failed to open wallet file")?;
     let reader = std::io::BufReader::new(file);
     serde_json::from_reader(reader)
         .with_context(|| format!("failed to deserialize keystore from {wallet_path:?}"))
