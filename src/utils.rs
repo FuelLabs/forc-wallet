@@ -68,7 +68,7 @@ pub(crate) fn create_vault(path: &Path) -> Result<()> {
 }
 
 /// If the path is not relative to the home directory, error out.
-pub(crate) fn validate_vault_path(path: &Path) -> Result<()> {
+pub(crate) fn validate_wallet_path(path: &Path) -> Result<()> {
     let home_dir = home_dir().ok_or_else(|| anyhow!("Cannot get home directory!"))?;
     if !path.starts_with(home_dir) {
         bail!(
@@ -202,7 +202,7 @@ mod tests {
     fn handle_none_argument() {
         let path_opt: Option<PathBuf> = None;
         let path = path_opt.unwrap_or_else(default_wallet_path);
-        validate_vault_path(&path).unwrap();
+        validate_wallet_path(&path).unwrap();
         let default_path = default_wallet_path();
         assert_eq!(path, default_path)
     }
@@ -213,7 +213,7 @@ mod tests {
         let test_dir = home_dir.join("forc_wallet_test_dir");
         let path_opt = Some(test_dir);
         let path = path_opt.unwrap_or_else(default_wallet_path);
-        validate_vault_path(&path).unwrap();
+        validate_wallet_path(&path).unwrap();
         let default_path = home_dir.join("forc_wallet_test_dir");
         assert_eq!(path, default_path)
     }
@@ -222,7 +222,7 @@ mod tests {
     fn handle_absolute_path_argument() {
         let path_opt: Option<PathBuf> = Some(PathBuf::from("/forc_wallet_test_dir"));
         let path = path_opt.unwrap_or_else(default_wallet_path);
-        let path_validation = validate_vault_path(&path).is_err();
+        let path_validation = validate_wallet_path(&path).is_err();
         assert!(path_validation)
     }
     #[test]
