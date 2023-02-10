@@ -15,8 +15,6 @@ use termion::screen::AlternateScreen;
 const USER_FUEL_DIR: &str = ".fuel";
 /// The directory under which `forc wallet` generates wallets.
 const WALLETS_DIR: &str = "wallets";
-/// The directory of the default wallet when no wallet path is specified.
-const DEFAULT_WALLET_DIR: &str = "default";
 /// The file stem for the wallet file, a JSON file with AES encrypted keys etc.
 const WALLET_FILE_STEM: &str = ".wallet";
 /// The file storing wallet account information.
@@ -82,10 +80,7 @@ pub(crate) fn validate_wallet_path(path: &Path) -> Result<()> {
 /// Returns default wallet directory which is `$HOME/.fuel/wallets/default`.
 pub(crate) fn default_wallet_path() -> PathBuf {
     let home_dir = home_dir().expect("Cannot get home directory!");
-    home_dir
-        .join(USER_FUEL_DIR)
-        .join(WALLETS_DIR)
-        .join(DEFAULT_WALLET_DIR)
+    home_dir.join(USER_FUEL_DIR).join(WALLETS_DIR)
 }
 
 /// Returns the number of the accounts derived so far by reading the .accounts file from given path

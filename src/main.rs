@@ -32,7 +32,7 @@ struct App {
     /// JSON keystore file. It may also contain an `.accounts` JSON file
     /// containing a list of accounts that have been known to be derived so
     /// far.
-    /// By default, this is `$HOME/.fuel/wallets/default`.
+    /// By default, this is `$HOME/.fuel/wallets`.
     #[clap(long = "path")]
     wallet_path: Option<PathBuf>,
     #[clap(subcommand)]
