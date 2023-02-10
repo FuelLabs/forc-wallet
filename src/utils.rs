@@ -57,8 +57,8 @@ pub(crate) fn create_accounts_file(wallet_dir: &Path, accounts: Vec<String>) -> 
     Ok(())
 }
 
-/// Creates the wallet vault if it does not exists.
-pub(crate) fn create_vault(path: &Path) -> Result<()> {
+/// Creates the wallet directory at the given path if it does not exist.
+pub(crate) fn create_wallet(path: &Path) -> Result<()> {
     if path.exists() {
         bail!(format!("Cannot import wallet at {path:?}, the directory already exists! You can clear the given path and re-use the same path"))
     } else {
@@ -179,22 +179,22 @@ mod tests {
 
     #[test]
     #[serial]
-    fn create_vault_should_success() {
+    fn create_wallet_should_success() {
         with_tmp_folder(|tmp_folder| {
             let test_vault_path = tmp_folder.join("handle_vault_path_success_dir");
-            let create_vault_status = create_vault(&test_vault_path).is_ok();
-            assert!(create_vault_status)
+            let create_wallet_status = create_wallet(&test_vault_path).is_ok();
+            assert!(create_wallet_status)
         });
     }
 
     #[test]
     #[serial]
-    fn create_vault_should_fail() {
+    fn create_wallet_should_fail() {
         with_tmp_folder(|tmp_folder| {
             let test_vault_path = tmp_folder.join("handle_vault_path_fail_dir");
             std::fs::create_dir_all(&test_vault_path).unwrap();
-            let create_vault_status = create_vault(&test_vault_path).is_err();
-            assert!(create_vault_status)
+            let create_wallet_status = create_wallet(&test_vault_path).is_err();
+            assert!(create_wallet_status)
         });
     }
 
