@@ -42,6 +42,8 @@ This will require a password for encyrpting the wallet. After the initialization
 
 You can also initialize a wallet with your existing mnemonic phrase by using `forc-wallet import`.
 
+> Note: `forc-wallet` adheres to the [Web3 Secret Storage Definition](https://ethereum.org/en/developers/docs/data-structures-and-encoding/web3-secret-storage) and accepts paths to wallet files that adhere to this standard.
+
 ### Create an account
 
 To create an account for the initialized wallet, you can run:

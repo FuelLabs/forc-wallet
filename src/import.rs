@@ -1,5 +1,6 @@
 use crate::utils::{
-    default_wallet_path, request_new_password, save_phrase_to_disk, validate_wallet_path,
+    default_wallet_path, request_new_password, validate_wallet_path,
+    write_wallet_from_mnemonic_and_password,
 };
 use anyhow::{bail, Result};
 use fuels::signers::wallet::WalletUnlocked;
@@ -21,7 +22,7 @@ pub(crate) fn import_wallet_cli(path_opt: Option<PathBuf>) -> Result<()> {
     check_mnemonic(&mnemonic)?;
     let password = request_new_password();
     // Encyrpt and store it
-    save_phrase_to_disk(&path, &mnemonic, &password);
+    write_wallet_from_mnemonic_and_password(&path, &mnemonic, &password)?;
     Ok(())
 }
 
