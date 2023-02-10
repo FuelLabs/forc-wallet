@@ -23,7 +23,7 @@ fn new_account(wallet_dir: &Path, password: &str) -> Result<WalletUnlocked> {
     println!("Generating account with index: {account_index}");
     let derive_path = get_derivation_path(account_index);
     let wallet_keystore_path = wallet_keystore_path(wallet_dir);
-    let phrase_recovered = eth_keystore::decrypt_key(&wallet_keystore_path, password)?;
+    let phrase_recovered = eth_keystore::decrypt_key(wallet_keystore_path, password)?;
     let phrase = String::from_utf8(phrase_recovered)?;
     let wallet = WalletUnlocked::new_from_mnemonic_phrase_with_path(&phrase, None, &derive_path)?;
     Ok(wallet)
