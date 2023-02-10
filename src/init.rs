@@ -1,7 +1,7 @@
 use crate::{
     utils::{
-        create_vault, default_vault_path, display_string_discreetly, request_new_password,
-        save_phrase_to_disk, validate_vault_path,
+        create_wallet, default_wallet_path, display_string_discreetly, request_new_password,
+        save_phrase_to_disk, validate_wallet_path,
     },
     Error,
 };
@@ -17,9 +17,9 @@ fn init_wallet(path: &Path, password: &str) -> Result<String, Error> {
 }
 
 pub(crate) fn init_wallet_cli(path_opt: Option<PathBuf>) -> Result<(), Error> {
-    let path = path_opt.unwrap_or_else(default_vault_path);
-    validate_vault_path(&path)?;
-    create_vault(&path)?;
+    let path = path_opt.unwrap_or_else(default_wallet_path);
+    validate_wallet_path(&path)?;
+    create_wallet(&path)?;
     let password = request_new_password();
     let mnemonic = init_wallet(&path, &password)?;
     let mnemonic_string = format!("Wallet mnemonic phrase: {mnemonic}\n");

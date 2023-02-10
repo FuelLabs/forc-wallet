@@ -75,7 +75,7 @@ forc-wallet list
 To retrieve the address of a specific account, you can use:
 
 ```sh
-forc-wallet account --account-index <account_index>
+forc-wallet account --index <account_index>
 ```
 
 ### Get private key of an account

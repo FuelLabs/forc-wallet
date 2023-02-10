@@ -1,4 +1,4 @@
-use crate::utils::{default_vault_path, validate_vault_path, Accounts};
+use crate::utils::{default_wallet_path, validate_wallet_path, Accounts};
 use anyhow::{bail, Result};
 use std::path::{Path, PathBuf};
 
@@ -14,8 +14,8 @@ pub(crate) fn get_wallets_list(path: &Path) -> Result<Vec<(usize, String)>> {
 }
 
 pub(crate) fn print_wallet_list(path_opt: Option<PathBuf>) -> Result<()> {
-    let path = path_opt.unwrap_or_else(default_vault_path);
-    validate_vault_path(&path)?;
+    let path = path_opt.unwrap_or_else(default_wallet_path);
+    validate_wallet_path(&path)?;
     if !path.exists() {
         bail!("No wallets found in {:?}", path);
     }

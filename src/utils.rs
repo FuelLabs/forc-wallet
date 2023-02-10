@@ -11,7 +11,14 @@ use std::{
 };
 use termion::screen::AlternateScreen;
 
-pub(crate) const DEFAULT_RELATIVE_VAULT_PATH: &str = ".fuel/wallets/";
+/// The `.fuel` subdirectory, also shared by fuel-core.
+const USER_FUEL_DIR: &str = ".fuel";
+/// The directory under which `forc wallet` generates wallets.
+const WALLETS_DIR: &str = "wallets";
+/// The file stem for the wallet file, a JSON file with AES encrypted keys etc.
+const WALLET_FILE_STEM: &str = ".wallet";
+/// The file storing wallet account information.
+const ACCOUNTS_FILE_STEM: &str = ".accounts";
 
 #[derive(Serialize, Deserialize)]
 pub(crate) struct Accounts {
@@ -23,15 +30,14 @@ impl Accounts {
         Accounts { addresses }
     }
 
-    pub(crate) fn from_dir(path: &Path) -> Result<Accounts> {
-        let path_buf = PathBuf::from(path);
-        let accounts_file_path = path_buf.join(".accounts");
+    pub(crate) fn from_dir(wallet_dir: &Path) -> Result<Accounts> {
+        let accounts_file_path = wallet_accounts_path(wallet_dir);
         if !accounts_file_path.exists() {
             Ok(Accounts { addresses: vec![] })
         } else {
-            let account_file = fs::read_to_string(path_buf.join(".accounts"))?;
-            let accounts = serde_json::from_str(&account_file)
-                .map_err(|e| anyhow!("failed to parse .accounts: {}.", e))?;
+            let accounts_file = fs::read_to_string(&accounts_file_path)?;
+            let accounts = serde_json::from_str(&accounts_file)
+                .map_err(|e| anyhow!("failed to parse {:?}: {}.", accounts_file, e))?;
             Ok(accounts)
         }
     }
@@ -42,14 +48,15 @@ impl Accounts {
 }
 
 /// Create the `.accounts` file which holds the addresses of accounts derived so far
-pub(crate) fn create_accounts_file(path: &Path, accounts: Vec<String>) -> Result<()> {
-    let account_file = serde_json::to_string(&Accounts::new(accounts))?;
-    fs::write(path.join(".accounts"), account_file)?;
+pub(crate) fn create_accounts_file(wallet_dir: &Path, accounts: Vec<String>) -> Result<()> {
+    let accounts_path = wallet_accounts_path(wallet_dir);
+    let accounts_file = serde_json::to_string(&Accounts::new(accounts))?;
+    fs::write(accounts_path, accounts_file)?;
     Ok(())
 }
 
-/// Creates the wallet vault if it does not exists.
-pub(crate) fn create_vault(path: &Path) -> Result<()> {
+/// Creates the wallet directory at the given path if it does not exist.
+pub(crate) fn create_wallet(path: &Path) -> Result<()> {
     if path.exists() {
         bail!(format!("Cannot import wallet at {path:?}, the directory already exists! You can clear the given path and re-use the same path"))
     } else {
@@ -59,7 +66,7 @@ pub(crate) fn create_vault(path: &Path) -> Result<()> {
 }
 
 /// If the path is not relative to the home directory, error out.
-pub(crate) fn validate_vault_path(path: &Path) -> Result<()> {
+pub(crate) fn validate_wallet_path(path: &Path) -> Result<()> {
     let home_dir = home_dir().ok_or_else(|| anyhow!("Cannot get home directory!"))?;
     if !path.starts_with(home_dir) {
         bail!(
@@ -70,10 +77,10 @@ pub(crate) fn validate_vault_path(path: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Returns default vault path which is $HOME/.fuel/wallets
-pub(crate) fn default_vault_path() -> PathBuf {
+/// Returns default wallet directory which is `$HOME/.fuel/wallets/default`.
+pub(crate) fn default_wallet_path() -> PathBuf {
     let home_dir = home_dir().expect("Cannot get home directory!");
-    home_dir.join(DEFAULT_RELATIVE_VAULT_PATH)
+    home_dir.join(USER_FUEL_DIR).join(WALLETS_DIR)
 }
 
 /// Returns the number of the accounts derived so far by reading the .accounts file from given path
@@ -86,13 +93,21 @@ pub(crate) fn number_of_derived_accounts(path: &Path) -> usize {
     }
 }
 
+pub(crate) fn wallet_keystore_path(wallet_dir: &Path) -> PathBuf {
+    wallet_dir.join(WALLET_FILE_STEM)
+}
+
+fn wallet_accounts_path(wallet_dir: &Path) -> PathBuf {
+    wallet_dir.join(ACCOUNTS_FILE_STEM)
+}
+
 pub(crate) fn derive_account_with_index(
-    path: &Path,
+    wallet_dir: &Path,
     account_index: usize,
     password: &str,
 ) -> Result<SecretKey> {
-    let path_buf = PathBuf::from(path);
-    let phrase_recovered = eth_keystore::decrypt_key(path_buf.join(".wallet"), password)?;
+    let keystore_path = wallet_keystore_path(wallet_dir);
+    let phrase_recovered = eth_keystore::decrypt_key(keystore_path, password)?;
     let phrase = String::from_utf8(phrase_recovered)?;
     let derive_path = get_derivation_path(account_index);
     let secret_key = SecretKey::new_from_mnemonic_phrase_with_path(&phrase, &derive_path)?;
@@ -137,16 +152,16 @@ pub(crate) fn display_string_discreetly(
 }
 
 /// Encrypts and saves the mnemonic phrase to disk
-pub(crate) fn save_phrase_to_disk(vault_path: &Path, mnemonic: &str, password: &str) {
+pub(crate) fn save_phrase_to_disk(wallet_dir: &Path, mnemonic: &str, password: &str) {
     let mnemonic_bytes: Vec<u8> = mnemonic.bytes().collect();
     eth_keystore::encrypt_key(
-        vault_path,
+        wallet_dir,
         &mut rand::thread_rng(),
         mnemonic_bytes,
         password,
-        Some(".wallet"),
+        Some(WALLET_FILE_STEM),
     )
-    .unwrap_or_else(|error| panic!("Cannot create eth_keystore at {vault_path:?}: {error:?}"));
+    .unwrap_or_else(|error| panic!("Cannot create eth_keystore at {wallet_dir:?}: {error:?}"));
 }
 
 #[cfg(test)]
@@ -159,32 +174,31 @@ mod tests {
 
     #[test]
     #[serial]
-    fn create_vault_should_success() {
+    fn create_wallet_should_success() {
         with_tmp_folder(|tmp_folder| {
-            let test_vault_path = tmp_folder.join("handle_vault_path_success_dir");
-            let create_vault_status = create_vault(&test_vault_path).is_ok();
-            assert!(create_vault_status)
+            let test_wallet_dir = tmp_folder.join("handle_wallet_dir_success_dir");
+            let create_wallet_status = create_wallet(&test_wallet_dir).is_ok();
+            assert!(create_wallet_status)
         });
     }
 
     #[test]
     #[serial]
-    fn create_vault_should_fail() {
+    fn create_wallet_should_fail() {
         with_tmp_folder(|tmp_folder| {
-            let test_vault_path = tmp_folder.join("handle_vault_path_fail_dir");
-            std::fs::create_dir_all(&test_vault_path).unwrap();
-            let create_vault_status = create_vault(&test_vault_path).is_err();
-            assert!(create_vault_status)
+            let test_wallet_dir = tmp_folder.join("handle_wallet_dir_fail_dir");
+            std::fs::create_dir_all(&test_wallet_dir).unwrap();
+            let create_wallet_status = create_wallet(&test_wallet_dir).is_err();
+            assert!(create_wallet_status)
         });
     }
 
     #[test]
     fn handle_none_argument() {
         let path_opt: Option<PathBuf> = None;
-        let path = path_opt.unwrap_or_else(default_vault_path);
-        validate_vault_path(&path).unwrap();
-        let home_dir = home_dir().unwrap();
-        let default_path = home_dir.join(DEFAULT_RELATIVE_VAULT_PATH);
+        let path = path_opt.unwrap_or_else(default_wallet_path);
+        validate_wallet_path(&path).unwrap();
+        let default_path = default_wallet_path();
         assert_eq!(path, default_path)
     }
 
@@ -193,8 +207,8 @@ mod tests {
         let home_dir = home_dir().unwrap();
         let test_dir = home_dir.join("forc_wallet_test_dir");
         let path_opt = Some(test_dir);
-        let path = path_opt.unwrap_or_else(default_vault_path);
-        validate_vault_path(&path).unwrap();
+        let path = path_opt.unwrap_or_else(default_wallet_path);
+        validate_wallet_path(&path).unwrap();
         let default_path = home_dir.join("forc_wallet_test_dir");
         assert_eq!(path, default_path)
     }
@@ -202,8 +216,8 @@ mod tests {
     #[test]
     fn handle_absolute_path_argument() {
         let path_opt: Option<PathBuf> = Some(PathBuf::from("/forc_wallet_test_dir"));
-        let path = path_opt.unwrap_or_else(default_vault_path);
-        let path_validation = validate_vault_path(&path).is_err();
+        let path = path_opt.unwrap_or_else(default_wallet_path);
+        let path_validation = validate_wallet_path(&path).is_err();
         assert!(path_validation)
     }
     #[test]

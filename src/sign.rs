@@ -1,5 +1,5 @@
 use crate::utils::{
-    default_vault_path, derive_account_with_index, request_new_password, validate_vault_path,
+    default_wallet_path, derive_account_with_index, request_new_password, validate_wallet_path,
 };
 use anyhow::{anyhow, Result};
 use fuel_crypto::{Message, SecretKey, Signature};
@@ -40,8 +40,8 @@ pub(crate) fn sign_transaction_cli(
     account_index: usize,
     path_opt: Option<PathBuf>,
 ) -> Result<(), Error> {
-    let path = path_opt.map_or_else(default_vault_path, PathBuf::from);
-    validate_vault_path(&path)?;
+    let path = path_opt.map_or_else(default_wallet_path, PathBuf::from);
+    validate_wallet_path(&path)?;
     let password = request_new_password();
     let tx_id = Bytes32::from_str(id).map_err(|e| anyhow!("{}", e))?;
     let signature = sign_transaction(tx_id, account_index, &password, &path)?;
