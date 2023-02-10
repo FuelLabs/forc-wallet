@@ -1,5 +1,5 @@
 use crate::utils::{
-    default_vault_path, request_new_password, save_phrase_to_disk, validate_vault_path,
+    default_wallet_path, request_new_password, save_phrase_to_disk, validate_vault_path,
 };
 use anyhow::{bail, Result};
 use fuels::signers::wallet::WalletUnlocked;
@@ -15,7 +15,7 @@ fn check_mnemonic(mnemonic: &str) -> Result<()> {
 }
 
 pub(crate) fn import_wallet_cli(path_opt: Option<PathBuf>) -> Result<()> {
-    let path = path_opt.unwrap_or_else(default_vault_path);
+    let path = path_opt.unwrap_or_else(default_wallet_path);
     validate_vault_path(&path)?;
     let mnemonic = rpassword::prompt_password("Please enter your mnemonic phrase: ")?;
     check_mnemonic(&mnemonic)?;

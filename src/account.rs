@@ -1,5 +1,5 @@
 use crate::utils::{
-    create_accounts_file, default_vault_path, get_derivation_path, number_of_derived_accounts,
+    create_accounts_file, default_wallet_path, get_derivation_path, number_of_derived_accounts,
     validate_vault_path, Accounts,
 };
 use anyhow::{bail, Result};
@@ -7,7 +7,7 @@ use fuels::prelude::WalletUnlocked;
 use std::path::{Path, PathBuf};
 
 pub(crate) fn print_account_address(path_opt: Option<PathBuf>, account_index: usize) -> Result<()> {
-    let path = path_opt.unwrap_or_else(default_vault_path);
+    let path = path_opt.unwrap_or_else(default_wallet_path);
     validate_vault_path(&path)?;
     let existing_accounts = Accounts::from_dir(&path)?;
     if let Some(account) = existing_accounts.addresses().iter().nth(account_index) {
@@ -31,7 +31,7 @@ fn new_account(vault_path: &Path, password: &str) -> Result<WalletUnlocked> {
 }
 
 pub(crate) fn new_account_cli(path_opt: Option<PathBuf>) -> Result<()> {
-    let path = path_opt.unwrap_or_else(default_vault_path);
+    let path = path_opt.unwrap_or_else(default_wallet_path);
     validate_vault_path(&path)?;
     let existing_accounts = Accounts::from_dir(&path)?;
     if !path.join(".wallet").exists() {
