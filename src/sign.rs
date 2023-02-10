@@ -1,5 +1,5 @@
 use crate::utils::{
-    default_wallet_path, derive_account_with_index, request_new_password, validate_wallet_path,
+    default_wallet_path, derive_account, request_new_password, validate_wallet_path,
 };
 use anyhow::{anyhow, Result};
 use fuel_crypto::{Message, SecretKey, Signature};
@@ -16,7 +16,7 @@ fn sign_transaction(
     password: &str,
     path: &Path,
 ) -> Result<Signature> {
-    let secret_key = derive_account_with_index(path, account_index, password)?;
+    let secret_key = derive_account(path, account_index, password)?;
     sign_transaction_with_private_key(tx_id, secret_key)
 }
 
@@ -53,18 +53,17 @@ pub(crate) fn sign_transaction_cli(
 mod tests {
     use super::*;
     use crate::utils::test_utils::{save_dummy_wallet_file, with_tmp_folder, TEST_PASSWORD};
-    use serial_test::serial;
     #[test]
-    #[serial]
     fn sign_dummy_transaction() {
         with_tmp_folder(|tmp_folder| {
+            let wallet_path = tmp_folder.join("wallet.json");
             // initialize a wallet
-            save_dummy_wallet_file(tmp_folder);
+            save_dummy_wallet_file(&wallet_path);
             let tx_id = Bytes32::from_str(
                 "0x6c226b276bd2028c0582229b6396f91801c913973487491b0262c5c7b3cd6e39",
             )
             .unwrap();
-            let sig = sign_transaction(tx_id, 0, TEST_PASSWORD, tmp_folder).unwrap();
+            let sig = sign_transaction(tx_id, 0, TEST_PASSWORD, &wallet_path).unwrap();
             assert_eq!(sig.to_string(), "bcf4651f072130aaf8925610e1d719b76e25b19b0a86779d3f4294964f1607cc95eb6c58eb37bf0510f618bd284decdf936c48ec6722df5472084e4098d54620");
         });
     }

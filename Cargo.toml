@@ -7,8 +7,6 @@ license = "Apache-2.0"
 repository = "https://github.com/FuelLabs/forc-wallet"
 description = "A forc plugin for generating or importing wallets using BIP39 phrases."
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 anyhow = "1.0"
 clap = { version = "3.1", features = ["derive"] }
@@ -26,6 +24,3 @@ termion = "1.5.6"
 tiny-bip39 = "0.8"
 tokio = { version = "1.10.1", features = ["full"] }
 toml = "0.5"
-
-[dev-dependencies]
-serial_test = "0.9"

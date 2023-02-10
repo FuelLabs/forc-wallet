@@ -1,9 +1,9 @@
 use crate::Error;
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, bail, Context, Result};
+use eth_keystore::EthKeystore;
 use fuel_crypto::SecretKey;
 use fuels_signers::wallet::DEFAULT_DERIVATION_PATH_PREFIX;
 use home::home_dir;
-use serde::{Deserialize, Serialize};
 use std::{
     fs,
     io::{Read, Write},
@@ -11,48 +11,48 @@ use std::{
 };
 use termion::screen::AlternateScreen;
 
-/// The `.fuel` subdirectory, also shared by fuel-core.
-const USER_FUEL_DIR: &str = ".fuel";
+/// The user's fuel directory (stores state related to fuel-core, wallet, etc).
+pub fn user_fuel_dir() -> PathBuf {
+    const USER_FUEL_DIR: &str = ".fuel";
+    let home_dir = home_dir().expect("failed to retrieve user home directory");
+    home_dir.join(USER_FUEL_DIR)
+}
+
 /// The directory under which `forc wallet` generates wallets.
-const WALLETS_DIR: &str = "wallets";
-/// The file stem for the wallet file, a JSON file with AES encrypted keys etc.
-const WALLET_FILE_STEM: &str = ".wallet";
-/// The file storing wallet account information.
-const ACCOUNTS_FILE_STEM: &str = ".accounts";
-
-#[derive(Serialize, Deserialize)]
-pub(crate) struct Accounts {
-    addresses: Vec<String>,
+pub fn user_fuel_wallets_dir() -> PathBuf {
+    const WALLETS_DIR: &str = "wallets";
+    user_fuel_dir().join(WALLETS_DIR)
 }
 
-impl Accounts {
-    pub(crate) fn new(addresses: Vec<String>) -> Accounts {
-        Accounts { addresses }
-    }
-
-    pub(crate) fn from_dir(wallet_dir: &Path) -> Result<Accounts> {
-        let accounts_file_path = wallet_accounts_path(wallet_dir);
-        if !accounts_file_path.exists() {
-            Ok(Accounts { addresses: vec![] })
-        } else {
-            let accounts_file = fs::read_to_string(&accounts_file_path)?;
-            let accounts = serde_json::from_str(&accounts_file)
-                .map_err(|e| anyhow!("failed to parse {:?}: {}.", accounts_file, e))?;
-            Ok(accounts)
-        }
-    }
-
-    pub(crate) fn addresses(&self) -> &[String] {
-        &self.addresses
-    }
+/// The directory used to cache wallet account addresses.
+pub fn user_fuel_wallets_accounts_dir() -> PathBuf {
+    const ACCOUNTS_DIR: &str = "accounts";
+    user_fuel_wallets_dir().join(ACCOUNTS_DIR)
 }
 
-/// Create the `.accounts` file which holds the addresses of accounts derived so far
-pub(crate) fn create_accounts_file(wallet_dir: &Path, accounts: Vec<String>) -> Result<()> {
-    let accounts_path = wallet_accounts_path(wallet_dir);
-    let accounts_file = serde_json::to_string(&Accounts::new(accounts))?;
-    fs::write(accounts_path, accounts_file)?;
+/// Returns default wallet path which is `$HOME/.fuel/wallets/.wallet`.
+pub fn default_wallet_path() -> PathBuf {
+    const DEFAULT_WALLET_FILE_NAME: &str = ".wallet";
+    user_fuel_wallets_dir().join(DEFAULT_WALLET_FILE_NAME)
+}
+
+/// Ensure that the given wallet path points to a file and not a directory.
+pub fn validate_wallet_path(wallet_path: &Path) -> Result<()> {
+    if !wallet_path.is_file() {
+        bail!(
+            "expected a path to a wallet keystore file, found {:?}",
+            wallet_path
+        );
+    }
     Ok(())
+}
+
+/// Load a wallet from the given path.
+pub fn load_wallet(wallet_path: &Path) -> Result<EthKeystore> {
+    let file = fs::File::open(&wallet_path).context("failed to open wallet file")?;
+    let reader = std::io::BufReader::new(file);
+    serde_json::from_reader(reader)
+        .with_context(|| format!("failed to deserialize keystore from {wallet_path:?}"))
 }
 
 /// Creates the wallet directory at the given path if it does not exist.
@@ -65,49 +65,14 @@ pub(crate) fn create_wallet(path: &Path) -> Result<()> {
     Ok(())
 }
 
-/// If the path is not relative to the home directory, error out.
-pub(crate) fn validate_wallet_path(path: &Path) -> Result<()> {
-    let home_dir = home_dir().ok_or_else(|| anyhow!("Cannot get home directory!"))?;
-    if !path.starts_with(home_dir) {
-        bail!(
-            "Please provide a path relative to the home directory! Provided path: {:?}",
-            path
-        )
-    }
-    Ok(())
-}
-
-/// Returns default wallet directory which is `$HOME/.fuel/wallets/default`.
-pub(crate) fn default_wallet_path() -> PathBuf {
-    let home_dir = home_dir().expect("Cannot get home directory!");
-    home_dir.join(USER_FUEL_DIR).join(WALLETS_DIR)
-}
-
-/// Returns the number of the accounts derived so far by reading the .accounts file from given path
-pub(crate) fn number_of_derived_accounts(path: &Path) -> usize {
-    let accounts = Accounts::from_dir(path);
-    if let Ok(accounts) = accounts {
-        accounts.addresses().len()
-    } else {
-        0
-    }
-}
-
-pub(crate) fn wallet_keystore_path(wallet_dir: &Path) -> PathBuf {
-    wallet_dir.join(WALLET_FILE_STEM)
-}
-
-fn wallet_accounts_path(wallet_dir: &Path) -> PathBuf {
-    wallet_dir.join(ACCOUNTS_FILE_STEM)
-}
-
-pub(crate) fn derive_account_with_index(
-    wallet_dir: &Path,
+/// Given a path to a wallet, an account index and the wallet's password,
+/// derive the account address for the account at the given index.
+pub(crate) fn derive_account(
+    wallet_path: &Path,
     account_index: usize,
     password: &str,
 ) -> Result<SecretKey> {
-    let keystore_path = wallet_keystore_path(wallet_dir);
-    let phrase_recovered = eth_keystore::decrypt_key(keystore_path, password)?;
+    let phrase_recovered = eth_keystore::decrypt_key(wallet_path, password)?;
     let phrase = String::from_utf8(phrase_recovered)?;
     let derive_path = get_derivation_path(account_index);
     let secret_key = SecretKey::new_from_mnemonic_phrase_with_path(&phrase, &derive_path)?;
@@ -151,17 +116,32 @@ pub(crate) fn display_string_discreetly(
     Ok(())
 }
 
-/// Encrypts and saves the mnemonic phrase to disk
-pub(crate) fn save_phrase_to_disk(wallet_dir: &Path, mnemonic: &str, password: &str) {
+/// Encrypts the given mnemonic with the given password and writes it to a file at the given path.
+///
+/// The resulting wallet file will be a keystore as per the [Web3 Secret Storage Definition][1].
+/// [1]: https://ethereum.org/en/developers/docs/data-structures-and-encoding/web3-secret-storage.
+pub(crate) fn write_wallet_from_mnemonic_and_password(
+    wallet_path: &Path,
+    mnemonic: &str,
+    password: &str,
+) -> Result<()> {
+    let wallet_dir = wallet_path
+        .parent()
+        .ok_or_else(|| anyhow!("failed to retrieve parent directory of {wallet_path:?}"))?;
+    let wallet_file_name = wallet_path
+        .file_name()
+        .and_then(|os_str| os_str.to_str())
+        .ok_or_else(|| anyhow!("failed to retrieve file name from {wallet_path:?}"))?;
     let mnemonic_bytes: Vec<u8> = mnemonic.bytes().collect();
     eth_keystore::encrypt_key(
         wallet_dir,
         &mut rand::thread_rng(),
         mnemonic_bytes,
         password,
-        Some(WALLET_FILE_STEM),
+        Some(wallet_file_name),
     )
-    .unwrap_or_else(|error| panic!("Cannot create eth_keystore at {wallet_dir:?}: {error:?}"));
+    .with_context(|| format!("failed to create keystore at {wallet_path:?}"))
+    .map(|_| ())
 }
 
 #[cfg(test)]
@@ -170,10 +150,8 @@ mod tests {
     use crate::utils::test_utils::{
         save_dummy_wallet_file, with_tmp_folder, TEST_MNEMONIC, TEST_PASSWORD,
     };
-    use serial_test::serial;
 
     #[test]
-    #[serial]
     fn create_wallet_should_success() {
         with_tmp_folder(|tmp_folder| {
             let test_wallet_dir = tmp_folder.join("handle_wallet_dir_success_dir");
@@ -183,7 +161,6 @@ mod tests {
     }
 
     #[test]
-    #[serial]
     fn create_wallet_should_fail() {
         with_tmp_folder(|tmp_folder| {
             let test_wallet_dir = tmp_folder.join("handle_wallet_dir_fail_dir");
@@ -191,26 +168,6 @@ mod tests {
             let create_wallet_status = create_wallet(&test_wallet_dir).is_err();
             assert!(create_wallet_status)
         });
-    }
-
-    #[test]
-    fn handle_none_argument() {
-        let path_opt: Option<PathBuf> = None;
-        let path = path_opt.unwrap_or_else(default_wallet_path);
-        validate_wallet_path(&path).unwrap();
-        let default_path = default_wallet_path();
-        assert_eq!(path, default_path)
-    }
-
-    #[test]
-    fn handle_relative_path_argument() {
-        let home_dir = home_dir().unwrap();
-        let test_dir = home_dir.join("forc_wallet_test_dir");
-        let path_opt = Some(test_dir);
-        let path = path_opt.unwrap_or_else(default_wallet_path);
-        validate_wallet_path(&path).unwrap();
-        let default_path = home_dir.join("forc_wallet_test_dir");
-        assert_eq!(path, default_path)
     }
 
     #[test]
@@ -226,24 +183,25 @@ mod tests {
         assert_eq!(derivation_path, "m/44'/1179993420'/0'/0/0");
     }
     #[test]
-    #[serial]
     fn encrypt_and_save_phrase() {
         with_tmp_folder(|tmp_folder| {
-            save_phrase_to_disk(tmp_folder, TEST_MNEMONIC, TEST_PASSWORD);
-            let phrase_recovered =
-                eth_keystore::decrypt_key(tmp_folder.join(".wallet"), TEST_PASSWORD).unwrap();
+            let wallet_path = tmp_folder.join("wallet.json");
+            write_wallet_from_mnemonic_and_password(&wallet_path, TEST_MNEMONIC, TEST_PASSWORD)
+                .unwrap();
+            let phrase_recovered = eth_keystore::decrypt_key(wallet_path, TEST_PASSWORD).unwrap();
             let phrase = String::from_utf8(phrase_recovered).unwrap();
             assert_eq!(phrase, TEST_MNEMONIC)
         });
     }
     #[test]
-    #[serial]
     fn derive_account_by_index() {
         with_tmp_folder(|tmp_folder| {
             // initialize a wallet
-            save_dummy_wallet_file(tmp_folder);
+            let wallet_path = tmp_folder.join("wallet.json");
+            save_dummy_wallet_file(&wallet_path);
             // derive account with account index 0
-            let private_key = derive_account_with_index(tmp_folder, 0, TEST_PASSWORD).unwrap();
+            let account_ix = 0;
+            let private_key = derive_account(&wallet_path, account_ix, TEST_PASSWORD).unwrap();
             assert_eq!(
                 private_key.to_string(),
                 "961bf9754dd036dd13b1d543b3c0f74062bc4ac668ea89d38ce8d712c591f5cf"
@@ -255,11 +213,9 @@ mod tests {
 #[cfg(test)]
 pub(crate) mod test_utils {
     use super::*;
-    use home::home_dir;
     use std::{panic, path::PathBuf};
 
     pub(crate) const TEST_MNEMONIC: &str = "rapid mechanic escape victory bacon switch soda math embrace frozen novel document wait motor thrive ski addict ripple bid magnet horse merge brisk exile";
-
     pub(crate) const TEST_PASSWORD: &str = "1234";
 
     /// Create a tmp folder and execute the given test function `f`
@@ -267,11 +223,8 @@ pub(crate) mod test_utils {
     where
         F: FnOnce(&PathBuf) + panic::UnwindSafe,
     {
-        let home_dir = home_dir().unwrap();
-        let tmp_dir = home_dir.join("forc-wallet-tests-tmp");
-        if tmp_dir.exists() {
-            std::fs::remove_dir_all(&tmp_dir).unwrap();
-        }
+        let tmp_dir_name = format!("forc-wallet-test-{:x}", rand::random::<u64>());
+        let tmp_dir = user_fuel_dir().join(".tmp").join(tmp_dir_name);
         std::fs::create_dir_all(&tmp_dir).unwrap();
         let panic = panic::catch_unwind(|| f(&tmp_dir));
         std::fs::remove_dir_all(&tmp_dir).unwrap();
@@ -280,7 +233,7 @@ pub(crate) mod test_utils {
         }
     }
     /// Saves a default test mnemonic to the disk
-    pub(crate) fn save_dummy_wallet_file(path: &Path) {
-        save_phrase_to_disk(path, TEST_MNEMONIC, TEST_PASSWORD);
+    pub(crate) fn save_dummy_wallet_file(wallet_path: &Path) {
+        write_wallet_from_mnemonic_and_password(wallet_path, TEST_MNEMONIC, TEST_PASSWORD).unwrap();
     }
 }

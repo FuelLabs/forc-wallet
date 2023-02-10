@@ -1,7 +1,7 @@
 use crate::{
     utils::{
         create_wallet, default_wallet_path, display_string_discreetly, request_new_password,
-        save_phrase_to_disk, validate_wallet_path,
+        validate_wallet_path, write_wallet_from_mnemonic_and_password,
     },
     Error,
 };
@@ -12,7 +12,7 @@ fn init_wallet(path: &Path, password: &str) -> Result<String, Error> {
     // Generate mnemonic phrase
     let mnemonic = generate_mnemonic_phrase(&mut rand::thread_rng(), 24)?;
     // Encrypt and store it
-    save_phrase_to_disk(path, &mnemonic, password);
+    write_wallet_from_mnemonic_and_password(path, &mnemonic, password)?;
     Ok(mnemonic)
 }
 
@@ -35,15 +35,13 @@ mod tests {
     use super::*;
     use crate::utils::test_utils::{with_tmp_folder, TEST_PASSWORD};
     use fuels::signers::WalletUnlocked;
-    use serial_test::serial;
 
-    #[serial]
     #[test]
     fn initialize_wallet() {
         with_tmp_folder(|tmp_folder| {
-            let mnemonic = init_wallet(tmp_folder, TEST_PASSWORD).unwrap();
-            let wallet_success = WalletUnlocked::new_from_mnemonic_phrase(&mnemonic, None).is_ok();
-            assert!(wallet_success)
+            let wallet_path = tmp_folder.join("wallet.json");
+            let mnemonic = init_wallet(&wallet_path, TEST_PASSWORD).unwrap();
+            WalletUnlocked::new_from_mnemonic_phrase(&mnemonic, None).unwrap();
         })
     }
 }
