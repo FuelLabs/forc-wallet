@@ -10,14 +10,14 @@ description = "A forc plugin for generating or importing wallets using BIP39 phr
 [dependencies]
 anyhow = "1.0"
 clap = { version = "3.1", features = ["derive"] }
-eth-keystore = { version = "0.4" }
-fuel-crypto = "0.6"
-fuel-types = "0.5"
-fuels = { version = "0.24.0", default-features = false }
-fuels-signers = { version = "0.24.0" }
+eth-keystore = { version = "0.5" }
+fuel-crypto = "0.26"
+fuel-types = "0.26"
+fuels = { version = "0.36.0", default-features = false }
+fuels-signers = { version = "0.36.0" }
 home = "0.5.3"
 rand = { version = "0.8.4", default-features = false }
-rpassword = "6.0.1"
+rpassword = "7.2"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 termion = "1.5.6"
