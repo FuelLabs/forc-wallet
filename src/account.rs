@@ -1,6 +1,6 @@
 use crate::utils::{
     create_accounts_file, default_wallet_path, get_derivation_path, number_of_derived_accounts,
-    validate_wallet_path, Accounts,
+    validate_wallet_path, wallet_keystore_path, Accounts,
 };
 use anyhow::{bail, Result};
 use fuels::prelude::WalletUnlocked;
@@ -18,13 +18,12 @@ pub(crate) fn print_account_address(path_opt: Option<PathBuf>, account_index: us
     Ok(())
 }
 
-fn new_account(vault_path: &Path, password: &str) -> Result<WalletUnlocked> {
-    let vault_path_buf = PathBuf::from(vault_path);
-    let account_index = number_of_derived_accounts(&vault_path_buf);
+fn new_account(wallet_dir: &Path, password: &str) -> Result<WalletUnlocked> {
+    let account_index = number_of_derived_accounts(wallet_dir);
     println!("Generating account with index: {account_index}");
     let derive_path = get_derivation_path(account_index);
-
-    let phrase_recovered = eth_keystore::decrypt_key(vault_path_buf.join(".wallet"), password)?;
+    let wallet_keystore_path = wallet_keystore_path(wallet_dir);
+    let phrase_recovered = eth_keystore::decrypt_key(&wallet_keystore_path, password)?;
     let phrase = String::from_utf8(phrase_recovered)?;
     let wallet = WalletUnlocked::new_from_mnemonic_phrase_with_path(&phrase, None, &derive_path)?;
     Ok(wallet)

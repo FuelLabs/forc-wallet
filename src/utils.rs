@@ -98,7 +98,7 @@ pub(crate) fn number_of_derived_accounts(path: &Path) -> usize {
     }
 }
 
-fn wallet_keystore_path(wallet_dir: &Path) -> PathBuf {
+pub(crate) fn wallet_keystore_path(wallet_dir: &Path) -> PathBuf {
     wallet_dir.join(WALLET_FILE_STEM)
 }
 
@@ -157,16 +157,16 @@ pub(crate) fn display_string_discreetly(
 }
 
 /// Encrypts and saves the mnemonic phrase to disk
-pub(crate) fn save_phrase_to_disk(vault_path: &Path, mnemonic: &str, password: &str) {
+pub(crate) fn save_phrase_to_disk(wallet_dir: &Path, mnemonic: &str, password: &str) {
     let mnemonic_bytes: Vec<u8> = mnemonic.bytes().collect();
     eth_keystore::encrypt_key(
-        vault_path,
+        wallet_dir,
         &mut rand::thread_rng(),
         mnemonic_bytes,
         password,
         Some(WALLET_FILE_STEM),
     )
-    .unwrap_or_else(|error| panic!("Cannot create eth_keystore at {vault_path:?}: {error:?}"));
+    .unwrap_or_else(|error| panic!("Cannot create eth_keystore at {wallet_dir:?}: {error:?}"));
 }
 
 #[cfg(test)]
@@ -181,8 +181,8 @@ mod tests {
     #[serial]
     fn create_wallet_should_success() {
         with_tmp_folder(|tmp_folder| {
-            let test_vault_path = tmp_folder.join("handle_vault_path_success_dir");
-            let create_wallet_status = create_wallet(&test_vault_path).is_ok();
+            let test_wallet_dir = tmp_folder.join("handle_wallet_dir_success_dir");
+            let create_wallet_status = create_wallet(&test_wallet_dir).is_ok();
             assert!(create_wallet_status)
         });
     }
@@ -191,9 +191,9 @@ mod tests {
     #[serial]
     fn create_wallet_should_fail() {
         with_tmp_folder(|tmp_folder| {
-            let test_vault_path = tmp_folder.join("handle_vault_path_fail_dir");
-            std::fs::create_dir_all(&test_vault_path).unwrap();
-            let create_wallet_status = create_wallet(&test_vault_path).is_err();
+            let test_wallet_dir = tmp_folder.join("handle_wallet_dir_fail_dir");
+            std::fs::create_dir_all(&test_wallet_dir).unwrap();
+            let create_wallet_status = create_wallet(&test_wallet_dir).is_err();
             assert!(create_wallet_status)
         });
     }
