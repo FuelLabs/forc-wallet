@@ -11,7 +11,7 @@ use std::{
 };
 use termion::screen::AlternateScreen;
 
-pub(crate) const DEFAULT_RELATIVE_VAULT_PATH: &str = ".fuel/wallets/";
+const USER_FUEL_DIR: &str = ".fuel";
 
 #[derive(Serialize, Deserialize)]
 pub(crate) struct Accounts {
@@ -72,8 +72,9 @@ pub(crate) fn validate_vault_path(path: &Path) -> Result<()> {
 
 /// Returns default vault path which is $HOME/.fuel/wallets
 pub(crate) fn default_vault_path() -> PathBuf {
+    const WALLETS_DIR: &str = "wallets";
     let home_dir = home_dir().expect("Cannot get home directory!");
-    home_dir.join(DEFAULT_RELATIVE_VAULT_PATH)
+    home_dir.join(USER_FUEL_DIR).join(WALLETS_DIR)
 }
 
 /// Returns the number of the accounts derived so far by reading the .accounts file from given path
@@ -183,8 +184,7 @@ mod tests {
         let path_opt: Option<PathBuf> = None;
         let path = path_opt.unwrap_or_else(default_vault_path);
         validate_vault_path(&path).unwrap();
-        let home_dir = home_dir().unwrap();
-        let default_path = home_dir.join(DEFAULT_RELATIVE_VAULT_PATH);
+        let default_path = default_vault_path();
         assert_eq!(path, default_path)
     }
 
