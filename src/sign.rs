@@ -4,7 +4,6 @@ use crate::utils::{
 use anyhow::{anyhow, Result};
 use fuel_crypto::{Message, SecretKey, Signature};
 use fuel_types::Bytes32;
-use fuels::prelude::*;
 use std::{
     path::{Path, PathBuf},
     str::FromStr,
@@ -39,7 +38,7 @@ pub(crate) fn sign_transaction_cli(
     id: &str,
     account_index: usize,
     path_opt: Option<PathBuf>,
-) -> Result<(), Error> {
+) -> Result<()> {
     let path = path_opt.map_or_else(default_wallet_path, PathBuf::from);
     validate_wallet_path(&path)?;
     let password = request_new_password();
