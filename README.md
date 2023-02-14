@@ -30,54 +30,62 @@ Otherwise, you may use cargo:
 cargo install forc-wallet
 ```
 
-### Initialize
+### Create a wallet
 
-Before creating accounts and signing transactions with them you need to initialize a new HD wallet. To do so:
-
-```sh
-forc-wallet init
-```
-
-This will require a password for encyrpting the wallet. After the initialization is done you will be given the mnemonic phrase of the wallet.
-
-You can also initialize a wallet with your existing mnemonic phrase by using `forc-wallet import`.
-
-> Note: `forc-wallet` adheres to the [Web3 Secret Storage Definition](https://ethereum.org/en/developers/docs/data-structures-and-encoding/web3-secret-storage) and accepts paths to wallet files that adhere to this standard.
-
-### Create an account
-
-To create an account for the initialized wallet, you can run:
+Before creating accounts and signing transactions with them you need to create a wallet. To do so:
 
 ```sh
 forc-wallet new
 ```
 
-This will require your wallet password (the one that you choosed in the initialization step). This will always derive the next account.
+This will require a password for encrypting the wallet. After the wallet is created you will be shown the mnemonic phrase.
+
+> Note: You will need your password for signing and account derivation, and you will need your mnemonic phrase if you wish to recover your wallet in the future.
+
+### Import a wallet
+
+To import a wallet from an existing mnemonic phrase, use:
+
+```sh
+forc-wallet import
+```
+
+> Note: `forc-wallet` adheres to the [Web3 Secret Storage Definition](https://ethereum.org/en/developers/docs/data-structures-and-encoding/web3-secret-storage) and accepts paths to wallet files that adhere to this standard.
+
+### Create an account
+
+To create an account for the wallet, you can run:
+
+```sh
+forc-wallet account new
+```
+
+This will require your wallet password (the one that you chose during creation). This command will always derive the next account that has not yet been derived locally.
+
+To list all accounts derived so far, use the following:
+
+```sh
+forc-wallet accounts
+```
+
+> Note: When we "create" an account, we are really just *revealing* it. All accounts are derived deterministically based on the wallet's mnemonic phrase and derivation path. `forc-wallet` will cache the public addresses of derived accounts within `~/.fuel/wallets/accounts`.
 
 ### Sign a transaction
 
-To sign a transaction, you need to have the transaction ID. You can generate a transaction and get its ID using `forc-client`. Signing the transaction once you have the ID is simple:
+To sign a transaction, you must provide the transaction ID. You can generate a transaction and get its ID using `forc-client`. Signing the transaction once you have the ID is simple:
 
 ```sh
-forc-wallet sign --id <transaction_id> --account-index <account_index>
+forc-wallet account <account_index> sign tx <transaction_id>
 ```
 
 ## Other useful commands
 
-### List accounts
-
-To list all accounts derived so far:
-
-```sh
-forc-wallet list
-```
-
 ### Get address of an account
 
-To retrieve the address of a specific account, you can use:
+To derive the address of a specific account, you can use:
 
 ```sh
-forc-wallet account --index <account_index>
+forc-wallet account <account_index>
 ```
 
 ### Get private key of an account
@@ -85,13 +93,5 @@ forc-wallet account --index <account_index>
 To retrieve the private key of a specific account, you can use:
 
 ```sh
-forc-wallet export --account-index <account_index>
-```
-
-### Initialize from existing mnemonic phrase
-
-To initialize a new HD wallet from an existing mnemonic phrase:
-
-```sh
-forc-wallet import
+forc-wallet account <account_index> export-private-key
 ```
