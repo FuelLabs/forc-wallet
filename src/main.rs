@@ -44,7 +44,8 @@ enum Command {
     /// cache. If this wallet was recently imported, you may need to re-derive
     /// your accounts.
     Accounts,
-    /// Derive, sign or export the key for the account with the given index.
+    /// Derive a new account, sign with an existing account, or display an
+    /// account's public or private key. See the `EXAMPLES` below.
     Account(Account),
     /// Sign something by providing a private key *directly*, rather than with
     /// a wallet account.
@@ -82,8 +83,8 @@ EXAMPLES:
     # Sign a transaction via its ID with account at index 3.
     forc wallet account 3 sign tx 0x0bf34feb362608c4171c87115d4a6f63d1cdf4c49b963b464762329488f3ed4f
 
-    # Export the private key of the account at index 0.
-    forc wallet account 0 export-private-key
+    # Temporarily display the private key of the account at index 0.
+    forc wallet account 0 private-key
 "#;
 
 #[tokio::main]

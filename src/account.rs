@@ -37,10 +37,11 @@ pub(crate) enum Command {
     /// Sign a transaction with the specified account.
     #[clap(subcommand)]
     Sign(crate::SignCmd),
-    /// Export the private key of an account from its index.
+    /// Temporarily display the private key of an account from its index.
     ///
-    /// WARNING: This prints your account's private key to stdout!
-    ExportPrivateKey,
+    /// WARNING: This prints your account's private key to an alternative,
+    /// temporary, terminal window!
+    PrivateKey,
 }
 
 pub(crate) fn cli(wallet_path: &Path, account: Account) -> Result<()> {
@@ -51,7 +52,7 @@ pub(crate) fn cli(wallet_path: &Path, account: Account) -> Result<()> {
         (Some(acc_ix), Some(Command::Sign(crate::SignCmd::Tx { tx_id }))) => {
             sign_transaction_cli(&wallet_path, tx_id, acc_ix)?
         }
-        (Some(acc_ix), Some(Command::ExportPrivateKey)) => export_cli(&wallet_path, acc_ix)?,
+        (Some(acc_ix), Some(Command::PrivateKey)) => private_key_cli(&wallet_path, acc_ix)?,
         (None, Some(cmd)) => print_subcmd_index_warning(&cmd),
         (None, None) => print_subcmd_help(),
     }
@@ -85,7 +86,7 @@ fn print_subcmd_help() {
 fn print_subcmd_index_warning(cmd: &Command) {
     let cmd_str = match cmd {
         Command::Sign(_) => "sign",
-        Command::ExportPrivateKey => "export-private-key",
+        Command::PrivateKey => "private-key",
         Command::New => unreachable!("new is valid without an index"),
     };
     eprintln!(
@@ -155,9 +156,9 @@ fn new_cli(wallet_path: &Path) -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn export_cli(wallet_path: &Path, account_ix: usize) -> Result<()> {
+pub(crate) fn private_key_cli(wallet_path: &Path, account_ix: usize) -> Result<()> {
     let prompt =
-        format!("Please enter your password to export account {account_ix}'s private key: ");
+        format!("Please enter your password to display account {account_ix}'s private key: ");
     let password = rpassword::prompt_password(prompt)?;
     let secret_key = derive_secret_key(wallet_path, account_ix, &password)?;
     let secret_key_string = format!("Secret key for account {account_ix}: {secret_key}\n");

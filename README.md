@@ -93,5 +93,5 @@ forc-wallet account <account_index>
 To retrieve the private key of a specific account, you can use:
 
 ```sh
-forc-wallet account <account_index> export-private-key
+forc-wallet account <account_index> private-key
 ```
