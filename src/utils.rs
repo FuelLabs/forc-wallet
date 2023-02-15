@@ -152,9 +152,15 @@ mod tests {
     #[test]
     fn handle_relative_path_argument() {
         let wallet_path = Path::new("test-wallet.json");
-        write_wallet_from_mnemonic_and_password(wallet_path, TEST_MNEMONIC, TEST_PASSWORD).unwrap();
-        load_wallet(wallet_path).unwrap();
-        std::fs::remove_file(wallet_path).unwrap();
+        let panic = std::panic::catch_unwind(|| {
+            write_wallet_from_mnemonic_and_password(wallet_path, TEST_MNEMONIC, TEST_PASSWORD)
+                .unwrap();
+            load_wallet(wallet_path).unwrap();
+        });
+        let _ = std::fs::remove_file(wallet_path);
+        if let Err(e) = panic {
+            std::panic::resume_unwind(e);
+        }
     }
 
     #[test]
