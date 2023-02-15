@@ -46,13 +46,13 @@ pub(crate) enum Command {
 
 pub(crate) fn cli(wallet_path: &Path, account: Account) -> Result<()> {
     match (account.index, account.cmd) {
-        (None, Some(Command::New)) => new_cli(&wallet_path)?,
-        (Some(acc_ix), Some(Command::New)) => new_at_index_cli(&wallet_path, acc_ix)?,
-        (Some(acc_ix), None) => print_address(&wallet_path, acc_ix)?,
+        (None, Some(Command::New)) => new_cli(wallet_path)?,
+        (Some(acc_ix), Some(Command::New)) => new_at_index_cli(wallet_path, acc_ix)?,
+        (Some(acc_ix), None) => print_address(wallet_path, acc_ix)?,
         (Some(acc_ix), Some(Command::Sign(crate::SignCmd::Tx { tx_id }))) => {
-            sign_transaction_cli(&wallet_path, tx_id, acc_ix)?
+            sign_transaction_cli(wallet_path, tx_id, acc_ix)?
         }
-        (Some(acc_ix), Some(Command::PrivateKey)) => private_key_cli(&wallet_path, acc_ix)?,
+        (Some(acc_ix), Some(Command::PrivateKey)) => private_key_cli(wallet_path, acc_ix)?,
         (None, Some(cmd)) => print_subcmd_index_warning(&cmd),
         (None, None) => print_subcmd_help(),
     }
