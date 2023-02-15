@@ -5,12 +5,11 @@ mod sign;
 mod utils;
 
 use crate::{
-    import::import_wallet_cli,
-    new::new_wallet_cli,
-    sign::{sign_transaction_cli, sign_transaction_with_private_key_cli},
+    account::Account, import::import_wallet_cli, new::new_wallet_cli,
+    sign::sign_transaction_with_private_key_cli,
 };
 use anyhow::Result;
-use clap::{Args, Parser, Subcommand};
+use clap::{Parser, Subcommand};
 use fuels::prelude::*;
 use std::path::PathBuf;
 
@@ -51,36 +50,6 @@ enum Command {
     /// a wallet account.
     #[clap(subcommand)]
     SignPrivate(SignCmd),
-}
-
-#[derive(Debug, Args)]
-struct Account {
-    /// The index of the account.
-    ///
-    /// This index is used directly within the path used to derive the account.
-    index: Option<usize>,
-    #[clap(subcommand)]
-    cmd: Option<AccountCmd>,
-}
-
-#[derive(Debug, Subcommand)]
-enum AccountCmd {
-    /// Derive and reveal a new account for the wallet.
-    ///
-    /// Note that upon derivation of the new account, the account's public
-    /// address will be cached in plain text for convenient retrieval via the
-    /// `accounts` and `account <ix>` commands.
-    ///
-    /// The index of the newly derived account will be that which succeeds the
-    /// greatest known account index currently within the cache.
-    New,
-    /// Sign a transaction with the specified account.
-    #[clap(subcommand)]
-    Sign(SignCmd),
-    /// Export the private key of an account from its index.
-    ///
-    /// WARNING: This prints your account's private key to stdout!
-    ExportPrivateKey,
 }
 
 #[derive(Debug, Subcommand)]
@@ -124,52 +93,11 @@ async fn main() -> Result<()> {
     match app.cmd {
         Command::New => new_wallet_cli(&wallet_path)?,
         Command::Import => import_wallet_cli(&wallet_path)?,
-        Command::Accounts => account::print_address_list(&wallet_path)?,
-        Command::Account(Account { index, cmd }) => match (index, cmd) {
-            (None, Some(AccountCmd::New)) => account::new_cli(&wallet_path)?,
-            (Some(acc_ix), Some(AccountCmd::New)) => {
-                account::new_at_index_cli(&wallet_path, acc_ix)?
-            }
-            (Some(acc_ix), None) => account::print_address(&wallet_path, acc_ix)?,
-            (Some(acc_ix), Some(AccountCmd::Sign(SignCmd::Tx { tx_id }))) => {
-                sign_transaction_cli(&wallet_path, tx_id, acc_ix)?
-            }
-            (Some(acc_ix), Some(AccountCmd::ExportPrivateKey)) => {
-                account::export_cli(&wallet_path, acc_ix)?
-            }
-            (None, Some(cmd)) => print_account_subcmd_index_warning(&cmd),
-            (None, None) => print_account_subcmd_help(),
-        },
+        Command::Accounts => account::print_accounts_cli(&wallet_path)?,
+        Command::Account(account) => account::cli(&wallet_path, account)?,
         Command::SignPrivate(SignCmd::Tx { tx_id }) => {
             sign_transaction_with_private_key_cli(tx_id)?
         }
     }
     Ok(())
-}
-
-fn print_account_subcmd_help() {
-    // The user must provide either the account index or a `New`
-    // command - otherwise we print the help output for the
-    // `account` subcommand. There doesn't seem to be a nice way
-    // of doing this with clap's derive API, so we do-so with a
-    // child process.
-    std::process::Command::new("forc-wallet")
-        .args(["account", "--help"])
-        .stdout(std::process::Stdio::inherit())
-        .stderr(std::process::Stdio::inherit())
-        .output()
-        .expect("failed to invoke `forc wallet account --help` command");
-}
-
-fn print_account_subcmd_index_warning(cmd: &AccountCmd) {
-    let cmd_str = match cmd {
-        AccountCmd::Sign(_) => "sign",
-        AccountCmd::ExportPrivateKey => "export-private-key",
-        AccountCmd::New => unreachable!("new is valid without an index"),
-    };
-    eprintln!(
-        "Error: The command `{cmd_str}` requires an account index. \
-        For example: `forc wallet account <INDEX> {cmd_str} ...`\n"
-    );
-    print_account_subcmd_help();
 }

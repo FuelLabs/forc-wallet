@@ -1,7 +1,9 @@
+use crate::sign::sign_transaction_cli;
 use crate::utils::{
     display_string_discreetly, get_derivation_path, load_wallet, user_fuel_wallets_accounts_dir,
 };
 use anyhow::{anyhow, bail, Context, Result};
+use clap::{Args, Subcommand};
 use eth_keystore::EthKeystore;
 use fuel_crypto::SecretKey;
 use fuels::prelude::WalletUnlocked;
@@ -11,8 +13,53 @@ use std::{
     path::{Path, PathBuf},
 };
 
+#[derive(Debug, Args)]
+pub(crate) struct Account {
+    /// The index of the account.
+    ///
+    /// This index is used directly within the path used to derive the account.
+    index: Option<usize>,
+    #[clap(subcommand)]
+    cmd: Option<Command>,
+}
+
+#[derive(Debug, Subcommand)]
+pub(crate) enum Command {
+    /// Derive and reveal a new account for the wallet.
+    ///
+    /// Note that upon derivation of the new account, the account's public
+    /// address will be cached in plain text for convenient retrieval via the
+    /// `accounts` and `account <ix>` commands.
+    ///
+    /// The index of the newly derived account will be that which succeeds the
+    /// greatest known account index currently within the cache.
+    New,
+    /// Sign a transaction with the specified account.
+    #[clap(subcommand)]
+    Sign(crate::SignCmd),
+    /// Export the private key of an account from its index.
+    ///
+    /// WARNING: This prints your account's private key to stdout!
+    ExportPrivateKey,
+}
+
+pub(crate) fn cli(wallet_path: &Path, account: Account) -> Result<()> {
+    match (account.index, account.cmd) {
+        (None, Some(Command::New)) => new_cli(&wallet_path)?,
+        (Some(acc_ix), Some(Command::New)) => new_at_index_cli(&wallet_path, acc_ix)?,
+        (Some(acc_ix), None) => print_address(&wallet_path, acc_ix)?,
+        (Some(acc_ix), Some(Command::Sign(crate::SignCmd::Tx { tx_id }))) => {
+            sign_transaction_cli(&wallet_path, tx_id, acc_ix)?
+        }
+        (Some(acc_ix), Some(Command::ExportPrivateKey)) => export_cli(&wallet_path, acc_ix)?,
+        (None, Some(cmd)) => print_subcmd_index_warning(&cmd),
+        (None, None) => print_subcmd_help(),
+    }
+    Ok(())
+}
+
 /// Prints a list of all known (cached) accounts for the wallet at the given path.
-pub(crate) fn print_address_list(wallet_path: &Path) -> Result<()> {
+pub(crate) fn print_accounts_cli(wallet_path: &Path) -> Result<()> {
     let wallet = load_wallet(wallet_path)?;
     let addresses = read_cached_addresses(&wallet.crypto.ciphertext)?;
     for (ix, addr) in addresses {
@@ -21,8 +68,35 @@ pub(crate) fn print_address_list(wallet_path: &Path) -> Result<()> {
     Ok(())
 }
 
+fn print_subcmd_help() {
+    // The user must provide either the account index or a `New`
+    // command - otherwise we print the help output for the
+    // `account` subcommand. There doesn't seem to be a nice way
+    // of doing this with clap's derive API, so we do-so with a
+    // child process.
+    std::process::Command::new("forc-wallet")
+        .args(["account", "--help"])
+        .stdout(std::process::Stdio::inherit())
+        .stderr(std::process::Stdio::inherit())
+        .output()
+        .expect("failed to invoke `forc wallet account --help` command");
+}
+
+fn print_subcmd_index_warning(cmd: &Command) {
+    let cmd_str = match cmd {
+        Command::Sign(_) => "sign",
+        Command::ExportPrivateKey => "export-private-key",
+        Command::New => unreachable!("new is valid without an index"),
+    };
+    eprintln!(
+        "Error: The command `{cmd_str}` requires an account index. \
+        For example: `forc wallet account <INDEX> {cmd_str} ...`\n"
+    );
+    print_subcmd_help();
+}
+
 /// Print the address of the wallet's account at the given index.
-pub(crate) fn print_address(wallet_path: &Path, account_ix: usize) -> Result<()> {
+fn print_address(wallet_path: &Path, account_ix: usize) -> Result<()> {
     let wallet = load_wallet(wallet_path)?;
     let addresses = read_cached_addresses(&wallet.crypto.ciphertext)?;
     match addresses.get(&account_ix) {
@@ -67,13 +141,13 @@ fn new_at_index(keystore: &EthKeystore, wallet_path: &Path, account_ix: usize) -
     Ok(account_addr)
 }
 
-pub(crate) fn new_at_index_cli(wallet_path: &Path, account_ix: usize) -> Result<()> {
+fn new_at_index_cli(wallet_path: &Path, account_ix: usize) -> Result<()> {
     let keystore = load_wallet(wallet_path)?;
     new_at_index(&keystore, wallet_path, account_ix)?;
     Ok(())
 }
 
-pub(crate) fn new_cli(wallet_path: &Path) -> Result<()> {
+fn new_cli(wallet_path: &Path) -> Result<()> {
     let keystore = load_wallet(wallet_path)?;
     let addresses = read_cached_addresses(&keystore.crypto.ciphertext)?;
     let account_ix = next_derivation_index(&addresses);
