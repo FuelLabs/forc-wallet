@@ -5,7 +5,9 @@ mod sign;
 mod utils;
 
 use crate::{
-    account::Account, import::import_wallet_cli, new::new_wallet_cli,
+    account::{Account, Accounts},
+    import::import_wallet_cli,
+    new::new_wallet_cli,
     sign::sign_transaction_with_private_key_cli,
 };
 use anyhow::Result;
@@ -43,7 +45,12 @@ enum Command {
     /// *locally* and still exist within the user's `~/.fuel/wallets/accoutns`
     /// cache. If this wallet was recently imported, you may need to re-derive
     /// your accounts.
-    Accounts,
+    ///
+    /// By default, this requires your password in order to verify and re-
+    /// derive each of the accounts. Use the `--unverified` flag to bypass
+    /// this password check and read the public addresses directly from the
+    /// `~/.fuel/wallets/accounts` cache.
+    Accounts(Accounts),
     /// Derive a new account, sign with an existing account, or display an
     /// account's public or private key. See the `EXAMPLES` below.
     Account(Account),
@@ -94,7 +101,7 @@ async fn main() -> Result<()> {
     match app.cmd {
         Command::New => new_wallet_cli(&wallet_path)?,
         Command::Import => import_wallet_cli(&wallet_path)?,
-        Command::Accounts => account::print_accounts_cli(&wallet_path)?,
+        Command::Accounts(accounts) => account::print_accounts_cli(&wallet_path, accounts)?,
         Command::Account(account) => account::cli(&wallet_path, account)?,
         Command::SignPrivate(SignCmd::Tx { tx_id }) => {
             sign_transaction_with_private_key_cli(tx_id)?

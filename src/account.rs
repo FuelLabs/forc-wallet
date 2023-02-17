@@ -14,11 +14,19 @@ use std::{
 };
 
 #[derive(Debug, Args)]
+pub(crate) struct Accounts {
+    #[clap(flatten)]
+    unverified: Unverified,
+}
+
+#[derive(Debug, Args)]
 pub(crate) struct Account {
     /// The index of the account.
     ///
     /// This index is used directly within the path used to derive the account.
     index: Option<usize>,
+    #[clap(flatten)]
+    unverified: Unverified,
     #[clap(subcommand)]
     cmd: Option<Command>,
 }
@@ -44,11 +52,22 @@ pub(crate) enum Command {
     PrivateKey,
 }
 
+#[derive(Debug, Args)]
+struct Unverified {
+    /// When enabled, shows account addresses stored in the cache without re-deriving them.
+    ///
+    /// The cache can be found at `~/.fuel/wallets/addresses`.
+    ///
+    /// Useful for non-interactive scripts on trusted systems or integration tests.
+    #[clap(long = "unverified")]
+    unverified: bool,
+}
+
 pub(crate) fn cli(wallet_path: &Path, account: Account) -> Result<()> {
     match (account.index, account.cmd) {
         (None, Some(Command::New)) => new_cli(wallet_path)?,
         (Some(acc_ix), Some(Command::New)) => new_at_index_cli(wallet_path, acc_ix)?,
-        (Some(acc_ix), None) => print_address(wallet_path, acc_ix)?,
+        (Some(acc_ix), None) => print_address(wallet_path, acc_ix, account.unverified.unverified)?,
         (Some(acc_ix), Some(Command::Sign(crate::SignCmd::Tx { tx_id }))) => {
             sign_transaction_cli(wallet_path, tx_id, acc_ix)?
         }
@@ -60,11 +79,23 @@ pub(crate) fn cli(wallet_path: &Path, account: Account) -> Result<()> {
 }
 
 /// Prints a list of all known (cached) accounts for the wallet at the given path.
-pub(crate) fn print_accounts_cli(wallet_path: &Path) -> Result<()> {
+pub(crate) fn print_accounts_cli(wallet_path: &Path, accounts: Accounts) -> Result<()> {
     let wallet = load_wallet(wallet_path)?;
     let addresses = read_cached_addresses(&wallet.crypto.ciphertext)?;
-    for (ix, addr) in addresses {
-        println!("[{ix}] {addr}");
+    if accounts.unverified.unverified {
+        println!("Account addresses (unverified, printed from cache):");
+        addresses
+            .iter()
+            .for_each(|(ix, addr)| println!("[{ix}] {addr}"));
+    } else {
+        let prompt = "Please enter your password to verify cached accounts: ";
+        let password = rpassword::prompt_password(prompt)?;
+        for &ix in addresses.keys() {
+            let account = derive_new(wallet_path, ix, &password)?;
+            let account_addr = account.address().to_string();
+            println!("[{ix}] {account_addr}");
+            cache_address(&wallet.crypto.ciphertext, ix, &account_addr)?;
+        }
     }
     Ok(())
 }
@@ -97,12 +128,21 @@ fn print_subcmd_index_warning(cmd: &Command) {
 }
 
 /// Print the address of the wallet's account at the given index.
-fn print_address(wallet_path: &Path, account_ix: usize) -> Result<()> {
+fn print_address(wallet_path: &Path, account_ix: usize, unverified: bool) -> Result<()> {
     let wallet = load_wallet(wallet_path)?;
-    let addresses = read_cached_addresses(&wallet.crypto.ciphertext)?;
-    match addresses.get(&account_ix) {
-        Some(address) => println!("Account {account_ix} address: {address}"),
-        None => eprintln!("Account {account_ix} is not derived yet!"),
+    if unverified {
+        let addresses = read_cached_addresses(&wallet.crypto.ciphertext)?;
+        match addresses.get(&account_ix) {
+            Some(address) => println!("Account {account_ix} address (unverified): {address}"),
+            None => eprintln!("Account {account_ix} is not derived yet!"),
+        }
+    } else {
+        let prompt = format!("Please enter your password to verify account {account_ix}: ");
+        let password = rpassword::prompt_password(prompt)?;
+        let account = derive_new(wallet_path, account_ix, &password)?;
+        let account_addr = account.address().to_string();
+        println!("Account {account_ix} address: {account_addr}");
+        cache_address(&wallet.crypto.ciphertext, account_ix, &account_addr)?;
     }
     Ok(())
 }
