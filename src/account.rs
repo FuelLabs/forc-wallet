@@ -1,7 +1,11 @@
+use crate::sign::sign_transaction_cli;
 use crate::utils::{
-    default_wallet_path, get_derivation_path, load_wallet, user_fuel_wallets_accounts_dir,
+    display_string_discreetly, get_derivation_path, load_wallet, user_fuel_wallets_accounts_dir,
 };
 use anyhow::{anyhow, bail, Context, Result};
+use clap::{Args, Subcommand};
+use eth_keystore::EthKeystore;
+use fuel_crypto::SecretKey;
 use fuels::prelude::WalletUnlocked;
 use std::{
     collections::BTreeMap,
@@ -9,64 +13,161 @@ use std::{
     path::{Path, PathBuf},
 };
 
-/// Prints a list of all known accounts for the wallet at the given path.
-pub(crate) fn print_account_list(path_opt: Option<PathBuf>) -> Result<()> {
-    let wallet_path = path_opt.unwrap_or_else(default_wallet_path);
-    let wallet = load_wallet(&wallet_path)?;
-    let addresses = read_cached_account_addresses(&wallet.crypto.ciphertext)?;
+#[derive(Debug, Args)]
+pub(crate) struct Account {
+    /// The index of the account.
+    ///
+    /// This index is used directly within the path used to derive the account.
+    index: Option<usize>,
+    #[clap(subcommand)]
+    cmd: Option<Command>,
+}
+
+#[derive(Debug, Subcommand)]
+pub(crate) enum Command {
+    /// Derive and reveal a new account for the wallet.
+    ///
+    /// Note that upon derivation of the new account, the account's public
+    /// address will be cached in plain text for convenient retrieval via the
+    /// `accounts` and `account <ix>` commands.
+    ///
+    /// The index of the newly derived account will be that which succeeds the
+    /// greatest known account index currently within the cache.
+    New,
+    /// Sign a transaction with the specified account.
+    #[clap(subcommand)]
+    Sign(crate::SignCmd),
+    /// Temporarily display the private key of an account from its index.
+    ///
+    /// WARNING: This prints your account's private key to an alternative,
+    /// temporary, terminal window!
+    PrivateKey,
+}
+
+pub(crate) fn cli(wallet_path: &Path, account: Account) -> Result<()> {
+    match (account.index, account.cmd) {
+        (None, Some(Command::New)) => new_cli(wallet_path)?,
+        (Some(acc_ix), Some(Command::New)) => new_at_index_cli(wallet_path, acc_ix)?,
+        (Some(acc_ix), None) => print_address(wallet_path, acc_ix)?,
+        (Some(acc_ix), Some(Command::Sign(crate::SignCmd::Tx { tx_id }))) => {
+            sign_transaction_cli(wallet_path, tx_id, acc_ix)?
+        }
+        (Some(acc_ix), Some(Command::PrivateKey)) => private_key_cli(wallet_path, acc_ix)?,
+        (None, Some(cmd)) => print_subcmd_index_warning(&cmd),
+        (None, None) => print_subcmd_help(),
+    }
+    Ok(())
+}
+
+/// Prints a list of all known (cached) accounts for the wallet at the given path.
+pub(crate) fn print_accounts_cli(wallet_path: &Path) -> Result<()> {
+    let wallet = load_wallet(wallet_path)?;
+    let addresses = read_cached_addresses(&wallet.crypto.ciphertext)?;
     for (ix, addr) in addresses {
         println!("[{ix}] {addr}");
     }
     Ok(())
 }
 
-pub(crate) fn print_account_address(path_opt: Option<PathBuf>, account_ix: usize) -> Result<()> {
-    let wallet_path = path_opt.unwrap_or_else(default_wallet_path);
-    let wallet = load_wallet(&wallet_path)?;
-    let addresses = read_cached_account_addresses(&wallet.crypto.ciphertext)?;
-    if let Some(address) = addresses.get(&account_ix) {
-        println!("Account {account_ix} address: {address}");
-    } else {
-        eprintln!("Account {account_ix} is not derived yet!");
+fn print_subcmd_help() {
+    // The user must provide either the account index or a `New`
+    // command - otherwise we print the help output for the
+    // `account` subcommand. There doesn't seem to be a nice way
+    // of doing this with clap's derive API, so we do-so with a
+    // child process.
+    std::process::Command::new("forc-wallet")
+        .args(["account", "--help"])
+        .stdout(std::process::Stdio::inherit())
+        .stderr(std::process::Stdio::inherit())
+        .output()
+        .expect("failed to invoke `forc wallet account --help` command");
+}
+
+fn print_subcmd_index_warning(cmd: &Command) {
+    let cmd_str = match cmd {
+        Command::Sign(_) => "sign",
+        Command::PrivateKey => "private-key",
+        Command::New => unreachable!("new is valid without an index"),
+    };
+    eprintln!(
+        "Error: The command `{cmd_str}` requires an account index. \
+        For example: `forc wallet account <INDEX> {cmd_str} ...`\n"
+    );
+    print_subcmd_help();
+}
+
+/// Print the address of the wallet's account at the given index.
+fn print_address(wallet_path: &Path, account_ix: usize) -> Result<()> {
+    let wallet = load_wallet(wallet_path)?;
+    let addresses = read_cached_addresses(&wallet.crypto.ciphertext)?;
+    match addresses.get(&account_ix) {
+        Some(address) => println!("Account {account_ix} address: {address}"),
+        None => eprintln!("Account {account_ix} is not derived yet!"),
     }
     Ok(())
 }
 
-fn new_account(wallet_path: &Path, password: &str) -> Result<WalletUnlocked> {
-    let wallet = load_wallet(wallet_path)?;
-    let addresses = read_cached_account_addresses(&wallet.crypto.ciphertext)?;
-    let account_index = addresses.len();
-    println!("Generating account with index: {account_index}");
-    let derive_path = get_derivation_path(account_index);
+/// Given a path to a wallet, an account index and the wallet's password,
+/// derive the account address for the account at the given index.
+pub(crate) fn derive_secret_key(
+    wallet_path: &Path,
+    account_index: usize,
+    password: &str,
+) -> Result<SecretKey> {
     let phrase_recovered = eth_keystore::decrypt_key(wallet_path, password)?;
     let phrase = String::from_utf8(phrase_recovered)?;
-    let wallet = WalletUnlocked::new_from_mnemonic_phrase_with_path(&phrase, None, &derive_path)?;
+    let derive_path = get_derivation_path(account_index);
+    let secret_key = SecretKey::new_from_mnemonic_phrase_with_path(&phrase, &derive_path)?;
+    Ok(secret_key)
+}
+
+fn next_derivation_index(addrs: &BTreeMap<usize, String>) -> usize {
+    addrs.last_key_value().map(|(&ix, _)| ix + 1).unwrap_or(0)
+}
+
+/// Derive an account at the first index succeeding the greatest known existing index.
+fn derive_new(wallet_path: &Path, account_ix: usize, password: &str) -> Result<WalletUnlocked> {
+    let secret_key = derive_secret_key(wallet_path, account_ix, password)?;
+    let wallet = WalletUnlocked::new_from_private_key(secret_key, None);
     Ok(wallet)
 }
 
-pub(crate) fn new_account_cli(path_opt: Option<PathBuf>) -> Result<()> {
-    let wallet_path = path_opt.unwrap_or_else(default_wallet_path);
-    let wallet = load_wallet(&wallet_path).map_err(|e| {
-        anyhow!(
-            "Failed to load a wallet from {wallet_path:?}: {e}.\n\
-                Please be sure to initialize a wallet before creating an account.\n\
-                To initialize a wallet, use `forc-wallet init`"
-        )
-    })?;
-    let password = rpassword::prompt_password(
-        "Please enter your password to decrypt initialized wallet's phrases: ",
-    )?;
-    let addresses = read_cached_account_addresses(&wallet.crypto.ciphertext)?;
-    let account_ix = addresses.last_key_value().map(|(&ix, _)| ix).unwrap_or(0);
-    let wallet_unlocked = new_account(&wallet_path, &password)?;
+fn new_at_index(keystore: &EthKeystore, wallet_path: &Path, account_ix: usize) -> Result<String> {
+    let prompt = format!("Please enter your password to derive account {account_ix}: ");
+    let password = rpassword::prompt_password(prompt)?;
+    let wallet_unlocked = derive_new(wallet_path, account_ix, &password)?;
     let account_addr = wallet_unlocked.address().to_string();
-    cache_account_address(&wallet.crypto.ciphertext, account_ix, &account_addr)?;
+    cache_address(&keystore.crypto.ciphertext, account_ix, &account_addr)?;
     println!("Wallet address: {account_addr}");
+    Ok(account_addr)
+}
+
+fn new_at_index_cli(wallet_path: &Path, account_ix: usize) -> Result<()> {
+    let keystore = load_wallet(wallet_path)?;
+    new_at_index(&keystore, wallet_path, account_ix)?;
+    Ok(())
+}
+
+fn new_cli(wallet_path: &Path) -> Result<()> {
+    let keystore = load_wallet(wallet_path)?;
+    let addresses = read_cached_addresses(&keystore.crypto.ciphertext)?;
+    let account_ix = next_derivation_index(&addresses);
+    new_at_index(&keystore, wallet_path, account_ix)?;
+    Ok(())
+}
+
+pub(crate) fn private_key_cli(wallet_path: &Path, account_ix: usize) -> Result<()> {
+    let prompt =
+        format!("Please enter your password to display account {account_ix}'s private key: ");
+    let password = rpassword::prompt_password(prompt)?;
+    let secret_key = derive_secret_key(wallet_path, account_ix, &password)?;
+    let secret_key_string = format!("Secret key for account {account_ix}: {secret_key}\n");
+    display_string_discreetly(&secret_key_string, "### Press any key to complete. ###")?;
     Ok(())
 }
 
 /// A unique 64-bit hash is created from the wallet's ciphertext to use as a unique directory name.
-fn wallet_account_address_cache_dir_name(wallet_ciphertext: &[u8]) -> String {
+fn address_cache_dir_name(wallet_ciphertext: &[u8]) -> String {
     use std::hash::{Hash, Hasher};
     let hasher = &mut std::collections::hash_map::DefaultHasher::default();
     wallet_ciphertext.iter().for_each(|byte| byte.hash(hasher));
@@ -75,22 +176,18 @@ fn wallet_account_address_cache_dir_name(wallet_ciphertext: &[u8]) -> String {
 }
 
 /// The path in which a wallet's account addresses will be cached.
-fn wallet_account_address_cache_dir(wallet_ciphertext: &[u8]) -> PathBuf {
-    user_fuel_wallets_accounts_dir().join(wallet_account_address_cache_dir_name(wallet_ciphertext))
+fn address_cache_dir(wallet_ciphertext: &[u8]) -> PathBuf {
+    user_fuel_wallets_accounts_dir().join(address_cache_dir_name(wallet_ciphertext))
 }
 
 /// The cache path for a wallet account address.
-fn account_address_path(wallet_ciphertext: &[u8], account_ix: usize) -> PathBuf {
-    wallet_account_address_cache_dir(wallet_ciphertext).join(format!("{account_ix}"))
+fn address_path(wallet_ciphertext: &[u8], account_ix: usize) -> PathBuf {
+    address_cache_dir(wallet_ciphertext).join(format!("{account_ix}"))
 }
 
 /// Cache a single wallet account address to a file as a simple utf8 string.
-fn cache_account_address(
-    wallet_ciphertext: &[u8],
-    account_ix: usize,
-    account_addr: &str,
-) -> Result<()> {
-    let path = account_address_path(wallet_ciphertext, account_ix);
+fn cache_address(wallet_ciphertext: &[u8], account_ix: usize, account_addr: &str) -> Result<()> {
+    let path = address_path(wallet_ciphertext, account_ix);
     if path.exists() {
         if !path.is_file() {
             bail!("attempting to cache account address to {path:?}, but the path is a directory");
@@ -106,8 +203,8 @@ fn cache_account_address(
 }
 
 /// Read all cached account addresses for the wallet with the given ciphertext.
-fn read_cached_account_addresses(wallet_ciphertext: &[u8]) -> Result<BTreeMap<usize, String>> {
-    let wallet_accounts_dir = wallet_account_address_cache_dir(wallet_ciphertext);
+fn read_cached_addresses(wallet_ciphertext: &[u8]) -> Result<BTreeMap<usize, String>> {
+    let wallet_accounts_dir = address_cache_dir(wallet_ciphertext);
     if !wallet_accounts_dir.exists() {
         return Ok(Default::default());
     }
@@ -132,7 +229,7 @@ fn read_cached_account_addresses(wallet_ciphertext: &[u8]) -> Result<BTreeMap<us
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::account;
     use crate::utils::test_utils::{save_dummy_wallet_file, with_tmp_folder, TEST_PASSWORD};
 
     #[test]
@@ -141,7 +238,24 @@ mod tests {
             // init test wallet
             let wallet_path = tmp_folder.join("wallet.json");
             save_dummy_wallet_file(&wallet_path);
-            new_account(&wallet_path, TEST_PASSWORD).unwrap();
+            account::derive_new(&wallet_path, 0, TEST_PASSWORD).unwrap();
+        });
+    }
+
+    #[test]
+    fn derive_account_by_index() {
+        with_tmp_folder(|tmp_folder| {
+            // initialize a wallet
+            let wallet_path = tmp_folder.join("wallet.json");
+            save_dummy_wallet_file(&wallet_path);
+            // derive account with account index 0
+            let account_ix = 0;
+            let private_key =
+                account::derive_secret_key(&wallet_path, account_ix, TEST_PASSWORD).unwrap();
+            assert_eq!(
+                private_key.to_string(),
+                "961bf9754dd036dd13b1d543b3c0f74062bc4ac668ea89d38ce8d712c591f5cf"
+            )
         });
     }
 }

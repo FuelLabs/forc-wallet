@@ -1,10 +1,7 @@
-use crate::utils::{
-    default_wallet_path, request_new_password, validate_wallet_path,
-    write_wallet_from_mnemonic_and_password,
-};
+use crate::utils::{request_new_password, write_wallet_from_mnemonic_and_password};
 use anyhow::{bail, Result};
 use fuels::signers::wallet::WalletUnlocked;
-use std::path::PathBuf;
+use std::path::Path;
 
 /// Check if given mnemonic is valid by trying to create a `WalletUnlocked` from it
 fn check_mnemonic(mnemonic: &str) -> Result<()> {
@@ -15,14 +12,11 @@ fn check_mnemonic(mnemonic: &str) -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn import_wallet_cli(path_opt: Option<PathBuf>) -> Result<()> {
-    let path = path_opt.unwrap_or_else(default_wallet_path);
-    validate_wallet_path(&path)?;
+pub(crate) fn import_wallet_cli(wallet_path: &Path) -> Result<()> {
     let mnemonic = rpassword::prompt_password("Please enter your mnemonic phrase: ")?;
     check_mnemonic(&mnemonic)?;
     let password = request_new_password();
-    // Encyrpt and store it
-    write_wallet_from_mnemonic_and_password(&path, &mnemonic, &password)?;
+    write_wallet_from_mnemonic_and_password(wallet_path, &mnemonic, &password)?;
     Ok(())
 }
 

@@ -1,13 +1,9 @@
-use crate::utils::{
-    default_wallet_path, derive_account, request_new_password, validate_wallet_path,
-};
-use anyhow::{anyhow, Result};
+use crate::account;
+use anyhow::Result;
 use fuel_crypto::{Message, SecretKey, Signature};
 use fuel_types::Bytes32;
-use std::{
-    path::{Path, PathBuf},
-    str::FromStr,
-};
+use rpassword::prompt_password;
+use std::{path::Path, str::FromStr};
 
 fn sign_transaction(
     tx_id: Bytes32,
@@ -15,7 +11,7 @@ fn sign_transaction(
     password: &str,
     path: &Path,
 ) -> Result<Signature> {
-    let secret_key = derive_account(path, account_index, password)?;
+    let secret_key = account::derive_secret_key(path, account_index, password)?;
     sign_transaction_with_private_key(tx_id, secret_key)
 }
 
@@ -25,9 +21,8 @@ fn sign_transaction_with_private_key(tx_id: Bytes32, secret_key: SecretKey) -> R
     Ok(sig)
 }
 
-pub(crate) fn sign_transaction_with_private_key_cli(tx_id: &str) -> Result<()> {
-    let tx_id = Bytes32::from_str(tx_id).map_err(|e| anyhow!("{}", e))?;
-    let secret_key_input = request_new_password();
+pub(crate) fn sign_transaction_with_private_key_cli(tx_id: Bytes32) -> Result<()> {
+    let secret_key_input = prompt_password("Please enter the private key you wish to sign with: ")?;
     let secret_key = SecretKey::from_str(&secret_key_input)?;
     let signature = sign_transaction_with_private_key(tx_id, secret_key)?;
     println!("Signature: {signature}");
@@ -35,15 +30,12 @@ pub(crate) fn sign_transaction_with_private_key_cli(tx_id: &str) -> Result<()> {
 }
 
 pub(crate) fn sign_transaction_cli(
-    id: &str,
+    wallet_path: &Path,
+    tx_id: Bytes32,
     account_index: usize,
-    path_opt: Option<PathBuf>,
 ) -> Result<()> {
-    let path = path_opt.map_or_else(default_wallet_path, PathBuf::from);
-    validate_wallet_path(&path)?;
-    let password = request_new_password();
-    let tx_id = Bytes32::from_str(id).map_err(|e| anyhow!("{}", e))?;
-    let signature = sign_transaction(tx_id, account_index, &password, &path)?;
+    let password = prompt_password("Please enter your password: ")?;
+    let signature = sign_transaction(tx_id, account_index, &password, wallet_path)?;
     println!("Signature: {signature}");
     Ok(())
 }

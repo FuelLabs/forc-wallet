@@ -1,29 +1,20 @@
 mod account;
-mod export;
 mod import;
-mod init;
+mod new;
 mod sign;
 mod utils;
 
-use std::path::PathBuf;
-
 use crate::{
-    account::{new_account_cli, print_account_address, print_account_list},
-    export::export_account_cli,
-    import::import_wallet_cli,
-    init::init_wallet_cli,
-    sign::{sign_transaction_cli, sign_transaction_with_private_key_cli},
+    account::Account, import::import_wallet_cli, new::new_wallet_cli,
+    sign::sign_transaction_with_private_key_cli,
 };
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use fuels::prelude::*;
+use std::path::PathBuf;
 
 #[derive(Debug, Parser)]
-#[clap(
-    name = "forc-wallet",
-    about = "A forc plugin for generating or importing wallets using BIP39 phrases.",
-    version
-)]
+#[clap(name = "forc wallet", about = ABOUT, after_help = EXAMPLES, version)]
 struct App {
     /// The path to a wallet. A wallet is a JSON keystore file as described in
     /// the Web3 Secret Storage Definition.
@@ -33,67 +24,81 @@ struct App {
     #[clap(long = "path")]
     wallet_path: Option<PathBuf>,
     #[clap(subcommand)]
-    pub command: Command,
+    pub cmd: Command,
 }
 
 #[derive(Debug, Subcommand)]
-#[clap(rename_all = "kebab-case")]
 enum Command {
-    /// Derive a new account for the wallet.
+    /// Create a new wallet from a random mnemonic phrase.
     ///
-    /// Note that upon derivation of the new account, the account's public
-    /// address will be cached in plain text for convenient retrieval via the
-    /// `list` and `account` commands.
-    ///
-    /// The index of the newly derived account will be that which succeeds the
-    /// greatest known account index currently within the cache.
+    /// If a `--path` is specified, the wallet will be created at this location.
     New,
-    /// Initialize a new wallet from a random mnemonic phrase.
-    Init,
     /// Import a wallet from the provided mnemonic phrase.
+    ///
+    /// If a `--path` is specified, the wallet will be imported to this location.
     Import,
     /// Lists all accounts derived for the wallet so far.
-    List,
-    /// Check the wallet's account address cache for the account at the given
-    /// index and print its address.
-    Account {
-        /// The index of the account to show.
-        #[clap(long)]
-        index: usize,
-    },
-    /// Sign a transaction by providing its ID and the signing account's index
-    Sign {
-        #[clap(long)]
-        id: String,
-        #[clap(long)]
-        account_index: usize,
-    },
-    /// Sign a transaction by providing its ID and the signing account's private key.
-    SignPrivate {
-        #[clap(long)]
-        tx_id: String,
-    },
-    /// Get the private key of an account from its index
-    Export {
-        #[clap(long)]
-        account_index: usize,
+    ///
+    /// Note that this only includes accounts that have been previously derived
+    /// *locally* and still exist within the user's `~/.fuel/wallets/accoutns`
+    /// cache. If this wallet was recently imported, you may need to re-derive
+    /// your accounts.
+    Accounts,
+    /// Derive a new account, sign with an existing account, or display an
+    /// account's public or private key. See the `EXAMPLES` below.
+    Account(Account),
+    /// Sign something by providing a private key *directly*, rather than with
+    /// a wallet account.
+    #[clap(subcommand)]
+    SignPrivate(SignCmd),
+}
+
+#[derive(Debug, Subcommand)]
+enum SignCmd {
+    /// Sign a transaction given it's ID.
+    Tx {
+        /// The transaction ID.
+        tx_id: fuel_types::Bytes32,
     },
 }
+
+const ABOUT: &str = "A forc plugin for generating or importing wallets using BIP39 phrases.";
+const EXAMPLES: &str = r#"
+EXAMPLES:
+    # Create a new wallet at the default path `~/.fuel/wallets/.wallet`.
+    forc wallet new
+
+    # Import a new wallet from a mnemonic phrase.
+    forc wallet import
+
+    # Derive a new account for the default wallet.
+    forc wallet account new
+
+    # Derive a new account for the wallet at the given path.
+    forc wallet --path /path/to/wallet account new
+
+    # Derive (or re-derive) the account at index 5.
+    forc wallet account 5 new
+
+    # Sign a transaction via its ID with account at index 3.
+    forc wallet account 3 sign tx 0x0bf34feb362608c4171c87115d4a6f63d1cdf4c49b963b464762329488f3ed4f
+
+    # Temporarily display the private key of the account at index 0.
+    forc wallet account 0 private-key
+"#;
 
 #[tokio::main]
 async fn main() -> Result<()> {
     let app = App::parse();
-    match app.command {
-        Command::New => new_account_cli(app.wallet_path)?,
-        Command::List => print_account_list(app.wallet_path)?,
-        Command::Init => init_wallet_cli(app.wallet_path)?,
-        Command::Account { index } => print_account_address(app.wallet_path, index)?,
-        Command::Sign { id, account_index } => {
-            sign_transaction_cli(&id, account_index, app.wallet_path)?
+    let wallet_path = app.wallet_path.unwrap_or_else(utils::default_wallet_path);
+    match app.cmd {
+        Command::New => new_wallet_cli(&wallet_path)?,
+        Command::Import => import_wallet_cli(&wallet_path)?,
+        Command::Accounts => account::print_accounts_cli(&wallet_path)?,
+        Command::Account(account) => account::cli(&wallet_path, account)?,
+        Command::SignPrivate(SignCmd::Tx { tx_id }) => {
+            sign_transaction_with_private_key_cli(tx_id)?
         }
-        Command::Import => import_wallet_cli(app.wallet_path)?,
-        Command::Export { account_index } => export_account_cli(app.wallet_path, account_index)?,
-        Command::SignPrivate { tx_id } => sign_transaction_with_private_key_cli(&tx_id)?,
-    };
+    }
     Ok(())
 }

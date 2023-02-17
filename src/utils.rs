@@ -1,7 +1,6 @@
 use crate::Error;
 use anyhow::{anyhow, bail, Context, Result};
 use eth_keystore::EthKeystore;
-use fuel_crypto::SecretKey;
 use fuels_signers::wallet::DEFAULT_DERIVATION_PATH_PREFIX;
 use home::home_dir;
 use std::{
@@ -35,47 +34,22 @@ pub fn default_wallet_path() -> PathBuf {
     user_fuel_wallets_dir().join(DEFAULT_WALLET_FILE_NAME)
 }
 
-/// Ensure that the given wallet path points to a file and not a directory.
-pub fn validate_wallet_path(wallet_path: &Path) -> Result<()> {
-    if !wallet_path.is_file() {
-        bail!(
-            "expected a path to a wallet keystore file, found {:?}",
-            wallet_path
-        );
-    }
-    Ok(())
-}
-
 /// Load a wallet from the given path.
 pub fn load_wallet(wallet_path: &Path) -> Result<EthKeystore> {
-    let file = fs::File::open(wallet_path).context("failed to open wallet file")?;
+    let file = fs::File::open(wallet_path).map_err(|e| {
+        anyhow!(
+            "Failed to load a wallet from {wallet_path:?}: {e}.\n\
+            Please be sure to initialize a wallet before creating an account.\n\
+            To initialize a wallet, use `forc-wallet init`"
+        )
+    })?;
     let reader = std::io::BufReader::new(file);
-    serde_json::from_reader(reader)
-        .with_context(|| format!("failed to deserialize keystore from {wallet_path:?}"))
-}
-
-/// Creates the wallet directory at the given path if it does not exist.
-pub(crate) fn create_wallet(path: &Path) -> Result<()> {
-    if path.exists() {
-        bail!(format!("Cannot import wallet at {path:?}, the directory already exists! You can clear the given path and re-use the same path"))
-    } else {
-        std::fs::create_dir_all(path)?;
-    }
-    Ok(())
-}
-
-/// Given a path to a wallet, an account index and the wallet's password,
-/// derive the account address for the account at the given index.
-pub(crate) fn derive_account(
-    wallet_path: &Path,
-    account_index: usize,
-    password: &str,
-) -> Result<SecretKey> {
-    let phrase_recovered = eth_keystore::decrypt_key(wallet_path, password)?;
-    let phrase = String::from_utf8(phrase_recovered)?;
-    let derive_path = get_derivation_path(account_index);
-    let secret_key = SecretKey::new_from_mnemonic_phrase_with_path(&phrase, &derive_path)?;
-    Ok(secret_key)
+    serde_json::from_reader(reader).map_err(|e| {
+        anyhow!(
+            "Failed to deserialize keystore from {wallet_path:?}: {e}.\n\
+            Please ensure that {wallet_path:?} is a valid wallet file."
+        )
+    })
 }
 
 pub(crate) fn wait_for_keypress() {
@@ -118,6 +92,8 @@ pub(crate) fn display_string_discreetly(
 
 /// Encrypts the given mnemonic with the given password and writes it to a file at the given path.
 ///
+/// Ensures that the parent dir exists, but that we're not directly overwriting an existing file.
+///
 /// The resulting wallet file will be a keystore as per the [Web3 Secret Storage Definition][1].
 /// [1]: https://ethereum.org/en/developers/docs/data-structures-and-encoding/web3-secret-storage.
 pub(crate) fn write_wallet_from_mnemonic_and_password(
@@ -125,18 +101,31 @@ pub(crate) fn write_wallet_from_mnemonic_and_password(
     mnemonic: &str,
     password: &str,
 ) -> Result<()> {
+    // Ensure we're not overwriting an existing wallet or other file.
+    if wallet_path.exists() {
+        bail!(
+            "File or directory already exists at {wallet_path:?}. \
+            Remove the existing file, or provide a different path."
+        );
+    }
+
+    // Ensure the parent directory exists.
     let wallet_dir = wallet_path
         .parent()
         .ok_or_else(|| anyhow!("failed to retrieve parent directory of {wallet_path:?}"))?;
+    std::fs::create_dir_all(wallet_dir)?;
+
+    // Retrieve the wallet file name.
     let wallet_file_name = wallet_path
         .file_name()
         .and_then(|os_str| os_str.to_str())
         .ok_or_else(|| anyhow!("failed to retrieve file name from {wallet_path:?}"))?;
-    let mnemonic_bytes: Vec<u8> = mnemonic.bytes().collect();
+
+    // Encrypt and write the wallet file.
     eth_keystore::encrypt_key(
         wallet_dir,
         &mut rand::thread_rng(),
-        mnemonic_bytes,
+        mnemonic,
         password,
         Some(wallet_file_name),
     )
@@ -147,36 +136,33 @@ pub(crate) fn write_wallet_from_mnemonic_and_password(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::utils::test_utils::{
-        save_dummy_wallet_file, with_tmp_folder, TEST_MNEMONIC, TEST_PASSWORD,
-    };
-
-    #[test]
-    fn create_wallet_should_success() {
-        with_tmp_folder(|tmp_folder| {
-            let test_wallet_dir = tmp_folder.join("handle_wallet_dir_success_dir");
-            let create_wallet_status = create_wallet(&test_wallet_dir).is_ok();
-            assert!(create_wallet_status)
-        });
-    }
-
-    #[test]
-    fn create_wallet_should_fail() {
-        with_tmp_folder(|tmp_folder| {
-            let test_wallet_dir = tmp_folder.join("handle_wallet_dir_fail_dir");
-            std::fs::create_dir_all(&test_wallet_dir).unwrap();
-            let create_wallet_status = create_wallet(&test_wallet_dir).is_err();
-            assert!(create_wallet_status)
-        });
-    }
+    use crate::utils::test_utils::{with_tmp_folder, TEST_MNEMONIC, TEST_PASSWORD};
 
     #[test]
     fn handle_absolute_path_argument() {
-        let path_opt: Option<PathBuf> = Some(PathBuf::from("/forc_wallet_test_dir"));
-        let path = path_opt.unwrap_or_else(default_wallet_path);
-        let path_validation = validate_wallet_path(&path).is_err();
-        assert!(path_validation)
+        with_tmp_folder(|tmp_folder| {
+            let tmp_folder_abs = tmp_folder.canonicalize().unwrap();
+            let wallet_path = tmp_folder_abs.join("wallet.json");
+            write_wallet_from_mnemonic_and_password(&wallet_path, TEST_MNEMONIC, TEST_PASSWORD)
+                .unwrap();
+            load_wallet(&wallet_path).unwrap();
+        })
     }
+
+    #[test]
+    fn handle_relative_path_argument() {
+        let wallet_path = Path::new("test-wallet.json");
+        let panic = std::panic::catch_unwind(|| {
+            write_wallet_from_mnemonic_and_password(wallet_path, TEST_MNEMONIC, TEST_PASSWORD)
+                .unwrap();
+            load_wallet(wallet_path).unwrap();
+        });
+        let _ = std::fs::remove_file(wallet_path);
+        if let Err(e) = panic {
+            std::panic::resume_unwind(e);
+        }
+    }
+
     #[test]
     fn derivation_path() {
         let derivation_path = get_derivation_path(0);
@@ -193,20 +179,37 @@ mod tests {
             assert_eq!(phrase, TEST_MNEMONIC)
         });
     }
+
     #[test]
-    fn derive_account_by_index() {
+    fn write_wallet() {
         with_tmp_folder(|tmp_folder| {
-            // initialize a wallet
             let wallet_path = tmp_folder.join("wallet.json");
-            save_dummy_wallet_file(&wallet_path);
-            // derive account with account index 0
-            let account_ix = 0;
-            let private_key = derive_account(&wallet_path, account_ix, TEST_PASSWORD).unwrap();
-            assert_eq!(
-                private_key.to_string(),
-                "961bf9754dd036dd13b1d543b3c0f74062bc4ac668ea89d38ce8d712c591f5cf"
-            )
-        });
+            write_wallet_from_mnemonic_and_password(&wallet_path, TEST_MNEMONIC, TEST_PASSWORD)
+                .unwrap();
+            load_wallet(&wallet_path).unwrap();
+        })
+    }
+
+    #[test]
+    #[should_panic]
+    fn write_wallet_to_existing_file_should_fail() {
+        with_tmp_folder(|tmp_folder| {
+            let wallet_path = tmp_folder.join("wallet.json");
+            write_wallet_from_mnemonic_and_password(&wallet_path, TEST_MNEMONIC, TEST_PASSWORD)
+                .unwrap();
+            write_wallet_from_mnemonic_and_password(&wallet_path, TEST_MNEMONIC, TEST_PASSWORD)
+                .unwrap();
+        })
+    }
+
+    #[test]
+    fn write_wallet_subdir() {
+        with_tmp_folder(|tmp_folder| {
+            let wallet_path = tmp_folder.join("path").join("to").join("wallet");
+            write_wallet_from_mnemonic_and_password(&wallet_path, TEST_MNEMONIC, TEST_PASSWORD)
+                .unwrap();
+            load_wallet(&wallet_path).unwrap();
+        })
     }
 }
 
