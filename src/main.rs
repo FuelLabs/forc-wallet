@@ -91,7 +91,7 @@ EXAMPLES:
     forc wallet sign --account 3 string "blah blah blah"
 
     # Sign directly with a private key.
-    forc wallet sign --private string "blah blah blah"
+    forc wallet sign --private-key string "blah blah blah"
 
     # Temporarily display the private key of the account at index 0.
     forc wallet account 0 private-key

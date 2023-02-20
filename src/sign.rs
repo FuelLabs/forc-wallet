@@ -20,19 +20,19 @@ pub struct Sign {
     /// Sign using a private key.
     /// Uses a discrete interactive prompt for collecting the private key.
     #[clap(long)]
-    pub private: bool,
+    pub private_key: bool,
     /// Sign by passing the private key directly.
     ///
     /// WARNING: This is primarily provided for non-interactive testing. Using this flag is
     /// prone to leaving your private key exposed in your shell command history!
     #[clap(long)]
-    pub private_key: Option<SecretKey>,
+    pub private_key_non_interactive: Option<SecretKey>,
     /// Directly provide the wallet password when signing with an account.
     ///
     /// WARNING: This is primarily provided for non-interactive testing. Using this flag is
     /// prone to leaving your password exposed in your shell command history!
     #[clap(long)]
-    pub password: Option<String>,
+    pub password_non_interactive: Option<String>,
     #[clap(subcommand)]
     pub data: Data,
 }
@@ -63,12 +63,17 @@ pub enum Data {
 pub(crate) fn cli(wallet_path: &Path, sign: Sign) -> Result<()> {
     let Sign {
         account,
-        private,
         private_key,
-        password,
+        private_key_non_interactive,
+        password_non_interactive,
         data,
     } = sign;
-    match (account, password, private, private_key) {
+    match (
+        account,
+        password_non_interactive,
+        private_key,
+        private_key_non_interactive,
+    ) {
         // Provided an account index, so we'll request the password.
         (Some(acc_ix), None, false, None) => wallet_account_cli(wallet_path, acc_ix, data)?,
         // Provided the password as a flag, so no need for interactive step.

@@ -113,7 +113,7 @@ forc-wallet sign --account <account_index> hex 0123456789ABCDEF
 Using the `sign` subcommand, you can choose to sign directly with a private key (rather than a wallet account):
 
 ```sh
-forc-wallet sign --private hex 0123456789ABCDEF
+forc-wallet sign --private-key hex 0123456789ABCDEF
 ```
 
 ## Other useful commands
