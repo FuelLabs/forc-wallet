@@ -1,4 +1,4 @@
-use crate::sign::sign_transaction_cli;
+use crate::sign;
 use crate::utils::{
     display_string_discreetly, get_derivation_path, load_wallet, user_fuel_wallets_accounts_dir,
 };
@@ -44,7 +44,7 @@ pub(crate) enum Command {
     New,
     /// Sign a transaction with the specified account.
     #[clap(subcommand)]
-    Sign(crate::SignCmd),
+    Sign(sign::Command),
     /// Temporarily display the private key of an account from its index.
     ///
     /// WARNING: This prints your account's private key to an alternative,
@@ -68,9 +68,7 @@ pub(crate) fn cli(wallet_path: &Path, account: Account) -> Result<()> {
         (None, Some(Command::New)) => new_cli(wallet_path)?,
         (Some(acc_ix), Some(Command::New)) => new_at_index_cli(wallet_path, acc_ix)?,
         (Some(acc_ix), None) => print_address(wallet_path, acc_ix, account.unverified.unverified)?,
-        (Some(acc_ix), Some(Command::Sign(crate::SignCmd::Tx { tx_id }))) => {
-            sign_transaction_cli(wallet_path, tx_id, acc_ix)?
-        }
+        (Some(acc_ix), Some(Command::Sign(sign_cmd))) => sign::cli(wallet_path, acc_ix, sign_cmd)?,
         (Some(acc_ix), Some(Command::PrivateKey)) => private_key_cli(wallet_path, acc_ix)?,
         (None, Some(cmd)) => print_subcmd_index_warning(&cmd),
         (None, None) => print_subcmd_help(),
@@ -270,28 +268,22 @@ fn read_cached_addresses(wallet_ciphertext: &[u8]) -> Result<BTreeMap<usize, Str
 #[cfg(test)]
 mod tests {
     use crate::account;
-    use crate::utils::test_utils::{save_dummy_wallet_file, with_tmp_folder, TEST_PASSWORD};
+    use crate::utils::test_utils::{with_tmp_dir_and_wallet, TEST_PASSWORD};
 
     #[test]
     fn create_new_account() {
-        with_tmp_folder(|tmp_folder| {
-            // init test wallet
-            let wallet_path = tmp_folder.join("wallet.json");
-            save_dummy_wallet_file(&wallet_path);
-            account::derive_new(&wallet_path, 0, TEST_PASSWORD).unwrap();
+        with_tmp_dir_and_wallet(|_dir, wallet_path| {
+            account::derive_new(wallet_path, 0, TEST_PASSWORD).unwrap();
         });
     }
 
     #[test]
     fn derive_account_by_index() {
-        with_tmp_folder(|tmp_folder| {
-            // initialize a wallet
-            let wallet_path = tmp_folder.join("wallet.json");
-            save_dummy_wallet_file(&wallet_path);
+        with_tmp_dir_and_wallet(|_dir, wallet_path| {
             // derive account with account index 0
             let account_ix = 0;
             let private_key =
-                account::derive_secret_key(&wallet_path, account_ix, TEST_PASSWORD).unwrap();
+                account::derive_secret_key(wallet_path, account_ix, TEST_PASSWORD).unwrap();
             assert_eq!(
                 private_key.to_string(),
                 "961bf9754dd036dd13b1d543b3c0f74062bc4ac668ea89d38ce8d712c591f5cf"

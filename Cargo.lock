@@ -944,6 +944,7 @@ dependencies = [
  "fuel-types",
  "fuels",
  "fuels-signers",
+ "hex",
  "home",
  "rand",
  "rpassword",

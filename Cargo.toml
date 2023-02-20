@@ -15,6 +15,7 @@ fuel-crypto = "0.26"
 fuel-types = "0.26"
 fuels = { version = "0.36.0", default-features = false }
 fuels-signers = "0.36.0"
+hex = "0.4"
 home = "0.5.3"
 rand = { version = "0.8.4", default-features = false }
 rpassword = "7.2"

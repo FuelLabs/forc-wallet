@@ -136,13 +136,13 @@ pub(crate) fn write_wallet_from_mnemonic_and_password(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::utils::test_utils::{with_tmp_folder, TEST_MNEMONIC, TEST_PASSWORD};
+    use crate::utils::test_utils::{with_tmp_dir, TEST_MNEMONIC, TEST_PASSWORD};
 
     #[test]
     fn handle_absolute_path_argument() {
-        with_tmp_folder(|tmp_folder| {
-            let tmp_folder_abs = tmp_folder.canonicalize().unwrap();
-            let wallet_path = tmp_folder_abs.join("wallet.json");
+        with_tmp_dir(|tmp_dir| {
+            let tmp_dir_abs = tmp_dir.canonicalize().unwrap();
+            let wallet_path = tmp_dir_abs.join("wallet.json");
             write_wallet_from_mnemonic_and_password(&wallet_path, TEST_MNEMONIC, TEST_PASSWORD)
                 .unwrap();
             load_wallet(&wallet_path).unwrap();
@@ -170,8 +170,8 @@ mod tests {
     }
     #[test]
     fn encrypt_and_save_phrase() {
-        with_tmp_folder(|tmp_folder| {
-            let wallet_path = tmp_folder.join("wallet.json");
+        with_tmp_dir(|tmp_dir| {
+            let wallet_path = tmp_dir.join("wallet.json");
             write_wallet_from_mnemonic_and_password(&wallet_path, TEST_MNEMONIC, TEST_PASSWORD)
                 .unwrap();
             let phrase_recovered = eth_keystore::decrypt_key(wallet_path, TEST_PASSWORD).unwrap();
@@ -182,8 +182,8 @@ mod tests {
 
     #[test]
     fn write_wallet() {
-        with_tmp_folder(|tmp_folder| {
-            let wallet_path = tmp_folder.join("wallet.json");
+        with_tmp_dir(|tmp_dir| {
+            let wallet_path = tmp_dir.join("wallet.json");
             write_wallet_from_mnemonic_and_password(&wallet_path, TEST_MNEMONIC, TEST_PASSWORD)
                 .unwrap();
             load_wallet(&wallet_path).unwrap();
@@ -193,8 +193,8 @@ mod tests {
     #[test]
     #[should_panic]
     fn write_wallet_to_existing_file_should_fail() {
-        with_tmp_folder(|tmp_folder| {
-            let wallet_path = tmp_folder.join("wallet.json");
+        with_tmp_dir(|tmp_dir| {
+            let wallet_path = tmp_dir.join("wallet.json");
             write_wallet_from_mnemonic_and_password(&wallet_path, TEST_MNEMONIC, TEST_PASSWORD)
                 .unwrap();
             write_wallet_from_mnemonic_and_password(&wallet_path, TEST_MNEMONIC, TEST_PASSWORD)
@@ -204,8 +204,8 @@ mod tests {
 
     #[test]
     fn write_wallet_subdir() {
-        with_tmp_folder(|tmp_folder| {
-            let wallet_path = tmp_folder.join("path").join("to").join("wallet");
+        with_tmp_dir(|tmp_dir| {
+            let wallet_path = tmp_dir.join("path").join("to").join("wallet");
             write_wallet_from_mnemonic_and_password(&wallet_path, TEST_MNEMONIC, TEST_PASSWORD)
                 .unwrap();
             load_wallet(&wallet_path).unwrap();
@@ -216,15 +216,15 @@ mod tests {
 #[cfg(test)]
 pub(crate) mod test_utils {
     use super::*;
-    use std::{panic, path::PathBuf};
+    use std::{panic, path::Path};
 
     pub(crate) const TEST_MNEMONIC: &str = "rapid mechanic escape victory bacon switch soda math embrace frozen novel document wait motor thrive ski addict ripple bid magnet horse merge brisk exile";
     pub(crate) const TEST_PASSWORD: &str = "1234";
 
     /// Create a tmp folder and execute the given test function `f`
-    pub(crate) fn with_tmp_folder<F>(f: F)
+    pub(crate) fn with_tmp_dir<F>(f: F)
     where
-        F: FnOnce(&PathBuf) + panic::UnwindSafe,
+        F: FnOnce(&Path) + panic::UnwindSafe,
     {
         let tmp_dir_name = format!("forc-wallet-test-{:x}", rand::random::<u64>());
         let tmp_dir = user_fuel_dir().join(".tmp").join(tmp_dir_name);
@@ -235,8 +235,21 @@ pub(crate) mod test_utils {
             panic::resume_unwind(e);
         }
     }
+
     /// Saves a default test mnemonic to the disk
     pub(crate) fn save_dummy_wallet_file(wallet_path: &Path) {
         write_wallet_from_mnemonic_and_password(wallet_path, TEST_MNEMONIC, TEST_PASSWORD).unwrap();
+    }
+
+    /// The same as `with_tmp_dir`, but also provides a test wallet.
+    pub(crate) fn with_tmp_dir_and_wallet<F>(f: F)
+    where
+        F: FnOnce(&Path, &Path) + panic::UnwindSafe,
+    {
+        with_tmp_dir(|dir| {
+            let wallet_path = dir.join("wallet.json");
+            save_dummy_wallet_file(&wallet_path);
+            f(dir, &wallet_path);
+        })
     }
 }
