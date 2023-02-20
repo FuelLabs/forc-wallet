@@ -72,7 +72,7 @@ forc-wallet accounts
 
 ### Sign a transaction
 
-To sign a transaction, you can do so with its ID. You can generate a transaction and get its ID using `forc-client`. Signing the transaction once you have the ID is simple:
+To sign a transaction, you can provide the transaction ID. You can generate a transaction and get its ID using `forc-client`. Signing the transaction once you have the ID is simple:
 
 ```sh
 forc-wallet account <account_index> sign tx-id <transaction_id>
