@@ -44,7 +44,7 @@ pub(crate) enum Command {
     New,
     /// Sign a transaction with the specified account.
     #[clap(subcommand)]
-    Sign(sign::Command),
+    Sign(sign::Data),
     /// Temporarily display the private key of an account from its index.
     ///
     /// WARNING: This prints your account's private key to an alternative,
@@ -68,7 +68,9 @@ pub(crate) fn cli(wallet_path: &Path, account: Account) -> Result<()> {
         (None, Some(Command::New)) => new_cli(wallet_path)?,
         (Some(acc_ix), Some(Command::New)) => new_at_index_cli(wallet_path, acc_ix)?,
         (Some(acc_ix), None) => print_address(wallet_path, acc_ix, account.unverified.unverified)?,
-        (Some(acc_ix), Some(Command::Sign(sign_cmd))) => sign::cli(wallet_path, acc_ix, sign_cmd)?,
+        (Some(acc_ix), Some(Command::Sign(sign_cmd))) => {
+            sign::wallet_account_cli(wallet_path, acc_ix, sign_cmd)?
+        }
         (Some(acc_ix), Some(Command::PrivateKey)) => private_key_cli(wallet_path, acc_ix)?,
         (None, Some(cmd)) => print_subcmd_index_warning(&cmd),
         (None, None) => print_subcmd_help(),

@@ -8,6 +8,7 @@ use crate::{
     account::{Account, Accounts},
     import::import_wallet_cli,
     new::new_wallet_cli,
+    sign::Sign,
 };
 use anyhow::Result;
 use clap::{Parser, Subcommand};
@@ -53,10 +54,7 @@ enum Command {
     /// Derive a new account, sign with an existing account, or display an
     /// account's public or private key. See the `EXAMPLES` below.
     Account(Account),
-    /// Sign something by providing a private key *directly*, rather than with
-    /// a wallet account.
-    #[clap(subcommand)]
-    SignPrivate(sign::Command),
+    Sign(Sign),
 }
 
 const ABOUT: &str = "A forc plugin for generating or importing wallets using BIP39 phrases.";
@@ -77,8 +75,23 @@ EXAMPLES:
     # Derive (or re-derive) the account at index 5.
     forc wallet account 5 new
 
-    # Sign a transaction via its ID with account at index 3.
+    # Sign a transaction ID with account at index 3.
     forc wallet account 3 sign tx-id 0x0bf34feb362608c4171c87115d4a6f63d1cdf4c49b963b464762329488f3ed4f
+
+    # Sign an arbitrary string.
+    forc wallet account 3 sign string "blah blah blah"
+
+    # Sign the contents of a file.
+    forc wallet account 3 sign file /path/to/data-to-sign
+
+    # Sign a hex-encoded byte string.
+    forc wallet account 3 sign hex "0xDEADBEEF"
+
+    # You can also use the `sign` subcommand directly. The following gives the same result.
+    forc wallet sign --account 3 string "blah blah blah"
+
+    # Sign directly with a private key.
+    forc wallet sign --private string "blah blah blah"
 
     # Temporarily display the private key of the account at index 0.
     forc wallet account 0 private-key
@@ -93,7 +106,7 @@ async fn main() -> Result<()> {
         Command::Import => import_wallet_cli(&wallet_path)?,
         Command::Accounts(accounts) => account::print_accounts_cli(&wallet_path, accounts)?,
         Command::Account(account) => account::cli(&wallet_path, account)?,
-        Command::SignPrivate(sign_cmd) => sign::private_key_cli(sign_cmd)?,
+        Command::Sign(sign) => sign::cli(&wallet_path, sign)?,
     }
     Ok(())
 }

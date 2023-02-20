@@ -1,6 +1,6 @@
 use crate::account;
-use anyhow::{Context, Result};
-use clap::Subcommand;
+use anyhow::{bail, Context, Result};
+use clap::{Args, Subcommand};
 use fuel_crypto::{Message, SecretKey, Signature};
 use fuel_types::Bytes32;
 use rpassword::prompt_password;
@@ -9,8 +9,37 @@ use std::{
     str::FromStr,
 };
 
+/// Sign some data (e.g. a transaction ID, a file, a string, or a hex-string)
+/// using either a wallet account or a private key.
+#[derive(Debug, Args)]
+pub struct Sign {
+    /// Sign using the wallet account at the given index.
+    /// Uses a discrete interactive prompt for password input.
+    #[clap(long, value_name = "ACCOUNT_INDEX")]
+    pub account: Option<usize>,
+    /// Sign using a private key.
+    /// Uses a discrete interactive prompt for collecting the private key.
+    #[clap(long)]
+    pub private: bool,
+    /// Sign by passing the private key directly.
+    ///
+    /// WARNING: This is primarily provided for non-interactive testing. Using this flag is
+    /// prone to leaving your private key exposed in your shell command history!
+    #[clap(long)]
+    pub private_key: Option<SecretKey>,
+    /// Directly provide the wallet password when signing with an account.
+    ///
+    /// WARNING: This is primarily provided for non-interactive testing. Using this flag is
+    /// prone to leaving your password exposed in your shell command history!
+    #[clap(long)]
+    pub password: Option<String>,
+    #[clap(subcommand)]
+    pub data: Data,
+}
+
+/// The data that is to be signed.
 #[derive(Debug, Subcommand)]
-pub(crate) enum Command {
+pub enum Data {
     /// Sign a transaction ID.
     ///
     /// The tx ID is signed directly, i.e. it is not re-hashed before signing.
@@ -31,44 +60,66 @@ pub(crate) enum Command {
     Hex { hex_string: String },
 }
 
-pub(crate) fn cli(wallet_path: &Path, account_ix: usize, cmd: Command) -> Result<()> {
-    match cmd {
-        Command::TxId { tx_id } => {
-            sign_msg_with_wallet_account_cli(wallet_path, account_ix, &msg_from_hash32(tx_id))?
+pub(crate) fn cli(wallet_path: &Path, sign: Sign) -> Result<()> {
+    let Sign {
+        account,
+        private,
+        private_key,
+        password,
+        data,
+    } = sign;
+    match (account, password, private, private_key) {
+        // Provided an account index, so we'll request the password.
+        (Some(acc_ix), None, false, None) => wallet_account_cli(wallet_path, acc_ix, data)?,
+        // Provided the password as a flag, so no need for interactive step.
+        (Some(acc_ix), Some(pw), false, None) => {
+            let msg = msg_from_data(data)?;
+            let sig = sign_msg_with_wallet_account(wallet_path, acc_ix, &msg, &pw)?;
+            println!("Signature: {sig}");
         }
-        Command::File { path } => {
-            sign_msg_with_wallet_account_cli(wallet_path, account_ix, &msg_from_file(&path)?)?
+        // Provided the private key to sign with directly.
+        (None, None, _, Some(priv_key)) => {
+            let msg = msg_from_data(data)?;
+            let sig = Signature::sign(&priv_key, &msg);
+            println!("Signature: {sig}");
         }
-        Command::Hex { hex_string } => sign_msg_with_wallet_account_cli(
-            wallet_path,
-            account_ix,
-            &msg_from_hex_str(&hex_string)?,
-        )?,
-        Command::String { string } => {
-            sign_msg_with_wallet_account_cli(wallet_path, account_ix, &Message::new(string))?
-        }
+        // Sign with a private key interactively.
+        (None, None, true, None) => private_key_cli(data)?,
+        // TODO: If the user provides neither account or private flags, ask in interactive mode?
+        _ => bail!(
+            "Unexpected set of options passed to `forc wallet sign`.\n  \
+                 To sign with a wallet account, use `forc wallet sign --account <index> <data>`\n  \
+                 To sign with a private key, use `forc wallet sign --private <data>`",
+        ),
     }
     Ok(())
 }
 
-pub(crate) fn private_key_cli(cmd: Command) -> Result<()> {
-    match cmd {
-        Command::TxId { tx_id } => sign_msg_with_private_key_cli(&msg_from_hash32(tx_id))?,
-        Command::File { path } => sign_msg_with_private_key_cli(&msg_from_file(&path)?)?,
-        Command::Hex { hex_string } => {
-            sign_msg_with_private_key_cli(&msg_from_hex_str(&hex_string)?)?
-        }
-        Command::String { string } => sign_msg_with_private_key_cli(&Message::new(string))?,
+pub(crate) fn wallet_account_cli(wallet_path: &Path, account_ix: usize, data: Data) -> Result<()> {
+    let msg = msg_from_data(data)?;
+    sign_msg_with_wallet_account_cli(wallet_path, account_ix, &msg)
+}
+
+pub(crate) fn private_key_cli(data: Data) -> Result<()> {
+    match data {
+        Data::TxId { tx_id } => sign_msg_with_private_key_cli(&msg_from_hash32(tx_id))?,
+        Data::File { path } => sign_msg_with_private_key_cli(&msg_from_file(&path)?)?,
+        Data::Hex { hex_string } => sign_msg_with_private_key_cli(&msg_from_hex_str(&hex_string)?)?,
+        Data::String { string } => sign_msg_with_private_key_cli(&Message::new(string))?,
     }
     Ok(())
 }
 
 fn sign_msg_with_private_key_cli(msg: &Message) -> Result<()> {
     let secret_key_input = prompt_password("Please enter the private key you wish to sign with: ")?;
-    let secret_key = SecretKey::from_str(&secret_key_input)?;
-    let signature = Signature::sign(&secret_key, msg);
+    let signature = sign_with_private_key_str(msg, &secret_key_input)?;
     println!("Signature: {signature}");
     Ok(())
+}
+
+fn sign_with_private_key_str(msg: &Message, priv_key_input: &str) -> Result<Signature> {
+    let secret_key = SecretKey::from_str(priv_key_input)?;
+    Ok(Signature::sign(&secret_key, msg))
 }
 
 fn sign_msg_with_wallet_account_cli(
@@ -106,6 +157,16 @@ fn msg_from_file(path: &Path) -> Result<Message> {
 fn msg_from_hex_str(hex_str: &str) -> Result<Message> {
     let bytes = bytes_from_hex_str(hex_str)?;
     Ok(Message::new(bytes))
+}
+
+fn msg_from_data(data: Data) -> Result<Message> {
+    let msg = match data {
+        Data::TxId { tx_id } => msg_from_hash32(tx_id),
+        Data::File { path } => msg_from_file(&path)?,
+        Data::Hex { hex_string } => msg_from_hex_str(&hex_string)?,
+        Data::String { string } => Message::new(string),
+    };
+    Ok(msg)
 }
 
 fn bytes_from_hex_str(mut hex_str: &str) -> Result<Vec<u8>> {
@@ -174,6 +235,10 @@ mod tests {
             let sig =
                 sign_msg_with_wallet_account(wallet_path, account_ix, &msg, TEST_PASSWORD).unwrap();
             assert_eq!(sig.to_string(), EXPECTED_SIG);
+            // The hex prefix should be ignored if it exists.
+            let prefixed = format!("0x{hex_encoded}");
+            let prefixed_msg = msg_from_hex_str(&prefixed).unwrap();
+            assert_eq!(msg, prefixed_msg);
         });
     }
 }
