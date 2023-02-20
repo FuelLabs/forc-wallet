@@ -106,13 +106,7 @@ pub(crate) fn wallet_account_cli(wallet_path: &Path, account_ix: usize, data: Da
 }
 
 pub(crate) fn private_key_cli(data: Data) -> Result<()> {
-    match data {
-        Data::TxId { tx_id } => sign_msg_with_private_key_cli(&msg_from_hash32(tx_id))?,
-        Data::File { path } => sign_msg_with_private_key_cli(&msg_from_file(&path)?)?,
-        Data::Hex { hex_string } => sign_msg_with_private_key_cli(&msg_from_hex_str(&hex_string)?)?,
-        Data::String { string } => sign_msg_with_private_key_cli(&Message::new(string))?,
-    }
-    Ok(())
+    sign_msg_with_private_key_cli(&msg_from_data(data)?)
 }
 
 fn sign_msg_with_private_key_cli(msg: &Message) -> Result<()> {
