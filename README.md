@@ -72,10 +72,48 @@ forc-wallet accounts
 
 ### Sign a transaction
 
-To sign a transaction, you must provide the transaction ID. You can generate a transaction and get its ID using `forc-client`. Signing the transaction once you have the ID is simple:
+To sign a transaction, you can provide the transaction ID. You can generate a transaction and get its ID using `forc-client`. Signing the transaction once you have the ID is simple:
 
 ```sh
-forc-wallet account <account_index> sign tx <transaction_id>
+forc-wallet account <account_index> sign tx-id <transaction_id>
+```
+
+### Sign arbitrary data
+
+You may sign a string directly:
+
+```sh
+forc-wallet account <account_index> sign string "Blah blah blah"
+```
+
+Or the contents of a file:
+
+```sh
+forc-wallet account <account_index> sign file <path>
+```
+
+You may also sign a hex-encoded byte string:
+
+```sh
+forc-wallet account <account_index> sign hex 0x0123456789ABCDEF
+```
+
+The hex prefix at the beginning of the string is optional, e.g. the following is the same as above:
+
+```sh
+forc-wallet account <account_index> sign hex 0123456789ABCDEF
+```
+
+You can also use the `sign` subcommand directly, e.g. the following is the same:
+
+```sh
+forc-wallet sign --account <account_index> hex 0123456789ABCDEF
+```
+
+Using the `sign` subcommand, you can choose to sign directly with a private key (rather than a wallet account):
+
+```sh
+forc-wallet sign --private-key hex 0123456789ABCDEF
 ```
 
 ## Other useful commands
