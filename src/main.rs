@@ -97,7 +97,7 @@ EXAMPLES:
     forc wallet account 0 private-key
 
     # Show the public key of the account at index 0.
-    forc wallet account 0 public key
+    forc wallet account 0 public-key
 "#;
 
 #[tokio::main]
