@@ -5,7 +5,7 @@ use crate::utils::{
 use anyhow::{anyhow, bail, Context, Result};
 use clap::{Args, Subcommand};
 use eth_keystore::EthKeystore;
-use fuel_crypto::SecretKey;
+use fuel_crypto::{PublicKey, SecretKey};
 use fuels::prelude::WalletUnlocked;
 use std::{
     collections::BTreeMap,
@@ -50,6 +50,8 @@ pub(crate) enum Command {
     /// WARNING: This prints your account's private key to an alternative,
     /// temporary, terminal window!
     PrivateKey,
+    /// Reveal the public key for the specified account.
+    PublicKey,
 }
 
 #[derive(Debug, Args)]
@@ -72,6 +74,7 @@ pub(crate) fn cli(wallet_path: &Path, account: Account) -> Result<()> {
             sign::wallet_account_cli(wallet_path, acc_ix, sign_cmd)?
         }
         (Some(acc_ix), Some(Command::PrivateKey)) => private_key_cli(wallet_path, acc_ix)?,
+        (Some(acc_ix), Some(Command::PublicKey)) => public_key_cli(wallet_path, acc_ix)?,
         (None, Some(cmd)) => print_subcmd_index_warning(&cmd),
         (None, None) => print_subcmd_help(),
     }
@@ -118,6 +121,7 @@ fn print_subcmd_index_warning(cmd: &Command) {
     let cmd_str = match cmd {
         Command::Sign(_) => "sign",
         Command::PrivateKey => "private-key",
+        Command::PublicKey => "public-key",
         Command::New => unreachable!("new is valid without an index"),
     };
     eprintln!(
@@ -203,6 +207,17 @@ pub(crate) fn private_key_cli(wallet_path: &Path, account_ix: usize) -> Result<(
     let secret_key = derive_secret_key(wallet_path, account_ix, &password)?;
     let secret_key_string = format!("Secret key for account {account_ix}: {secret_key}\n");
     display_string_discreetly(&secret_key_string, "### Press any key to complete. ###")?;
+    Ok(())
+}
+
+/// Prints the public key of given account index.
+fn public_key_cli(wallet_path: &Path, account_ix: usize) -> Result<()> {
+    let prompt =
+        format!("Please enter your password to display account {account_ix}'s public key: ");
+    let password = rpassword::prompt_password(prompt)?;
+    let secret_key = derive_secret_key(wallet_path, account_ix, &password)?;
+    let public_key = PublicKey::from(&secret_key);
+    println!("Public key for account {account_ix}: {public_key}");
     Ok(())
 }
 

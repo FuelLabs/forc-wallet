@@ -133,3 +133,11 @@ To retrieve the private key of a specific account, you can use:
 ```sh
 forc-wallet account <account_index> private-key
 ```
+
+### Get public key of an account
+
+To retrieve the public key of a specific account, you can use:
+
+```sh
+forc-wallet account <account_index> public-key
+```
