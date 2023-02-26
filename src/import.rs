@@ -1,6 +1,6 @@
 use crate::utils::{request_new_password, write_wallet_from_mnemonic_and_password};
 use anyhow::{bail, Result};
-use fuels::signers::wallet::WalletUnlocked;
+use fuels_signers::WalletUnlocked;
 use std::path::Path;
 
 /// Check if given mnemonic is valid by trying to create a `WalletUnlocked` from it

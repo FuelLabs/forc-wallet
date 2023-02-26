@@ -6,7 +6,7 @@ use std::path::Path;
 pub(crate) fn new_wallet_cli(wallet_path: &Path) -> anyhow::Result<()> {
     let password = request_new_password();
     // Generate a random mnemonic phrase.
-    let mnemonic = fuels::signers::wallet::generate_mnemonic_phrase(&mut rand::thread_rng(), 24)?;
+    let mnemonic = fuels_signers::wallet::generate_mnemonic_phrase(&mut rand::thread_rng(), 24)?;
     write_wallet_from_mnemonic_and_password(wallet_path, &mnemonic, &password)?;
     let mnemonic_string = format!("Wallet mnemonic phrase: {mnemonic}\n");
     display_string_discreetly(

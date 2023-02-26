@@ -6,7 +6,7 @@ use anyhow::{anyhow, bail, Context, Result};
 use clap::{Args, Subcommand};
 use eth_keystore::EthKeystore;
 use fuel_crypto::{PublicKey, SecretKey};
-use fuels::prelude::WalletUnlocked;
+use fuels_signers::WalletUnlocked;
 use std::{
     collections::BTreeMap,
     fs,

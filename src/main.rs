@@ -12,7 +12,6 @@ use crate::{
 };
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-use fuels::prelude::*;
 use std::path::PathBuf;
 
 #[derive(Debug, Parser)]

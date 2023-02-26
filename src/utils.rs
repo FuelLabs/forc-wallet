@@ -1,4 +1,3 @@
-use crate::Error;
 use anyhow::{anyhow, bail, Context, Result};
 use eth_keystore::EthKeystore;
 use fuels_signers::wallet::DEFAULT_DERIVATION_PATH_PREFIX;
@@ -80,7 +79,7 @@ pub(crate) fn request_new_password() -> String {
 pub(crate) fn display_string_discreetly(
     discreet_string: &str,
     continue_message: &str,
-) -> Result<(), Error> {
+) -> Result<()> {
     use termion::screen::IntoAlternateScreen;
     let mut screen = std::io::stdout().into_alternate_screen()?;
     writeln!(screen, "{discreet_string}")?;
