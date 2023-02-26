@@ -56,6 +56,10 @@ enum Command {
     Sign(Sign),
 }
 
+/// The default network used in the case that none is specified.
+const BETA_2_URL: &str = "https://node-beta-2.fuel.network";
+const BETA_2_FAUCET_URL: &str = "https://faucet-beta-2.fuel.network";
+
 const ABOUT: &str = "A forc plugin for generating or importing wallets using BIP39 phrases.";
 const EXAMPLES: &str = r#"
 EXAMPLES:
@@ -107,7 +111,7 @@ async fn main() -> Result<()> {
         Command::New => new_wallet_cli(&wallet_path)?,
         Command::Import => import_wallet_cli(&wallet_path)?,
         Command::Accounts(accounts) => account::print_accounts_cli(&wallet_path, accounts)?,
-        Command::Account(account) => account::cli(&wallet_path, account)?,
+        Command::Account(account) => account::cli(&wallet_path, account).await?,
         Command::Sign(sign) => sign::cli(&wallet_path, sign)?,
     }
     Ok(())

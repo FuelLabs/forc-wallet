@@ -6,12 +6,12 @@ use anyhow::{anyhow, bail, Context, Result};
 use clap::{Args, Subcommand};
 use eth_keystore::EthKeystore;
 use fuel_crypto::{PublicKey, SecretKey};
-use fuels_signers::WalletUnlocked;
 use std::{
     collections::BTreeMap,
     fs,
     path::{Path, PathBuf},
 };
+use url::Url;
 
 #[derive(Debug, Args)]
 pub(crate) struct Accounts {
@@ -52,6 +52,8 @@ pub(crate) enum Command {
     PrivateKey,
     /// Reveal the public key for the specified account.
     PublicKey,
+    /// Print each asset balance associated with the specified account.
+    Balance(Balance),
 }
 
 #[derive(Debug, Args)]
@@ -65,7 +67,15 @@ struct Unverified {
     unverified: bool,
 }
 
-pub(crate) fn cli(wallet_path: &Path, account: Account) -> Result<()> {
+#[derive(Debug, Args)]
+pub(crate) struct Balance {
+    #[clap(long, default_value_t = crate::BETA_2_URL.parse().unwrap())]
+    node_url: Url,
+    #[clap(flatten)]
+    unverified: Unverified,
+}
+
+pub(crate) async fn cli(wallet_path: &Path, account: Account) -> Result<()> {
     match (account.index, account.cmd) {
         (None, Some(Command::New)) => new_cli(wallet_path)?,
         (Some(acc_ix), Some(Command::New)) => new_at_index_cli(wallet_path, acc_ix)?,
@@ -75,10 +85,67 @@ pub(crate) fn cli(wallet_path: &Path, account: Account) -> Result<()> {
         }
         (Some(acc_ix), Some(Command::PrivateKey)) => private_key_cli(wallet_path, acc_ix)?,
         (Some(acc_ix), Some(Command::PublicKey)) => public_key_cli(wallet_path, acc_ix)?,
+        (Some(acc_ix), Some(Command::Balance(balance))) => {
+            balance_cli(wallet_path, acc_ix, balance).await?
+        }
         (None, Some(cmd)) => print_subcmd_index_warning(&cmd),
         (None, None) => print_subcmd_help(),
     }
     Ok(())
+}
+
+pub(crate) async fn balance_cli(wallet_path: &Path, acc_ix: usize, balance: Balance) -> Result<()> {
+    let prompt = format!("Please enter your password to verify account {acc_ix}: ");
+    let mut account = match balance.unverified.unverified {
+        true => {
+            let wallet = load_wallet(wallet_path)?;
+            let addrs = read_cached_addresses(&wallet.crypto.ciphertext)?;
+            let addr = addrs
+                .get(&acc_ix)
+                .ok_or_else(|| anyhow!("No cached address for account {acc_ix}"))?;
+            let bech32_addr = addr
+                .parse()
+                .context("Failed to parse bech32 address from cached address")?;
+            fuels_signers::Wallet::from_address(bech32_addr, None)
+        }
+        false => {
+            let password = rpassword::prompt_password(prompt)?;
+            derive_account(wallet_path, acc_ix, &password)?
+        }
+    };
+    let addr = account.address();
+    println!("Fetching balance for account {acc_ix} ({addr})");
+    let provider = fuels_signers::provider::Provider::connect(&balance.node_url).await?;
+    account.set_provider(provider);
+    let account_balance: BTreeMap<_, _> = account.get_balances().await?.into_iter().collect();
+    if account_balance.is_empty() {
+        print_balance_empty(&balance.node_url);
+        return Ok(());
+    }
+    print_balance(&account_balance);
+    Ok(())
+}
+
+fn print_balance_empty(node_url: &Url) {
+    let beta_2_url = crate::BETA_2_URL.parse::<Url>().unwrap();
+    match node_url.host_str() {
+        host if host == beta_2_url.host_str() => {
+            println!(
+                "Account empty. Visit the faucet to acquire some test funds: {}",
+                crate::BETA_2_FAUCET_URL
+            )
+        }
+        _ => println!("Account empty,"),
+    }
+}
+
+fn print_balance(balance: &BTreeMap<String, u64>) {
+    let asset_id_header = "Asset ID";
+    let amount_header = "Amount";
+    println!("{:66} {}", asset_id_header, amount_header);
+    for (asset_id, amount) in balance {
+        println!("{asset_id} {amount}");
+    }
 }
 
 /// Prints a list of all known (cached) accounts for the wallet at the given path.
@@ -94,7 +161,7 @@ pub(crate) fn print_accounts_cli(wallet_path: &Path, accounts: Accounts) -> Resu
         let prompt = "Please enter your password to verify cached accounts: ";
         let password = rpassword::prompt_password(prompt)?;
         for &ix in addresses.keys() {
-            let account = derive_new(wallet_path, ix, &password)?;
+            let account = derive_account(wallet_path, ix, &password)?;
             let account_addr = account.address().to_string();
             println!("[{ix}] {account_addr}");
             cache_address(&wallet.crypto.ciphertext, ix, &account_addr)?;
@@ -122,6 +189,7 @@ fn print_subcmd_index_warning(cmd: &Command) {
         Command::Sign(_) => "sign",
         Command::PrivateKey => "private-key",
         Command::PublicKey => "public-key",
+        Command::Balance(_) => "balance",
         Command::New => unreachable!("new is valid without an index"),
     };
     eprintln!(
@@ -143,7 +211,7 @@ fn print_address(wallet_path: &Path, account_ix: usize, unverified: bool) -> Res
     } else {
         let prompt = format!("Please enter your password to verify account {account_ix}: ");
         let password = rpassword::prompt_password(prompt)?;
-        let account = derive_new(wallet_path, account_ix, &password)?;
+        let account = derive_account(wallet_path, account_ix, &password)?;
         let account_addr = account.address().to_string();
         println!("Account {account_ix} address: {account_addr}");
         cache_address(&wallet.crypto.ciphertext, account_ix, &account_addr)?;
@@ -170,17 +238,29 @@ fn next_derivation_index(addrs: &BTreeMap<usize, String>) -> usize {
 }
 
 /// Derive an account at the first index succeeding the greatest known existing index.
-fn derive_new(wallet_path: &Path, account_ix: usize, password: &str) -> Result<WalletUnlocked> {
+fn derive_account_unlocked(
+    wallet_path: &Path,
+    account_ix: usize,
+    password: &str,
+) -> Result<fuels_signers::WalletUnlocked> {
     let secret_key = derive_secret_key(wallet_path, account_ix, password)?;
-    let wallet = WalletUnlocked::new_from_private_key(secret_key, None);
+    let wallet = fuels_signers::WalletUnlocked::new_from_private_key(secret_key, None);
     Ok(wallet)
+}
+
+fn derive_account(
+    wallet_path: &Path,
+    account_ix: usize,
+    password: &str,
+) -> Result<fuels_signers::Wallet> {
+    Ok(derive_account_unlocked(wallet_path, account_ix, password)?.lock())
 }
 
 fn new_at_index(keystore: &EthKeystore, wallet_path: &Path, account_ix: usize) -> Result<String> {
     let prompt = format!("Please enter your password to derive account {account_ix}: ");
     let password = rpassword::prompt_password(prompt)?;
-    let wallet_unlocked = derive_new(wallet_path, account_ix, &password)?;
-    let account_addr = wallet_unlocked.address().to_string();
+    let account = derive_account(wallet_path, account_ix, &password)?;
+    let account_addr = account.address().to_string();
     cache_address(&keystore.crypto.ciphertext, account_ix, &account_addr)?;
     println!("Wallet address: {account_addr}");
     Ok(account_addr)
@@ -290,7 +370,7 @@ mod tests {
     #[test]
     fn create_new_account() {
         with_tmp_dir_and_wallet(|_dir, wallet_path| {
-            account::derive_new(wallet_path, 0, TEST_PASSWORD).unwrap();
+            account::derive_account(wallet_path, 0, TEST_PASSWORD).unwrap();
         });
     }
 
