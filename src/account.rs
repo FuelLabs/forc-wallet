@@ -98,10 +98,10 @@ pub(crate) async fn cli(wallet_path: &Path, account: Account) -> Result<()> {
     Ok(())
 }
 
-pub(crate) async fn balance_cli(wallet_path: &Path, balance: &Balance) -> Result<()> {
+pub(crate) async fn balance_cli(wallet_path: &Path, balance: &crate::Balance) -> Result<()> {
     let wallet = load_wallet(wallet_path)?;
     let mut addresses = read_cached_addresses(&wallet.crypto.ciphertext)?;
-    if !balance.unverified.unverified {
+    if !balance.account.unverified.unverified {
         let prompt = "Please enter your password to verify accounts: ";
         let password = rpassword::prompt_password(prompt)?;
         for (&ix, addr) in addresses.iter_mut() {
@@ -111,19 +111,36 @@ pub(crate) async fn balance_cli(wallet_path: &Path, balance: &Balance) -> Result
             }
         }
     };
-    println!("Connecting to {}", balance.node_url);
-    let provider = fuels_signers::provider::Provider::connect(&balance.node_url).await?;
+    println!("Connecting to {}", balance.account.node_url);
+    let provider = fuels_signers::provider::Provider::connect(&balance.account.node_url).await?;
     println!("Fetching and summing balances of the following accounts:");
     for (ix, addr) in &addresses {
         println!("  {ix:>3}: {addr}");
     }
     let accounts: Vec<_> = addresses
-        .into_values()
-        .map(|addr| fuels_signers::Wallet::from_address(addr, Some(provider.clone())))
+        .values()
+        .map(|addr| fuels_signers::Wallet::from_address(addr.clone(), Some(provider.clone())))
         .collect();
-    let account_balances = accounts.iter().map(|acc| acc.get_balances());
+    let account_balances =
+        futures::future::try_join_all(accounts.iter().map(|acc| acc.get_balances())).await?;
+
+    if balance.accounts {
+        for (ix, balance) in addresses.keys().zip(&account_balances) {
+            let balance: BTreeMap<_, _> = balance
+                .iter()
+                .map(|(id, &val)| (id.clone(), u128::from(val)))
+                .collect();
+            if balance.is_empty() {
+                continue;
+            }
+            println!("\nAccount {ix}:");
+            print_balance(&balance);
+        }
+    }
+
     let mut total_balance = BTreeMap::default();
-    for acc_bal in futures::future::try_join_all(account_balances).await? {
+    println!("\nTotal:");
+    for acc_bal in account_balances {
         for (asset_id, amt) in acc_bal {
             let entry = total_balance.entry(asset_id.clone()).or_insert(0u128);
             *entry = entry.checked_add(u128::from(amt)).ok_or_else(|| {
@@ -131,7 +148,11 @@ pub(crate) async fn balance_cli(wallet_path: &Path, balance: &Balance) -> Result
             })?;
         }
     }
-    print_balance(&total_balance);
+    if total_balance.is_empty() {
+        print_balance_empty(&balance.account.node_url);
+    } else {
+        print_balance(&total_balance);
+    }
     Ok(())
 }
 
@@ -165,11 +186,12 @@ pub(crate) async fn account_balance_cli(
         .into_iter()
         .map(|(ix, val)| (ix, u128::from(val)))
         .collect();
+    println!("\nAccount {acc_ix}:");
     if account_balance.is_empty() {
         print_balance_empty(&balance.node_url);
-        return Ok(());
+    } else {
+        print_balance(&account_balance);
     }
-    print_balance(&account_balance);
     Ok(())
 }
 
@@ -202,7 +224,7 @@ fn print_balance_empty(node_url: &Url) {
     match node_url.host_str() {
         host if host == beta_2_url.host_str() => {
             println!(
-                "Account empty. Visit the faucet to acquire some test funds: {}",
+                "  Account empty. Visit the faucet to acquire some test funds: {}",
                 crate::BETA_2_FAUCET_URL
             )
         }
@@ -213,9 +235,9 @@ fn print_balance_empty(node_url: &Url) {
 fn print_balance(balance: &BTreeMap<String, u128>) {
     let asset_id_header = "Asset ID";
     let amount_header = "Amount";
-    println!("{asset_id_header:66} {amount_header}");
+    println!("  {asset_id_header:66} {amount_header}");
     for (asset_id, amount) in balance {
-        println!("{asset_id} {amount}");
+        println!("  {asset_id} {amount}");
     }
 }
 

@@ -11,7 +11,7 @@ use crate::{
     sign::Sign,
 };
 use anyhow::Result;
-use clap::{Parser, Subcommand};
+use clap::{Args, Parser, Subcommand};
 use std::path::PathBuf;
 
 #[derive(Debug, Parser)]
@@ -58,7 +58,18 @@ enum Command {
     ///
     /// Only includes accounts that have been previously derived, i.e. those
     /// that show under `forc-wallet accounts`.
-    Balance(account::Balance),
+    Balance(Balance),
+}
+
+#[derive(Debug, Args)]
+struct Balance {
+    // Account-specific args.
+    #[clap(flatten)]
+    account: account::Balance,
+    /// Show the balance for each individual non-empty account before showing
+    /// the total.
+    #[clap(long)]
+    accounts: bool,
 }
 
 /// The default network used in the case that none is specified.
