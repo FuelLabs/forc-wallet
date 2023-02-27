@@ -6,6 +6,7 @@ use anyhow::{anyhow, bail, Context, Result};
 use clap::{Args, Subcommand};
 use eth_keystore::EthKeystore;
 use fuel_crypto::{PublicKey, SecretKey};
+use fuels_types::bech32::Bech32Address;
 use std::{
     collections::BTreeMap,
     fs,
@@ -75,6 +76,9 @@ pub(crate) struct Balance {
     unverified: Unverified,
 }
 
+// A map from an account's index to its bech32 address.
+type AccountAddresses = BTreeMap<usize, Bech32Address>;
+
 pub(crate) async fn cli(wallet_path: &Path, account: Account) -> Result<()> {
     match (account.index, account.cmd) {
         (None, Some(Command::New)) => new_cli(wallet_path)?,
@@ -86,7 +90,7 @@ pub(crate) async fn cli(wallet_path: &Path, account: Account) -> Result<()> {
         (Some(acc_ix), Some(Command::PrivateKey)) => private_key_cli(wallet_path, acc_ix)?,
         (Some(acc_ix), Some(Command::PublicKey)) => public_key_cli(wallet_path, acc_ix)?,
         (Some(acc_ix), Some(Command::Balance(balance))) => {
-            balance_cli(wallet_path, acc_ix, balance).await?
+            account_balance_cli(wallet_path, acc_ix, &balance).await?
         }
         (None, Some(cmd)) => print_subcmd_index_warning(&cmd),
         (None, None) => print_subcmd_help(),
@@ -94,36 +98,103 @@ pub(crate) async fn cli(wallet_path: &Path, account: Account) -> Result<()> {
     Ok(())
 }
 
-pub(crate) async fn balance_cli(wallet_path: &Path, acc_ix: usize, balance: Balance) -> Result<()> {
-    let prompt = format!("Please enter your password to verify account {acc_ix}: ");
-    let mut account = match balance.unverified.unverified {
-        true => {
-            let wallet = load_wallet(wallet_path)?;
-            let addrs = read_cached_addresses(&wallet.crypto.ciphertext)?;
-            let addr = addrs
-                .get(&acc_ix)
-                .ok_or_else(|| anyhow!("No cached address for account {acc_ix}"))?;
-            let bech32_addr = addr
-                .parse()
-                .context("Failed to parse bech32 address from cached address")?;
-            fuels_signers::Wallet::from_address(bech32_addr, None)
-        }
-        false => {
-            let password = rpassword::prompt_password(prompt)?;
-            derive_account(wallet_path, acc_ix, &password)?
+pub(crate) async fn balance_cli(wallet_path: &Path, balance: &Balance) -> Result<()> {
+    let wallet = load_wallet(wallet_path)?;
+    let mut addresses = read_cached_addresses(&wallet.crypto.ciphertext)?;
+    if !balance.unverified.unverified {
+        let prompt = "Please enter your password to verify accounts: ";
+        let password = rpassword::prompt_password(prompt)?;
+        for (&ix, addr) in addresses.iter_mut() {
+            let account = derive_account(wallet_path, ix, &password)?;
+            if verify_address_and_update_cache(ix, &account, addr, &wallet.crypto.ciphertext)? {
+                *addr = account.address().clone();
+            }
         }
     };
-    let addr = account.address();
-    println!("Fetching balance for account {acc_ix} ({addr})");
+    println!("Connecting to {}", balance.node_url);
+    let provider = fuels_signers::provider::Provider::connect(&balance.node_url).await?;
+    println!("Fetching and summing balances of the following accounts:");
+    for (ix, addr) in &addresses {
+        println!("  {ix:>3}: {addr}");
+    }
+    let accounts: Vec<_> = addresses
+        .into_values()
+        .map(|addr| fuels_signers::Wallet::from_address(addr, Some(provider.clone())))
+        .collect();
+    let account_balances = accounts.iter().map(|acc| acc.get_balances());
+    let mut total_balance = BTreeMap::default();
+    for acc_bal in futures::future::try_join_all(account_balances).await? {
+        for (asset_id, amt) in acc_bal {
+            let entry = total_balance.entry(asset_id.clone()).or_insert(0u128);
+            *entry = entry.checked_add(u128::from(amt)).ok_or_else(|| {
+                anyhow!("Failed to display balance for asset {asset_id}: Value out of range.")
+            })?;
+        }
+    }
+    print_balance(&total_balance);
+    Ok(())
+}
+
+pub(crate) async fn account_balance_cli(
+    wallet_path: &Path,
+    acc_ix: usize,
+    balance: &Balance,
+) -> Result<()> {
+    let wallet = load_wallet(wallet_path)?;
+    let mut cached_addrs = read_cached_addresses(&wallet.crypto.ciphertext)?;
+    let cached_addr = cached_addrs
+        .remove(&acc_ix)
+        .ok_or_else(|| anyhow!("No cached address for account {acc_ix}"))?;
+    let mut account = if balance.unverified.unverified {
+        fuels_signers::Wallet::from_address(cached_addr.clone(), None)
+    } else {
+        let prompt = format!("Please enter your password to verify account {acc_ix}: ");
+        let password = rpassword::prompt_password(prompt)?;
+        let account = derive_account(wallet_path, acc_ix, &password)?;
+        verify_address_and_update_cache(acc_ix, &account, &cached_addr, &wallet.crypto.ciphertext)?;
+        account
+    };
+    println!("Connecting to {}", balance.node_url);
+    println!("Fetching the balance of the following account:",);
+    println!("  {acc_ix:>3}: {}", account.address());
     let provider = fuels_signers::provider::Provider::connect(&balance.node_url).await?;
     account.set_provider(provider);
-    let account_balance: BTreeMap<_, _> = account.get_balances().await?.into_iter().collect();
+    let account_balance: BTreeMap<_, _> = account
+        .get_balances()
+        .await?
+        .into_iter()
+        .map(|(ix, val)| (ix, u128::from(val)))
+        .collect();
     if account_balance.is_empty() {
         print_balance_empty(&balance.node_url);
         return Ok(());
     }
     print_balance(&account_balance);
     Ok(())
+}
+
+/// Display a warning to the user if the expected address differs from the account address.
+/// Returns `Ok(true)` if the address matched, `Ok(false)` if it did not, `Err` if we failed to
+/// update the cache.
+fn verify_address_and_update_cache(
+    acc_ix: usize,
+    account: &fuels_signers::Wallet,
+    expected_addr: &Bech32Address,
+    wallet_ciphertext: &[u8],
+) -> Result<bool> {
+    println!("Verifying account {acc_ix}");
+    let addr = account.address();
+    if addr == expected_addr {
+        return Ok(true);
+    }
+    println!(
+        "WARNING: Cached address for account {acc_ix} differs from derived address.\n  \
+          Cached:  {expected_addr}
+          Derived: {addr}
+        Updating cache with newly derived address.",
+    );
+    cache_address(wallet_ciphertext, acc_ix, addr)?;
+    Ok(false)
 }
 
 fn print_balance_empty(node_url: &Url) {
@@ -139,10 +210,10 @@ fn print_balance_empty(node_url: &Url) {
     }
 }
 
-fn print_balance(balance: &BTreeMap<String, u64>) {
+fn print_balance(balance: &BTreeMap<String, u128>) {
     let asset_id_header = "Asset ID";
     let amount_header = "Amount";
-    println!("{:66} {}", asset_id_header, amount_header);
+    println!("{asset_id_header:66} {amount_header}");
     for (asset_id, amount) in balance {
         println!("{asset_id} {amount}");
     }
@@ -162,9 +233,9 @@ pub(crate) fn print_accounts_cli(wallet_path: &Path, accounts: Accounts) -> Resu
         let password = rpassword::prompt_password(prompt)?;
         for &ix in addresses.keys() {
             let account = derive_account(wallet_path, ix, &password)?;
-            let account_addr = account.address().to_string();
+            let account_addr = account.address();
             println!("[{ix}] {account_addr}");
-            cache_address(&wallet.crypto.ciphertext, ix, &account_addr)?;
+            cache_address(&wallet.crypto.ciphertext, ix, account_addr)?;
         }
     }
     Ok(())
@@ -212,9 +283,9 @@ fn print_address(wallet_path: &Path, account_ix: usize, unverified: bool) -> Res
         let prompt = format!("Please enter your password to verify account {account_ix}: ");
         let password = rpassword::prompt_password(prompt)?;
         let account = derive_account(wallet_path, account_ix, &password)?;
-        let account_addr = account.address().to_string();
+        let account_addr = account.address();
         println!("Account {account_ix} address: {account_addr}");
-        cache_address(&wallet.crypto.ciphertext, account_ix, &account_addr)?;
+        cache_address(&wallet.crypto.ciphertext, account_ix, account_addr)?;
     }
     Ok(())
 }
@@ -233,7 +304,7 @@ pub(crate) fn derive_secret_key(
     Ok(secret_key)
 }
 
-fn next_derivation_index(addrs: &BTreeMap<usize, String>) -> usize {
+fn next_derivation_index(addrs: &AccountAddresses) -> usize {
     addrs.last_key_value().map(|(&ix, _)| ix + 1).unwrap_or(0)
 }
 
@@ -256,14 +327,18 @@ fn derive_account(
     Ok(derive_account_unlocked(wallet_path, account_ix, password)?.lock())
 }
 
-fn new_at_index(keystore: &EthKeystore, wallet_path: &Path, account_ix: usize) -> Result<String> {
+fn new_at_index(
+    keystore: &EthKeystore,
+    wallet_path: &Path,
+    account_ix: usize,
+) -> Result<Bech32Address> {
     let prompt = format!("Please enter your password to derive account {account_ix}: ");
     let password = rpassword::prompt_password(prompt)?;
     let account = derive_account(wallet_path, account_ix, &password)?;
-    let account_addr = account.address().to_string();
-    cache_address(&keystore.crypto.ciphertext, account_ix, &account_addr)?;
+    let account_addr = account.address();
+    cache_address(&keystore.crypto.ciphertext, account_ix, account_addr)?;
     println!("Wallet address: {account_addr}");
-    Ok(account_addr)
+    Ok(account_addr.clone())
 }
 
 fn new_at_index_cli(wallet_path: &Path, account_ix: usize) -> Result<()> {
@@ -321,24 +396,25 @@ fn address_path(wallet_ciphertext: &[u8], account_ix: usize) -> PathBuf {
 }
 
 /// Cache a single wallet account address to a file as a simple utf8 string.
-fn cache_address(wallet_ciphertext: &[u8], account_ix: usize, account_addr: &str) -> Result<()> {
+fn cache_address(
+    wallet_ciphertext: &[u8],
+    account_ix: usize,
+    account_addr: &Bech32Address,
+) -> Result<()> {
     let path = address_path(wallet_ciphertext, account_ix);
-    if path.exists() {
-        if !path.is_file() {
-            bail!("attempting to cache account address to {path:?}, but the path is a directory");
-        }
-        return Ok(());
+    if path.exists() && !path.is_file() {
+        bail!("attempting to cache account address to {path:?}, but the path is a directory");
     }
     let parent = path
         .parent()
         .expect("account address path contained no parent directory");
     fs::create_dir_all(parent).context("failed to create account address cache directory")?;
-    fs::write(path, account_addr).context("failed to cache account address to file")?;
+    fs::write(path, account_addr.to_string()).context("failed to cache account address to file")?;
     Ok(())
 }
 
 /// Read all cached account addresses for the wallet with the given ciphertext.
-fn read_cached_addresses(wallet_ciphertext: &[u8]) -> Result<BTreeMap<usize, String>> {
+fn read_cached_addresses(wallet_ciphertext: &[u8]) -> Result<AccountAddresses> {
     let wallet_accounts_dir = address_cache_dir(wallet_ciphertext);
     if !wallet_accounts_dir.exists() {
         return Ok(Default::default());
@@ -355,8 +431,11 @@ fn read_cached_addresses(wallet_ciphertext: &[u8]) -> Result<BTreeMap<usize, Str
             let account_ix: usize = file_name
                 .parse()
                 .context("failed to parse account index from file name")?;
-            let account_addr = std::fs::read_to_string(&path)
+            let account_addr_str = std::fs::read_to_string(&path)
                 .context("failed to read account address from cache")?;
+            let account_addr = account_addr_str
+                .parse()
+                .context("failed to parse cached account address as a bech32 address")?;
             Ok((account_ix, account_addr))
         })
         .collect()

@@ -54,6 +54,11 @@ enum Command {
     /// account's public or private key. See the `EXAMPLES` below.
     Account(Account),
     Sign(Sign),
+    /// Present the sum of all account balances under a single wallet balance.
+    ///
+    /// Only includes accounts that have been previously derived, i.e. those
+    /// that show under `forc-wallet accounts`.
+    Balance(account::Balance),
 }
 
 /// The default network used in the case that none is specified.
@@ -113,6 +118,7 @@ async fn main() -> Result<()> {
         Command::Accounts(accounts) => account::print_accounts_cli(&wallet_path, accounts)?,
         Command::Account(account) => account::cli(&wallet_path, account).await?,
         Command::Sign(sign) => sign::cli(&wallet_path, sign)?,
+        Command::Balance(balance) => account::balance_cli(&wallet_path, &balance).await?,
     }
     Ok(())
 }
