@@ -73,6 +73,7 @@ struct Balance {
 }
 
 /// The default network used in the case that none is specified.
+const DEFAULT_URL: &str = BETA_2_URL;
 const BETA_2_URL: &str = "https://node-beta-2.fuel.network";
 const BETA_2_FAUCET_URL: &str = "https://faucet-beta-2.fuel.network";
 

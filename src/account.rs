@@ -70,7 +70,7 @@ struct Unverified {
 
 #[derive(Debug, Args)]
 pub(crate) struct Balance {
-    #[clap(long, default_value_t = crate::BETA_2_URL.parse().unwrap())]
+    #[clap(long, default_value_t = crate::DEFAULT_URL.parse().unwrap())]
     node_url: Url,
     #[clap(flatten)]
     unverified: Unverified,
