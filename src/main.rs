@@ -11,8 +11,7 @@ use crate::{
     sign::Sign,
 };
 use anyhow::Result;
-use clap::{Parser, Subcommand};
-use fuels::prelude::*;
+use clap::{Args, Parser, Subcommand};
 use std::path::PathBuf;
 
 #[derive(Debug, Parser)]
@@ -55,7 +54,28 @@ enum Command {
     /// account's public or private key. See the `EXAMPLES` below.
     Account(Account),
     Sign(Sign),
+    /// Present the sum of all account balances under a single wallet balance.
+    ///
+    /// Only includes accounts that have been previously derived, i.e. those
+    /// that show under `forc-wallet accounts`.
+    Balance(Balance),
 }
+
+#[derive(Debug, Args)]
+struct Balance {
+    // Account-specific args.
+    #[clap(flatten)]
+    account: account::Balance,
+    /// Show the balance for each individual non-empty account before showing
+    /// the total.
+    #[clap(long)]
+    accounts: bool,
+}
+
+/// The default network used in the case that none is specified.
+const DEFAULT_URL: &str = BETA_2_URL;
+const BETA_2_URL: &str = "https://node-beta-2.fuel.network";
+const BETA_2_FAUCET_URL: &str = "https://faucet-beta-2.fuel.network";
 
 const ABOUT: &str = "A forc plugin for generating or importing wallets using BIP39 phrases.";
 const EXAMPLES: &str = r#"
@@ -108,8 +128,9 @@ async fn main() -> Result<()> {
         Command::New => new_wallet_cli(&wallet_path)?,
         Command::Import => import_wallet_cli(&wallet_path)?,
         Command::Accounts(accounts) => account::print_accounts_cli(&wallet_path, accounts)?,
-        Command::Account(account) => account::cli(&wallet_path, account)?,
+        Command::Account(account) => account::cli(&wallet_path, account).await?,
         Command::Sign(sign) => sign::cli(&wallet_path, sign)?,
+        Command::Balance(balance) => account::balance_cli(&wallet_path, &balance).await?,
     }
     Ok(())
 }
