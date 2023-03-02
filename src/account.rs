@@ -76,7 +76,7 @@ pub(crate) struct Balance {
     unverified: Unverified,
 }
 
-// A map from an account's index to its bech32 address.
+/// A map from an account's index to its bech32 address.
 type AccountAddresses = BTreeMap<usize, Bech32Address>;
 
 pub(crate) async fn cli(wallet_path: &Path, account: Account) -> Result<()> {
