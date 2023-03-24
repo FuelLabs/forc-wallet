@@ -406,7 +406,7 @@ fn public_key_cli(wallet_path: &Path, account_ix: usize) -> Result<()> {
 //Prints the plain Address formatted pub key @{account_ix} (the one that doesn't start with 'fuel...')
 fn plain_address_cli(wallet_path: &Path, account_ix: usize) -> Result<()> {
     let prompt =
-        format!("Please enter your password to display account {account_ix}'s public key: ");
+        format!("Please enter your password to display account {account_ix}'s plain address: ");
     let password = rpassword::prompt_password(prompt)?;
     let secret_key = derive_secret_key(wallet_path, account_ix, &password)?;
     let public_key = format!("{}", PublicKey::from(&secret_key));
