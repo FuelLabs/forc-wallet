@@ -54,7 +54,7 @@ pub(crate) enum Command {
     PrivateKey,
     /// Reveal the public key for the specified account.
     PublicKey,
-    // Reveal the plain address for the specified account. 
+    /// Reveal the plain address for the specified account. 
     PlainAddress,
     /// Print each asset balance associated with the specified account.
     Balance(Balance),
