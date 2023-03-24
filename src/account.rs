@@ -403,7 +403,7 @@ fn public_key_cli(wallet_path: &Path, account_ix: usize) -> Result<()> {
     Ok(())
 }
 
-//Prints the plain Address formatted pub key @{account_ix} (the one that doesn't start with 'fuel...')
+/// Prints the plain address for the given account index
 fn plain_address_cli(wallet_path: &Path, account_ix: usize) -> Result<()> {
     let prompt =
         format!("Please enter your password to display account {account_ix}'s plain address: ");
