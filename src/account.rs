@@ -54,7 +54,7 @@ pub(crate) enum Command {
     PrivateKey,
     /// Reveal the public key for the specified account.
     PublicKey,
-    /// Reveal the plain address for the specified account. 
+    /// Reveal the plain address for the specified account.
     PlainAddress,
     /// Print each asset balance associated with the specified account.
     Balance(Balance),
@@ -410,7 +410,7 @@ fn plain_address_cli(wallet_path: &Path, account_ix: usize) -> Result<()> {
     let password = rpassword::prompt_password(prompt)?;
     let secret_key = derive_secret_key(wallet_path, account_ix, &password)?;
     let public_key = format!("{}", PublicKey::from(&secret_key));
-    let bech = Bech32Address::from_str(&public_key).expect("failed to create Bech32 address from String");
+    let bech = Bech32Address::from_str(&public_key)?;
     let plain_address: fuel_types::Address = bech.into();
     println!("Plain address for {}: {}", account_ix, plain_address);
     Ok(())
@@ -507,13 +507,16 @@ mod tests {
         });
     }
     #[test]
-    fn derive_plain_address(){
+    fn derive_plain_address() {
         let address = "fuel1j78es08cyyz5n75jugal7p759ccs323etnykzpndsvhzu6399yqqpjmmd2";
-        let bech32 =
-            <fuels_types::bech32::Bech32Address as std::str::FromStr>::from_str(address).expect("failed to create Bech32 address from string");
+        let bech32 = <fuels_types::bech32::Bech32Address as std::str::FromStr>::from_str(address)
+            .expect("failed to create Bech32 address from string");
         let plain_address: fuel_types::Address = bech32.into();
         assert_eq!(
-            <fuel_types::Address as std::str::FromStr>::from_str("978f983cf8210549fa92e23bff07d42e3108aa395cc961066d832e2e6a252900").expect("RIP"),
+            <fuel_types::Address as std::str::FromStr>::from_str(
+                "978f983cf8210549fa92e23bff07d42e3108aa395cc961066d832e2e6a252900"
+            )
+            .expect("RIP"),
             plain_address
         )
     }
