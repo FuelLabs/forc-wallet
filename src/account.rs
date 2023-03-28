@@ -17,8 +17,13 @@ use url::Url;
 
 #[derive(Debug, Args)]
 pub(crate) struct Accounts {
+    /// Contains optional flag for displaying all accounts as hex / bytes values. 
+    /// 
+    /// pass in --as-hex for this alternative display. 
     #[clap(flatten)]
     unverified: Unverified,
+    #[clap(long)]
+    as_hex: bool,
 }
 
 #[derive(Debug, Args)]
@@ -31,6 +36,15 @@ pub(crate) struct Account {
     unverified: Unverified,
     #[clap(subcommand)]
     cmd: Option<Command>,
+}
+
+#[derive(Debug, Args)]
+pub(crate) struct Fmt{
+    /// Option for public key to be displayed as hex / bytes.
+    ///  
+    /// pass in --as-hex for this alternative display.
+    #[clap(long)]
+    as_hex: bool,
 }
 
 #[derive(Debug, Subcommand)]
@@ -53,9 +67,8 @@ pub(crate) enum Command {
     /// temporary, terminal window!
     PrivateKey,
     /// Reveal the public key for the specified account.
-    PublicKey,
-    /// Reveal the plain address for the specified account.
-    PlainAddress,
+    /// Takes an optional bool flag --as-hex that displays the PublicKey in hex format. 
+    PublicKey(Fmt),
     /// Print each asset balance associated with the specified account.
     Balance(Balance),
 }
@@ -91,8 +104,12 @@ pub(crate) async fn cli(wallet_path: &Path, account: Account) -> Result<()> {
             sign::wallet_account_cli(wallet_path, acc_ix, sign_cmd)?
         }
         (Some(acc_ix), Some(Command::PrivateKey)) => private_key_cli(wallet_path, acc_ix)?,
-        (Some(acc_ix), Some(Command::PublicKey)) => public_key_cli(wallet_path, acc_ix)?,
-        (Some(acc_ix), Some(Command::PlainAddress)) => plain_address_cli(wallet_path, acc_ix)?,
+        (Some(acc_ix), Some(Command::PublicKey(format))) =>{
+            match format.as_hex {
+                true => hex_address_cli(wallet_path, acc_ix)?,
+                false => public_key_cli(wallet_path, acc_ix)?,
+            }
+        } ,
         (Some(acc_ix), Some(Command::Balance(balance))) => {
             account_balance_cli(wallet_path, acc_ix, &balance).await?
         }
@@ -253,14 +270,29 @@ pub(crate) fn print_accounts_cli(wallet_path: &Path, accounts: Accounts) -> Resu
         println!("Account addresses (unverified, printed from cache):");
         addresses
             .iter()
-            .for_each(|(ix, addr)| println!("[{ix}] {addr}"));
+            .for_each(|(ix, addr)| {
+                match accounts.as_hex{
+                    false => println!("[{ix}] {addr}"),
+                    true => {
+                        let bytes_addr: fuel_types::Address = addr.into();
+                        println!("[{ix}] {bytes_addr}");
+                    }
+                }
+            });
     } else {
         let prompt = "Please enter your password to verify cached accounts: ";
         let password = rpassword::prompt_password(prompt)?;
         for &ix in addresses.keys() {
             let account = derive_account(wallet_path, ix, &password)?;
             let account_addr = account.address();
-            println!("[{ix}] {account_addr}");
+            match accounts.as_hex{
+                false => println!("[{ix}] {account_addr}"),
+                true => {
+                    let bytes_addr: fuel_types::Address = account_addr.into();
+                    println!("[{ix}] {bytes_addr}");
+                }
+            }
+            
             cache_address(&wallet.crypto.ciphertext, ix, account_addr)?;
         }
     }
@@ -285,8 +317,7 @@ fn print_subcmd_index_warning(cmd: &Command) {
     let cmd_str = match cmd {
         Command::Sign(_) => "sign",
         Command::PrivateKey => "private-key",
-        Command::PublicKey => "public-key",
-        Command::PlainAddress => "plain-address",
+        Command::PublicKey(_) => "public-key",
         Command::Balance(_) => "balance",
         Command::New => unreachable!("new is valid without an index"),
     };
@@ -404,7 +435,7 @@ fn public_key_cli(wallet_path: &Path, account_ix: usize) -> Result<()> {
 }
 
 /// Prints the plain address for the given account index
-fn plain_address_cli(wallet_path: &Path, account_ix: usize) -> Result<()> {
+fn hex_address_cli(wallet_path: &Path, account_ix: usize) -> Result<()> {
     let prompt =
         format!("Please enter your password to display account {account_ix}'s plain address: ");
     let password = rpassword::prompt_password(prompt)?;
