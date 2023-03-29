@@ -73,9 +73,13 @@ struct Balance {
 }
 
 /// The default network used in the case that none is specified.
-const DEFAULT_URL: &str = BETA_2_URL;
-const BETA_2_URL: &str = "https://node-beta-2.fuel.network";
-const BETA_2_FAUCET_URL: &str = "https://faucet-beta-2.fuel.network";
+mod network {
+    pub(crate) const DEFAULT: &str = BETA_3;
+    pub(crate) const BETA_2: &str = "https://node-beta-2.fuel.network";
+    pub(crate) const BETA_2_FAUCET: &str = "https://faucet-beta-2.fuel.network";
+    pub(crate) const BETA_3: &str = "https://beta-3.fuel.network/";
+    pub(crate) const BETA_3_FAUCET: &str = "https://faucet-beta-3.fuel.network/";
+}
 
 const ABOUT: &str = "A forc plugin for generating or importing wallets using BIP39 phrases.";
 const EXAMPLES: &str = r#"
