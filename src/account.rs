@@ -464,7 +464,6 @@ fn public_key_cli(wallet_path: &Path, account_ix: usize) -> Result<()> {
     Ok(())
 }
 
-<<<<<<< HEAD
 /// Prints the plain address for the given account index
 fn hex_address_cli(wallet_path: &Path, account_ix: usize) -> Result<()> {
     let prompt =
@@ -510,10 +509,9 @@ pub(crate) async fn transfer_cli(
         )
         .await?;
 
-    let beta_3_url = crate::network::BETA_3.parse::<Url>().unwrap();
     let block_explorer_url = match transfer.node_url.host_str() {
-        host if host == beta_3_url.host_str() => {
-            "https://fuellabs.github.io/block-explorer-v2/beta-3"
+        host if host == crate::network::BETA_3.parse::<Url>().unwrap().host_str() => {
+            crate::explorer::DEFAULT
         }
         _ => "",
     };

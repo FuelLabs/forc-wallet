@@ -81,6 +81,12 @@ mod network {
     pub(crate) const BETA_3_FAUCET: &str = "https://faucet-beta-3.fuel.network/";
 }
 
+/// The default network used in the case that none is specified.
+mod explorer {
+    pub(crate) const DEFAULT: &str = BETA_3;
+    pub(crate) const BETA_3: &str = "https://fuellabs.github.io/block-explorer-v2/beta-3";
+}
+
 const ABOUT: &str = "A forc plugin for generating or importing wallets using BIP39 phrases.";
 const EXAMPLES: &str = r#"
 EXAMPLES:
