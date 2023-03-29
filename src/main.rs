@@ -15,7 +15,7 @@ use clap::{Args, Parser, Subcommand};
 use std::path::PathBuf;
 
 #[derive(Debug, Parser)]
-#[clap(name = "forc wallet", about = ABOUT, after_help = EXAMPLES, version)]
+#[clap(name = "forc wallet", about = ABOUT, after_long_help = EXAMPLES, version)]
 struct App {
     /// The path to a wallet. A wallet is a JSON keystore file as described in
     /// the Web3 Secret Storage Definition.
