@@ -3,9 +3,12 @@ use crate::utils::{
     display_string_discreetly, get_derivation_path, load_wallet, user_fuel_wallets_accounts_dir,
 };
 use anyhow::{anyhow, bail, Context, Result};
-use clap::{Args, Subcommand};
+use clap::{Args, Parser, Subcommand};
 use eth_keystore::EthKeystore;
 use fuel_crypto::{PublicKey, SecretKey};
+use fuel_types::AssetId;
+use fuels_core::constants::{DEFAULT_GAS_LIMIT, DEFAULT_GAS_PRICE, DEFAULT_MATURITY};
+use fuels_core::parameters::TxParameters;
 use fuels_types::bech32::Bech32Address;
 use std::str::FromStr;
 use std::{
@@ -71,6 +74,8 @@ pub(crate) enum Command {
     PublicKey(Fmt),
     /// Print each asset balance associated with the specified account.
     Balance(Balance),
+    /// Transfer assets from this account to another.
+    Transfer(Transfer),
 }
 
 #[derive(Debug, Args)]
@@ -92,6 +97,30 @@ pub(crate) struct Balance {
     unverified: Unverified,
 }
 
+#[derive(Debug, Args)]
+pub(crate) struct Transfer {
+    // Bech32Address of the account to transfer assets to.
+    to: String,
+    // Amount (in u64) of assets to transfer.
+    amount: u64,
+    // Asset ID of the asset to transfer.
+    asset_id: AssetId,
+    #[clap(long, default_value_t = crate::network::DEFAULT.parse().unwrap())]
+    node_url: Url,
+    #[clap(long, default_value_t = DEFAULT_GAS_PRICE)]
+    gas_price: u64,
+    #[clap(long, default_value_t = DEFAULT_GAS_LIMIT)]
+    gas_limit: u64,
+    #[clap(long, default_value_t = DEFAULT_MATURITY)]
+    maturity: u64,
+}
+
+#[derive(Debug, Parser)]
+pub struct TxParametersOpts {
+    #[clap(long)]
+    gas_price: Option<u64>,
+}
+
 /// A map from an account's index to its bech32 address.
 type AccountAddresses = BTreeMap<usize, Bech32Address>;
 
@@ -110,6 +139,9 @@ pub(crate) async fn cli(wallet_path: &Path, account: Account) -> Result<()> {
         },
         (Some(acc_ix), Some(Command::Balance(balance))) => {
             account_balance_cli(wallet_path, acc_ix, &balance).await?
+        }
+        (Some(acc_ix), Some(Command::Transfer(transfer))) => {
+            transfer_cli(wallet_path, acc_ix, transfer).await?
         }
         (None, Some(cmd)) => print_subcmd_index_warning(&cmd),
         (None, None) => print_subcmd_help(),
@@ -315,6 +347,7 @@ fn print_subcmd_index_warning(cmd: &Command) {
         Command::Sign(_) => "sign",
         Command::PrivateKey => "private-key",
         Command::PublicKey(_) => "public-key",
+        Command::Transfer(_) => "transfer",
         Command::Balance(_) => "balance",
         Command::New => unreachable!("new is valid without an index"),
     };
@@ -431,6 +464,7 @@ fn public_key_cli(wallet_path: &Path, account_ix: usize) -> Result<()> {
     Ok(())
 }
 
+<<<<<<< HEAD
 /// Prints the plain address for the given account index
 fn hex_address_cli(wallet_path: &Path, account_ix: usize) -> Result<()> {
     let prompt =
@@ -441,6 +475,61 @@ fn hex_address_cli(wallet_path: &Path, account_ix: usize) -> Result<()> {
     let bech = Bech32Address::from_str(&public_key)?;
     let plain_address: fuel_types::Address = bech.into();
     println!("Plain address for {}: {}", account_ix, plain_address);
+    Ok(())
+}
+
+/// Transfers assets from account at a given account index to a target address.
+pub(crate) async fn transfer_cli(
+    wallet_path: &Path,
+    acc_ix: usize,
+    transfer: Transfer,
+) -> Result<()> {
+    println!(
+        "Preparing to transfer:\n  Amount: {}\n  Asset ID: 0x{}\n  To: {}\n",
+        transfer.amount, transfer.asset_id, transfer.to
+    );
+    let prompt =
+        format!("Please enter your password to unlock account {acc_ix} and to initiate transfer: ");
+    let password = rpassword::prompt_password(prompt)?;
+    let mut account = derive_account_unlocked(wallet_path, acc_ix, &password)?;
+    let provider = fuels_signers::provider::Provider::connect(&transfer.node_url).await?;
+    account.set_provider(provider);
+    let to_addr = transfer.to.parse::<Bech32Address>()?;
+    println!("Transferring...");
+
+    let (tx_id, receipts) = account
+        .transfer(
+            &to_addr,
+            1,
+            Default::default(),
+            TxParameters::new(
+                Some(transfer.gas_price),
+                Some(transfer.gas_limit),
+                Some(transfer.maturity),
+            ),
+        )
+        .await?;
+
+    let beta_3_url = crate::network::BETA_3.parse::<Url>().unwrap();
+    let block_explorer_url = match transfer.node_url.host_str() {
+        host if host == beta_3_url.host_str() => {
+            "https://fuellabs.github.io/block-explorer-v2/beta-3"
+        }
+        _ => "",
+    };
+
+    println!(
+        "\nTransfer complete!\nSummary:\n  Transaction ID: 0x{tx_id}\n  Receipts: {:#?}",
+        receipts
+    );
+    if !block_explorer_url.is_empty() {
+        let tx_explorer_url = format!("{block_explorer_url}/#/transaction/0x{tx_id}");
+        println!(
+            "View this transaction on the block explorer: {}",
+            tx_explorer_url
+        );
+    };
+
     Ok(())
 }
 

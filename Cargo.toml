@@ -13,6 +13,7 @@ clap = { version = "3.1", features = ["derive"] }
 eth-keystore = { version = "0.5" }
 fuel-crypto = "0.26"
 fuel-types = "0.26"
+fuels-core = "0.36.0"
 fuels-signers = "0.36.0"
 fuels-types = "0.36.0"
 futures = "0.3"
