@@ -70,7 +70,7 @@ struct Unverified {
 
 #[derive(Debug, Args)]
 pub(crate) struct Balance {
-    #[clap(long, default_value_t = crate::DEFAULT_URL.parse().unwrap())]
+    #[clap(long, default_value_t = crate::network::DEFAULT.parse().unwrap())]
     node_url: Url,
     #[clap(flatten)]
     unverified: Unverified,
@@ -220,16 +220,17 @@ fn verify_address_and_update_cache(
 }
 
 fn print_balance_empty(node_url: &Url) {
-    let beta_2_url = crate::BETA_2_URL.parse::<Url>().unwrap();
-    match node_url.host_str() {
-        host if host == beta_2_url.host_str() => {
-            println!(
-                "  Account empty. Visit the faucet to acquire some test funds: {}",
-                crate::BETA_2_FAUCET_URL
-            )
-        }
-        _ => println!("Account empty,"),
-    }
+    let beta_2_url = crate::network::BETA_2.parse::<Url>().unwrap();
+    let beta_3_url = crate::network::BETA_3.parse::<Url>().unwrap();
+    let faucet_url = match node_url.host_str() {
+        host if host == beta_2_url.host_str() => crate::network::BETA_2_FAUCET,
+        host if host == beta_3_url.host_str() => crate::network::BETA_3_FAUCET,
+        _ => return println!("  Account empty."),
+    };
+    println!(
+        "  Account empty. Visit the faucet to acquire some test funds: {}",
+        faucet_url
+    );
 }
 
 fn print_balance(balance: &BTreeMap<String, u128>) {
