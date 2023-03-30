@@ -3,7 +3,7 @@ use crate::utils::{
     display_string_discreetly, get_derivation_path, load_wallet, user_fuel_wallets_accounts_dir,
 };
 use anyhow::{anyhow, bail, Context, Result};
-use clap::{Args, Parser, Subcommand};
+use clap::{Args, Subcommand};
 use eth_keystore::EthKeystore;
 use fuel_crypto::{PublicKey, SecretKey};
 use fuel_types::AssetId;
@@ -116,12 +116,6 @@ pub(crate) struct Transfer {
     gas_limit: u64,
     #[clap(long, default_value_t = DEFAULT_MATURITY)]
     maturity: u64,
-}
-
-#[derive(Debug, Parser)]
-pub struct TxParametersOpts {
-    #[clap(long)]
-    gas_price: Option<u64>,
 }
 
 /// A map from an account's index to its bech32 address.
