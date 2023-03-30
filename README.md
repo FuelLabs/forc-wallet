@@ -13,7 +13,7 @@ you should already have `forc-wallet` available:
 ```console
 $ fuelup toolchain install latest
 $ forc-wallet --version
-forc-wallet 0.1.3
+forc-wallet 0.2.2
 ```
 
 For usage in [custom toolchains](https://fuellabs.github.io/fuelup/master/concepts/toolchains.html#custom-toolchains):
