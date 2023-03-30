@@ -99,13 +99,13 @@ pub(crate) struct Balance {
 
 #[derive(Debug, Args)]
 pub(crate) struct Transfer {
-    // Bech32Address of the account to transfer assets to.
+    /// The bech32 address (in Bech32Address) of the account to transfer assets to.
     #[clap(long)]
     to: Bech32Address,
-    // Amount (in u64) of assets to transfer.
+    /// Amount (in u64) of assets to transfer.
     #[clap(long)]
     amount: u64,
-    // Asset ID of the asset to transfer.
+    /// Asset ID of the asset to transfer.
     #[clap(long)]
     asset_id: AssetId,
     #[clap(long, default_value_t = crate::network::DEFAULT.parse().unwrap())]
