@@ -81,7 +81,7 @@ mod network {
     pub(crate) const BETA_3_FAUCET: &str = "https://faucet-beta-3.fuel.network/";
 }
 
-/// The default network used in the case that none is specified.
+/// Contains definitions of URLs to the block explorer for each network.
 mod explorer {
     pub(crate) const DEFAULT: &str = BETA_3;
     pub(crate) const BETA_2: &str = "https://fuellabs.github.io/block-explorer-v2/beta-2";
