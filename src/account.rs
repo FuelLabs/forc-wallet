@@ -515,6 +515,9 @@ pub(crate) async fn transfer_cli(
         host if host == crate::network::BETA_3.parse::<Url>().unwrap().host_str() => {
             crate::explorer::DEFAULT
         }
+        host if host == crate::network::BETA_2.parse::<Url>().unwrap().host_str() => {
+            crate::explorer::BETA_2
+        }
         _ => "",
     };
 

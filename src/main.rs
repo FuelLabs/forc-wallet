@@ -84,6 +84,7 @@ mod network {
 /// The default network used in the case that none is specified.
 mod explorer {
     pub(crate) const DEFAULT: &str = BETA_3;
+    pub(crate) const BETA_2: &str = "https://fuellabs.github.io/block-explorer-v2/beta-2";
     pub(crate) const BETA_3: &str = "https://fuellabs.github.io/block-explorer-v2/beta-3";
 }
 
