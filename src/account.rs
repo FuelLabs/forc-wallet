@@ -518,17 +518,11 @@ pub(crate) async fn transfer_cli(
         _ => "",
     };
 
+    let tx_explorer_url = format!("{block_explorer_url}/#/transaction/0x{tx_id}");
     println!(
-        "\nTransfer complete!\nSummary:\n  Transaction ID: 0x{tx_id}\n  Receipts: {:#?}",
+        "\nTransfer complete!\nSummary:\n  Transaction ID: 0x{tx_id}\n  Receipts: {:#?}\n  Explorer: {tx_explorer_url}\n",
         receipts
     );
-    if !block_explorer_url.is_empty() {
-        let tx_explorer_url = format!("{block_explorer_url}/#/transaction/0x{tx_id}");
-        println!(
-            "View this transaction on the block explorer: {}",
-            tx_explorer_url
-        );
-    };
 
     Ok(())
 }
