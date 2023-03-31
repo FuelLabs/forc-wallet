@@ -129,6 +129,14 @@ EXAMPLES:
 
     # Show the public key of the account at index 0.
     forc wallet account 0 public-key
+
+    # Transfer 1 token of the base asset id to a bech32 address at the gas price of 1. 
+    forc wallet account 0 transfer --to fuel1dq2vgftet24u4nkpzmtfus9k689ap5avkm8kdjna8j3d6765yfdsjt6586
+    --amount 1 --asset-id 0x0000000000000000000000000000000000000000000000000000000000000000 --gas-price 1
+
+    # Transfer 1 token of the base asset id to a hex address at the gas price of 1. 
+    forc wallet account 0 transfer --to 0x0b8d0f6a7f271919708530d11bdd9398205137e012424b611e9d97118c180bea 
+    --amount 1 --asset-id 0x0000000000000000000000000000000000000000000000000000000000000000 --gas-price 1
 "#;
 
 #[tokio::main]
