@@ -135,7 +135,7 @@ impl FromStr for To {
             return Ok(Self::HexAddress(hex_address));
         }
 
-        return Err("Invalid addresss '{}': address must either be in bech32 or hex");
+        Err("Invalid address '{}': address must either be in bech32 or hex")
     }
 }
 
