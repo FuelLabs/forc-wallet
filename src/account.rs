@@ -10,6 +10,7 @@ use fuel_types::AssetId;
 use fuels_core::constants::{DEFAULT_GAS_LIMIT, DEFAULT_GAS_PRICE, DEFAULT_MATURITY};
 use fuels_core::parameters::TxParameters;
 use fuels_types::bech32::Bech32Address;
+use std::fmt;
 use std::str::FromStr;
 use std::{
     collections::BTreeMap,
@@ -99,9 +100,9 @@ pub(crate) struct Balance {
 
 #[derive(Debug, Args)]
 pub(crate) struct Transfer {
-    /// The bech32 address (in Bech32Address) of the account to transfer assets to.
+    /// The address (in bech32 or hex) of the account to transfer assets to.
     #[clap(long)]
-    to: Bech32Address,
+    to: To,
     /// Amount (in u64) of assets to transfer.
     #[clap(long)]
     amount: u64,
@@ -116,6 +117,35 @@ pub(crate) struct Transfer {
     gas_limit: u64,
     #[clap(long, default_value_t = DEFAULT_MATURITY)]
     maturity: u64,
+}
+
+#[derive(Debug, Clone)]
+enum To {
+    Bech32Address(Bech32Address),
+    HexAddress(fuel_types::Address),
+}
+
+impl FromStr for To {
+    type Err = &'static str;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        if let Ok(bech32_address) = Bech32Address::from_str(s) {
+            return Ok(Self::Bech32Address(bech32_address));
+        } else if let Ok(hex_address) = fuel_types::Address::from_str(s) {
+            return Ok(Self::HexAddress(hex_address));
+        }
+
+        return Err("Invalid addresss '{}': address must either be in bech32 or hex");
+    }
+}
+
+impl fmt::Display for To {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            To::Bech32Address(bech32_addr) => write!(f, "{bech32_addr}"),
+            To::HexAddress(hex_addr) => write!(f, "0x{hex_addr}"),
+        }
+    }
 }
 
 /// A map from an account's index to its bech32 address.
@@ -134,6 +164,7 @@ pub(crate) async fn cli(wallet_path: &Path, account: Account) -> Result<()> {
             true => hex_address_cli(wallet_path, acc_ix)?,
             false => public_key_cli(wallet_path, acc_ix)?,
         },
+
         (Some(acc_ix), Some(Command::Balance(balance))) => {
             account_balance_cli(wallet_path, acc_ix, &balance).await?
         }
@@ -484,6 +515,12 @@ pub(crate) async fn transfer_cli(
         "Preparing to transfer:\n  Amount: {}\n  Asset ID: 0x{}\n  To: {}\n",
         transfer.amount, transfer.asset_id, transfer.to
     );
+
+    let to = match transfer.to {
+        To::Bech32Address(bech32_addr) => bech32_addr,
+        To::HexAddress(hex_addr) => Bech32Address::from(hex_addr),
+    };
+
     let prompt =
         format!("Please enter your password to unlock account {acc_ix} and to initiate transfer: ");
     let password = rpassword::prompt_password(prompt)?;
@@ -494,7 +531,7 @@ pub(crate) async fn transfer_cli(
 
     let (tx_id, receipts) = account
         .transfer(
-            &transfer.to,
+            &to,
             1,
             Default::default(),
             TxParameters::new(
