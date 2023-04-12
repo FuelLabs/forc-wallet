@@ -81,6 +81,13 @@ mod network {
     pub(crate) const BETA_3_FAUCET: &str = "https://faucet-beta-3.fuel.network/";
 }
 
+/// Contains definitions of URLs to the block explorer for each network.
+mod explorer {
+    pub(crate) const DEFAULT: &str = BETA_3;
+    pub(crate) const BETA_2: &str = "https://fuellabs.github.io/block-explorer-v2/beta-2";
+    pub(crate) const BETA_3: &str = "https://fuellabs.github.io/block-explorer-v2/beta-3";
+}
+
 const ABOUT: &str = "A forc plugin for generating or importing wallets using BIP39 phrases.";
 const EXAMPLES: &str = r#"
 EXAMPLES:
@@ -122,6 +129,14 @@ EXAMPLES:
 
     # Show the public key of the account at index 0.
     forc wallet account 0 public-key
+
+    # Transfer 1 token of the base asset id to a bech32 address at the gas price of 1. 
+    forc wallet account 0 transfer --to fuel1dq2vgftet24u4nkpzmtfus9k689ap5avkm8kdjna8j3d6765yfdsjt6586
+    --amount 1 --asset-id 0x0000000000000000000000000000000000000000000000000000000000000000 --gas-price 1
+
+    # Transfer 1 token of the base asset id to a hex address at the gas price of 1. 
+    forc wallet account 0 transfer --to 0x0b8d0f6a7f271919708530d11bdd9398205137e012424b611e9d97118c180bea 
+    --amount 1 --asset-id 0x0000000000000000000000000000000000000000000000000000000000000000 --gas-price 1
 "#;
 
 #[tokio::main]

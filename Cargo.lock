@@ -933,6 +933,7 @@ dependencies = [
  "eth-keystore 0.5.0",
  "fuel-crypto",
  "fuel-types",
+ "fuels-core",
  "fuels-signers",
  "fuels-types",
  "futures",
