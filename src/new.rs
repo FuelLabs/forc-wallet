@@ -3,7 +3,7 @@ use crate::utils::{
 };
 use std::path::Path;
 
-pub(crate) fn new_wallet_cli(wallet_path: &Path) -> anyhow::Result<()> {
+pub fn new_wallet_cli(wallet_path: &Path) -> anyhow::Result<()> {
     let password = request_new_password();
     // Generate a random mnemonic phrase.
     let mnemonic = fuels_signers::wallet::generate_mnemonic_phrase(&mut rand::thread_rng(), 24)?;

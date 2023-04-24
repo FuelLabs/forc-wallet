@@ -60,7 +60,7 @@ pub enum Data {
     Hex { hex_string: String },
 }
 
-pub(crate) fn cli(wallet_path: &Path, sign: Sign) -> Result<()> {
+pub fn cli(wallet_path: &Path, sign: Sign) -> Result<()> {
     let Sign {
         account,
         private_key,
