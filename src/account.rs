@@ -20,7 +20,7 @@ use std::{
 use url::Url;
 
 #[derive(Debug, Args)]
-pub(crate) struct Accounts {
+pub struct Accounts {
     /// Contains optional flag for displaying all accounts as hex / bytes values.
     ///
     /// pass in --as-hex for this alternative display.
@@ -31,7 +31,7 @@ pub(crate) struct Accounts {
 }
 
 #[derive(Debug, Args)]
-pub(crate) struct Account {
+pub struct Account {
     /// The index of the account.
     ///
     /// This index is used directly within the path used to derive the account.
@@ -80,22 +80,22 @@ pub(crate) enum Command {
 }
 
 #[derive(Debug, Args)]
-struct Unverified {
+pub(crate) struct Unverified {
     /// When enabled, shows account addresses stored in the cache without re-deriving them.
     ///
     /// The cache can be found at `~/.fuel/wallets/addresses`.
     ///
     /// Useful for non-interactive scripts on trusted systems or integration tests.
     #[clap(long = "unverified")]
-    unverified: bool,
+    pub(crate) unverified: bool,
 }
 
 #[derive(Debug, Args)]
 pub(crate) struct Balance {
     #[clap(long, default_value_t = crate::network::DEFAULT.parse().unwrap())]
-    node_url: Url,
+    pub(crate) node_url: Url,
     #[clap(flatten)]
-    unverified: Unverified,
+    pub(crate) unverified: Unverified,
 }
 
 #[derive(Debug, Args)]
@@ -151,7 +151,7 @@ impl fmt::Display for To {
 /// A map from an account's index to its bech32 address.
 type AccountAddresses = BTreeMap<usize, Bech32Address>;
 
-pub(crate) async fn cli(wallet_path: &Path, account: Account) -> Result<()> {
+pub async fn cli(wallet_path: &Path, account: Account) -> Result<()> {
     match (account.index, account.cmd) {
         (None, Some(Command::New)) => new_cli(wallet_path)?,
         (Some(acc_ix), Some(Command::New)) => new_at_index_cli(wallet_path, acc_ix)?,
@@ -173,64 +173,6 @@ pub(crate) async fn cli(wallet_path: &Path, account: Account) -> Result<()> {
         }
         (None, Some(cmd)) => print_subcmd_index_warning(&cmd),
         (None, None) => print_subcmd_help(),
-    }
-    Ok(())
-}
-
-pub(crate) async fn balance_cli(wallet_path: &Path, balance: &crate::Balance) -> Result<()> {
-    let wallet = load_wallet(wallet_path)?;
-    let mut addresses = read_cached_addresses(&wallet.crypto.ciphertext)?;
-    if !balance.account.unverified.unverified {
-        let prompt = "Please enter your password to verify accounts: ";
-        let password = rpassword::prompt_password(prompt)?;
-        for (&ix, addr) in addresses.iter_mut() {
-            let account = derive_account(wallet_path, ix, &password)?;
-            if verify_address_and_update_cache(ix, &account, addr, &wallet.crypto.ciphertext)? {
-                *addr = account.address().clone();
-            }
-        }
-    };
-    println!("Connecting to {}", balance.account.node_url);
-    let provider = fuels_signers::provider::Provider::connect(&balance.account.node_url).await?;
-    println!("Fetching and summing balances of the following accounts:");
-    for (ix, addr) in &addresses {
-        println!("  {ix:>3}: {addr}");
-    }
-    let accounts: Vec<_> = addresses
-        .values()
-        .map(|addr| fuels_signers::Wallet::from_address(addr.clone(), Some(provider.clone())))
-        .collect();
-    let account_balances =
-        futures::future::try_join_all(accounts.iter().map(|acc| acc.get_balances())).await?;
-
-    if balance.accounts {
-        for (ix, balance) in addresses.keys().zip(&account_balances) {
-            let balance: BTreeMap<_, _> = balance
-                .iter()
-                .map(|(id, &val)| (id.clone(), u128::from(val)))
-                .collect();
-            if balance.is_empty() {
-                continue;
-            }
-            println!("\nAccount {ix}:");
-            print_balance(&balance);
-        }
-    }
-
-    let mut total_balance = BTreeMap::default();
-    println!("\nTotal:");
-    for acc_bal in account_balances {
-        for (asset_id, amt) in acc_bal {
-            let entry = total_balance.entry(asset_id.clone()).or_insert(0u128);
-            *entry = entry.checked_add(u128::from(amt)).ok_or_else(|| {
-                anyhow!("Failed to display balance for asset {asset_id}: Value out of range.")
-            })?;
-        }
-    }
-    if total_balance.is_empty() {
-        print_balance_empty(&balance.account.node_url);
-    } else {
-        print_balance(&total_balance);
     }
     Ok(())
 }
@@ -277,7 +219,7 @@ pub(crate) async fn account_balance_cli(
 /// Display a warning to the user if the expected address differs from the account address.
 /// Returns `Ok(true)` if the address matched, `Ok(false)` if it did not, `Err` if we failed to
 /// update the cache.
-fn verify_address_and_update_cache(
+pub(crate) fn verify_address_and_update_cache(
     acc_ix: usize,
     account: &fuels_signers::Wallet,
     expected_addr: &Bech32Address,
@@ -298,7 +240,7 @@ fn verify_address_and_update_cache(
     Ok(false)
 }
 
-fn print_balance_empty(node_url: &Url) {
+pub(crate) fn print_balance_empty(node_url: &Url) {
     let beta_2_url = crate::network::BETA_2.parse::<Url>().unwrap();
     let beta_3_url = crate::network::BETA_3.parse::<Url>().unwrap();
     let faucet_url = match node_url.host_str() {
@@ -312,7 +254,7 @@ fn print_balance_empty(node_url: &Url) {
     );
 }
 
-fn print_balance(balance: &BTreeMap<String, u128>) {
+pub(crate) fn print_balance(balance: &BTreeMap<String, u128>) {
     let asset_id_header = "Asset ID";
     let amount_header = "Amount";
     println!("  {asset_id_header:66} {amount_header}");
@@ -322,7 +264,7 @@ fn print_balance(balance: &BTreeMap<String, u128>) {
 }
 
 /// Prints a list of all known (cached) accounts for the wallet at the given path.
-pub(crate) fn print_accounts_cli(wallet_path: &Path, accounts: Accounts) -> Result<()> {
+pub fn print_accounts_cli(wallet_path: &Path, accounts: Accounts) -> Result<()> {
     let wallet = load_wallet(wallet_path)?;
     let addresses = read_cached_addresses(&wallet.crypto.ciphertext)?;
     if accounts.unverified.unverified {
@@ -387,7 +329,7 @@ fn print_subcmd_index_warning(cmd: &Command) {
 }
 
 /// Print the address of the wallet's account at the given index.
-fn print_address(wallet_path: &Path, account_ix: usize, unverified: bool) -> Result<()> {
+pub fn print_address(wallet_path: &Path, account_ix: usize, unverified: bool) -> Result<()> {
     let wallet = load_wallet(wallet_path)?;
     if unverified {
         let addresses = read_cached_addresses(&wallet.crypto.ciphertext)?;
@@ -435,7 +377,7 @@ fn derive_account_unlocked(
     Ok(wallet)
 }
 
-fn derive_account(
+pub(crate) fn derive_account(
     wallet_path: &Path,
     account_ix: usize,
     password: &str,
@@ -457,13 +399,13 @@ fn new_at_index(
     Ok(account_addr.clone())
 }
 
-fn new_at_index_cli(wallet_path: &Path, account_ix: usize) -> Result<()> {
+pub fn new_at_index_cli(wallet_path: &Path, account_ix: usize) -> Result<()> {
     let keystore = load_wallet(wallet_path)?;
     new_at_index(&keystore, wallet_path, account_ix)?;
     Ok(())
 }
 
-fn new_cli(wallet_path: &Path) -> Result<()> {
+pub(crate) fn new_cli(wallet_path: &Path) -> Result<()> {
     let keystore = load_wallet(wallet_path)?;
     let addresses = read_cached_addresses(&keystore.crypto.ciphertext)?;
     let account_ix = next_derivation_index(&addresses);
@@ -482,7 +424,7 @@ pub(crate) fn private_key_cli(wallet_path: &Path, account_ix: usize) -> Result<(
 }
 
 /// Prints the public key of given account index.
-fn public_key_cli(wallet_path: &Path, account_ix: usize) -> Result<()> {
+pub(crate) fn public_key_cli(wallet_path: &Path, account_ix: usize) -> Result<()> {
     let prompt =
         format!("Please enter your password to display account {account_ix}'s public key: ");
     let password = rpassword::prompt_password(prompt)?;
@@ -493,7 +435,7 @@ fn public_key_cli(wallet_path: &Path, account_ix: usize) -> Result<()> {
 }
 
 /// Prints the plain address for the given account index
-fn hex_address_cli(wallet_path: &Path, account_ix: usize) -> Result<()> {
+pub(crate) fn hex_address_cli(wallet_path: &Path, account_ix: usize) -> Result<()> {
     let prompt =
         format!("Please enter your password to display account {account_ix}'s plain address: ");
     let password = rpassword::prompt_password(prompt)?;
@@ -599,7 +541,7 @@ fn cache_address(
 }
 
 /// Read all cached account addresses for the wallet with the given ciphertext.
-fn read_cached_addresses(wallet_ciphertext: &[u8]) -> Result<AccountAddresses> {
+pub(crate) fn read_cached_addresses(wallet_ciphertext: &[u8]) -> Result<AccountAddresses> {
     let wallet_accounts_dir = address_cache_dir(wallet_ciphertext);
     if !wallet_accounts_dir.exists() {
         return Ok(Default::default());

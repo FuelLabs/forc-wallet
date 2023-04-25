@@ -1,8 +1,13 @@
 mod account;
+mod balance;
 mod import;
 mod new;
 mod sign;
 mod utils;
+
+use balance::Balance;
+pub use forc_wallet::explorer;
+pub use forc_wallet::network;
 
 use crate::{
     account::{Account, Accounts},
@@ -11,7 +16,7 @@ use crate::{
     sign::Sign,
 };
 use anyhow::Result;
-use clap::{Args, Parser, Subcommand};
+use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
 #[derive(Debug, Parser)]
@@ -59,33 +64,6 @@ enum Command {
     /// Only includes accounts that have been previously derived, i.e. those
     /// that show under `forc-wallet accounts`.
     Balance(Balance),
-}
-
-#[derive(Debug, Args)]
-struct Balance {
-    // Account-specific args.
-    #[clap(flatten)]
-    account: account::Balance,
-    /// Show the balance for each individual non-empty account before showing
-    /// the total.
-    #[clap(long)]
-    accounts: bool,
-}
-
-/// The default network used in the case that none is specified.
-mod network {
-    pub(crate) const DEFAULT: &str = BETA_3;
-    pub(crate) const BETA_2: &str = "https://node-beta-2.fuel.network";
-    pub(crate) const BETA_2_FAUCET: &str = "https://faucet-beta-2.fuel.network";
-    pub(crate) const BETA_3: &str = "https://beta-3.fuel.network/";
-    pub(crate) const BETA_3_FAUCET: &str = "https://faucet-beta-3.fuel.network/";
-}
-
-/// Contains definitions of URLs to the block explorer for each network.
-mod explorer {
-    pub(crate) const DEFAULT: &str = BETA_3;
-    pub(crate) const BETA_2: &str = "https://fuellabs.github.io/block-explorer-v2/beta-2";
-    pub(crate) const BETA_3: &str = "https://fuellabs.github.io/block-explorer-v2/beta-3";
 }
 
 const ABOUT: &str = "A forc plugin for generating or importing wallets using BIP39 phrases.";
@@ -149,7 +127,7 @@ async fn main() -> Result<()> {
         Command::Accounts(accounts) => account::print_accounts_cli(&wallet_path, accounts)?,
         Command::Account(account) => account::cli(&wallet_path, account).await?,
         Command::Sign(sign) => sign::cli(&wallet_path, sign)?,
-        Command::Balance(balance) => account::balance_cli(&wallet_path, &balance).await?,
+        Command::Balance(balance) => balance::cli(&wallet_path, &balance).await?,
     }
     Ok(())
 }

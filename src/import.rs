@@ -12,7 +12,7 @@ fn check_mnemonic(mnemonic: &str) -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn import_wallet_cli(wallet_path: &Path) -> Result<()> {
+pub fn import_wallet_cli(wallet_path: &Path) -> Result<()> {
     let mnemonic = rpassword::prompt_password("Please enter your mnemonic phrase: ")?;
     check_mnemonic(&mnemonic)?;
     let password = request_new_password();
