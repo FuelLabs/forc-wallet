@@ -126,7 +126,7 @@ fn sign_msg_with_wallet_account_cli(
     account_ix: usize,
     msg: &Message,
 ) -> Result<()> {
-    let password = prompt_password("Please enter your password: ")?;
+    let password = prompt_password("Please enter your wallet password: ")?;
     let signature = sign_msg_with_wallet_account(wallet_path, account_ix, msg, &password)?;
     println!("Signature: {signature}");
     Ok(())
