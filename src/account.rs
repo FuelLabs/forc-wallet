@@ -190,7 +190,7 @@ pub(crate) async fn account_balance_cli(
     let mut account = if balance.unverified.unverified {
         fuels_signers::Wallet::from_address(cached_addr.clone(), None)
     } else {
-        let prompt = format!("Please enter your password to verify account {acc_ix}: ");
+        let prompt = format!("Please enter your wallet password to verify account {acc_ix}: ");
         let password = rpassword::prompt_password(prompt)?;
         let account = derive_account(wallet_path, acc_ix, &password)?;
         verify_address_and_update_cache(acc_ix, &account, &cached_addr, &wallet.crypto.ciphertext)?;
@@ -279,7 +279,7 @@ pub fn print_accounts_cli(wallet_path: &Path, accounts: Accounts) -> Result<()> 
                 }
             });
     } else {
-        let prompt = "Please enter your password to verify cached accounts: ";
+        let prompt = "Please enter your wallet password to verify cached accounts: ";
         let password = rpassword::prompt_password(prompt)?;
         for &ix in addresses.keys() {
             let account = derive_account(wallet_path, ix, &password)?;
@@ -338,7 +338,7 @@ pub fn print_address(wallet_path: &Path, account_ix: usize, unverified: bool) ->
             None => eprintln!("Account {account_ix} is not derived yet!"),
         }
     } else {
-        let prompt = format!("Please enter your password to verify account {account_ix}: ");
+        let prompt = format!("Please enter your wallet password to verify account {account_ix}: ");
         let password = rpassword::prompt_password(prompt)?;
         let account = derive_account(wallet_path, account_ix, &password)?;
         let account_addr = account.address();
@@ -390,7 +390,7 @@ fn new_at_index(
     wallet_path: &Path,
     account_ix: usize,
 ) -> Result<Bech32Address> {
-    let prompt = format!("Please enter your password to derive account {account_ix}: ");
+    let prompt = format!("Please enter your wallet password to derive account {account_ix}: ");
     let password = rpassword::prompt_password(prompt)?;
     let account = derive_account(wallet_path, account_ix, &password)?;
     let account_addr = account.address();
@@ -414,8 +414,9 @@ pub(crate) fn new_cli(wallet_path: &Path) -> Result<()> {
 }
 
 pub(crate) fn private_key_cli(wallet_path: &Path, account_ix: usize) -> Result<()> {
-    let prompt =
-        format!("Please enter your password to display account {account_ix}'s private key: ");
+    let prompt = format!(
+        "Please enter your wallet password to display account {account_ix}'s private key: "
+    );
     let password = rpassword::prompt_password(prompt)?;
     let secret_key = derive_secret_key(wallet_path, account_ix, &password)?;
     let secret_key_string = format!("Secret key for account {account_ix}: {secret_key}\n");
@@ -426,7 +427,7 @@ pub(crate) fn private_key_cli(wallet_path: &Path, account_ix: usize) -> Result<(
 /// Prints the public key of given account index.
 pub(crate) fn public_key_cli(wallet_path: &Path, account_ix: usize) -> Result<()> {
     let prompt =
-        format!("Please enter your password to display account {account_ix}'s public key: ");
+        format!("Please enter your wallet password to display account {account_ix}'s public key: ");
     let password = rpassword::prompt_password(prompt)?;
     let secret_key = derive_secret_key(wallet_path, account_ix, &password)?;
     let public_key = PublicKey::from(&secret_key);
@@ -436,8 +437,9 @@ pub(crate) fn public_key_cli(wallet_path: &Path, account_ix: usize) -> Result<()
 
 /// Prints the plain address for the given account index
 pub(crate) fn hex_address_cli(wallet_path: &Path, account_ix: usize) -> Result<()> {
-    let prompt =
-        format!("Please enter your password to display account {account_ix}'s plain address: ");
+    let prompt = format!(
+        "Please enter your wallet password to display account {account_ix}'s plain address: "
+    );
     let password = rpassword::prompt_password(prompt)?;
     let secret_key = derive_secret_key(wallet_path, account_ix, &password)?;
     let public_key = format!("{}", PublicKey::from(&secret_key));
@@ -463,8 +465,9 @@ pub(crate) async fn transfer_cli(
         To::HexAddress(hex_addr) => Bech32Address::from(hex_addr),
     };
 
-    let prompt =
-        format!("Please enter your password to unlock account {acc_ix} and to initiate transfer: ");
+    let prompt = format!(
+        "Please enter your wallet password to unlock account {acc_ix} and to initiate transfer: "
+    );
     let password = rpassword::prompt_password(prompt)?;
     let mut account = derive_account_unlocked(wallet_path, acc_ix, &password)?;
     let provider = fuels_signers::provider::Provider::connect(&transfer.node_url).await?;

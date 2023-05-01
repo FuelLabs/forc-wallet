@@ -25,7 +25,7 @@ pub async fn cli(wallet_path: &Path, balance: &Balance) -> Result<()> {
     let wallet = load_wallet(wallet_path)?;
     let mut addresses = read_cached_addresses(&wallet.crypto.ciphertext)?;
     if !balance.account.unverified.unverified {
-        let prompt = "Please enter your password to verify accounts: ";
+        let prompt = "Please enter your wallet password to verify accounts: ";
         let password = rpassword::prompt_password(prompt)?;
         for (&ix, addr) in addresses.iter_mut() {
             let account = derive_account(wallet_path, ix, &password)?;
