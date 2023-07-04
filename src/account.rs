@@ -7,12 +7,13 @@ use clap::{Args, Subcommand};
 use eth_keystore::EthKeystore;
 use fuel_crypto::{PublicKey, SecretKey};
 use fuel_types::AssetId;
-use fuels::types::bech32::FUEL_BECH32_HRP;
 use fuels::{
     accounts::wallet::{Wallet, WalletUnlocked},
     prelude::*,
 };
 use fuels_core::constants::{DEFAULT_GAS_LIMIT, DEFAULT_GAS_PRICE, DEFAULT_MATURITY};
+use std::fmt;
+use std::str::FromStr;
 use std::{
     collections::BTreeMap,
     fmt, fs,
