@@ -352,7 +352,7 @@ pub fn print_address(wallet_path: &Path, account_ix: usize, unverified: bool) ->
 
 /// Given a path to a wallet, an account index and the wallet's password,
 /// derive the account address for the account at the given index.
-pub(crate) fn derive_secret_key(
+pub fn derive_secret_key(
     wallet_path: &Path,
     account_index: usize,
     password: &str,
