@@ -10,14 +10,14 @@ use fuel_types::AssetId;
 use fuels::{
     accounts::wallet::{Wallet, WalletUnlocked},
     prelude::*,
+    types::bech32::FUEL_BECH32_HRP,
 };
 use fuels_core::constants::{DEFAULT_GAS_LIMIT, DEFAULT_GAS_PRICE, DEFAULT_MATURITY};
-use std::fmt;
-use std::str::FromStr;
 use std::{
     collections::BTreeMap,
-    fs,
+    fmt, fs,
     path::{Path, PathBuf},
+    str::FromStr,
 };
 use url::Url;
 
@@ -444,8 +444,9 @@ pub(crate) fn hex_address_cli(wallet_path: &Path, account_ix: usize) -> Result<(
     );
     let password = rpassword::prompt_password(prompt)?;
     let secret_key = derive_secret_key(wallet_path, account_ix, &password)?;
-    let public_key = format!("{}", PublicKey::from(&secret_key));
-    let bech = Bech32Address::from_str(&public_key)?;
+    let public_key = PublicKey::from(&secret_key);
+    let hashed = public_key.hash();
+    let bech = Bech32Address::new(FUEL_BECH32_HRP, hashed);
     let plain_address: fuel_types::Address = bech.into();
     println!("Plain address for {}: {}", account_ix, plain_address);
     Ok(())
