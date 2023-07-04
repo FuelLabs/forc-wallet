@@ -10,10 +10,9 @@ use fuel_types::AssetId;
 use fuels::{
     accounts::wallet::{Wallet, WalletUnlocked},
     prelude::*,
+    types::bech32::FUEL_BECH32_HRP,
 };
 use fuels_core::constants::{DEFAULT_GAS_LIMIT, DEFAULT_GAS_PRICE, DEFAULT_MATURITY};
-use std::fmt;
-use std::str::FromStr;
 use std::{
     collections::BTreeMap,
     fmt, fs,
