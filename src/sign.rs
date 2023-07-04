@@ -145,7 +145,7 @@ fn sign_msg_with_wallet_account(
 /// Cast the `Bytes32` directly to a message without normalizing it.
 /// We don't renormalize as a hash is already a normalized representation.
 fn msg_from_hash32(hash: Bytes32) -> Message {
-    unsafe { Message::from_bytes_unchecked(hash.into()) }
+    Message::from_bytes(hash.into())
 }
 
 fn msg_from_file(path: &Path) -> Result<Message> {

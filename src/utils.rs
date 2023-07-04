@@ -1,6 +1,6 @@
 use anyhow::{anyhow, bail, Context, Result};
 use eth_keystore::EthKeystore;
-use fuels_signers::wallet::DEFAULT_DERIVATION_PATH_PREFIX;
+use fuels::accounts::wallet::DEFAULT_DERIVATION_PATH_PREFIX;
 use home::home_dir;
 use std::{
     fs,

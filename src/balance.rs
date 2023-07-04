@@ -1,5 +1,9 @@
 use anyhow::{anyhow, Result};
 use clap::Args;
+use fuels::{
+    accounts::{wallet::Wallet, ViewOnlyAccount},
+    prelude::*,
+};
 use std::{collections::BTreeMap, path::Path};
 
 use crate::{
@@ -35,14 +39,14 @@ pub async fn cli(wallet_path: &Path, balance: &Balance) -> Result<()> {
         }
     };
     println!("Connecting to {}", balance.account.node_url);
-    let provider = fuels_signers::provider::Provider::connect(&balance.account.node_url).await?;
+    let provider = Provider::connect(&balance.account.node_url).await?;
     println!("Fetching and summing balances of the following accounts:");
     for (ix, addr) in &addresses {
         println!("  {ix:>3}: {addr}");
     }
     let accounts: Vec<_> = addresses
         .values()
-        .map(|addr| fuels_signers::Wallet::from_address(addr.clone(), Some(provider.clone())))
+        .map(|addr| Wallet::from_address(addr.clone(), Some(provider.clone())))
         .collect();
     let account_balances =
         futures::future::try_join_all(accounts.iter().map(|acc| acc.get_balances())).await?;

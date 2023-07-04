@@ -7,9 +7,11 @@ use clap::{Args, Subcommand};
 use eth_keystore::EthKeystore;
 use fuel_crypto::{PublicKey, SecretKey};
 use fuel_types::AssetId;
+use fuels::{
+    accounts::wallet::{Wallet, WalletUnlocked},
+    prelude::*,
+};
 use fuels_core::constants::{DEFAULT_GAS_LIMIT, DEFAULT_GAS_PRICE, DEFAULT_MATURITY};
-use fuels_core::parameters::TxParameters;
-use fuels_types::bech32::Bech32Address;
 use std::fmt;
 use std::str::FromStr;
 use std::{
@@ -116,7 +118,7 @@ pub(crate) struct Transfer {
     #[clap(long, default_value_t = DEFAULT_GAS_LIMIT)]
     gas_limit: u64,
     #[clap(long, default_value_t = DEFAULT_MATURITY)]
-    maturity: u64,
+    maturity: u32,
 }
 
 #[derive(Debug, Clone)]
@@ -188,7 +190,7 @@ pub(crate) async fn account_balance_cli(
         .remove(&acc_ix)
         .ok_or_else(|| anyhow!("No cached address for account {acc_ix}"))?;
     let mut account = if balance.unverified.unverified {
-        fuels_signers::Wallet::from_address(cached_addr.clone(), None)
+        Wallet::from_address(cached_addr.clone(), None)
     } else {
         let prompt = format!("Please enter your wallet password to verify account {acc_ix}: ");
         let password = rpassword::prompt_password(prompt)?;
@@ -199,7 +201,7 @@ pub(crate) async fn account_balance_cli(
     println!("Connecting to {}", balance.node_url);
     println!("Fetching the balance of the following account:",);
     println!("  {acc_ix:>3}: {}", account.address());
-    let provider = fuels_signers::provider::Provider::connect(&balance.node_url).await?;
+    let provider = Provider::connect(&balance.node_url).await?;
     account.set_provider(provider);
     let account_balance: BTreeMap<_, _> = account
         .get_balances()
@@ -221,7 +223,7 @@ pub(crate) async fn account_balance_cli(
 /// update the cache.
 pub(crate) fn verify_address_and_update_cache(
     acc_ix: usize,
-    account: &fuels_signers::Wallet,
+    account: &Wallet,
     expected_addr: &Bech32Address,
     wallet_ciphertext: &[u8],
 ) -> Result<bool> {
@@ -371,9 +373,9 @@ fn derive_account_unlocked(
     wallet_path: &Path,
     account_ix: usize,
     password: &str,
-) -> Result<fuels_signers::WalletUnlocked> {
+) -> Result<WalletUnlocked> {
     let secret_key = derive_secret_key(wallet_path, account_ix, password)?;
-    let wallet = fuels_signers::WalletUnlocked::new_from_private_key(secret_key, None);
+    let wallet = WalletUnlocked::new_from_private_key(secret_key, None);
     Ok(wallet)
 }
 
@@ -381,7 +383,7 @@ pub(crate) fn derive_account(
     wallet_path: &Path,
     account_ix: usize,
     password: &str,
-) -> Result<fuels_signers::Wallet> {
+) -> Result<Wallet> {
     Ok(derive_account_unlocked(wallet_path, account_ix, password)?.lock())
 }
 
@@ -455,6 +457,8 @@ pub(crate) async fn transfer_cli(
     acc_ix: usize,
     transfer: Transfer,
 ) -> Result<()> {
+    use fuels::accounts::Account;
+
     println!(
         "Preparing to transfer:\n  Amount: {}\n  Asset ID: 0x{}\n  To: {}\n",
         transfer.amount, transfer.asset_id, transfer.to
@@ -470,7 +474,7 @@ pub(crate) async fn transfer_cli(
     );
     let password = rpassword::prompt_password(prompt)?;
     let mut account = derive_account_unlocked(wallet_path, acc_ix, &password)?;
-    let provider = fuels_signers::provider::Provider::connect(&transfer.node_url).await?;
+    let provider = Provider::connect(&transfer.node_url).await?;
     account.set_provider(provider);
     println!("Transferring...");
 
@@ -479,11 +483,7 @@ pub(crate) async fn transfer_cli(
             &to,
             1,
             Default::default(),
-            TxParameters::new(
-                Some(transfer.gas_price),
-                Some(transfer.gas_limit),
-                Some(transfer.maturity),
-            ),
+            TxParameters::new(transfer.gas_price, transfer.gas_limit, transfer.maturity),
         )
         .await?;
 
@@ -599,7 +599,7 @@ mod tests {
     #[test]
     fn derive_plain_address() {
         let address = "fuel1j78es08cyyz5n75jugal7p759ccs323etnykzpndsvhzu6399yqqpjmmd2";
-        let bech32 = <fuels_types::bech32::Bech32Address as std::str::FromStr>::from_str(address)
+        let bech32 = <fuels::types::bech32::Bech32Address as std::str::FromStr>::from_str(address)
             .expect("failed to create Bech32 address from string");
         let plain_address: fuel_types::Address = bech32.into();
         assert_eq!(
