@@ -4,7 +4,10 @@ use fuels::{
     accounts::{wallet::Wallet, ViewOnlyAccount},
     prelude::*,
 };
-use std::{collections::BTreeMap, path::Path};
+use std::{
+    collections::{BTreeMap, HashMap},
+    path::Path,
+};
 
 use crate::{
     account::{
@@ -25,21 +28,66 @@ pub struct Balance {
     accounts: bool,
 }
 
-pub async fn cli(wallet_path: &Path, balance: &Balance) -> Result<()> {
+/// Whether to verify cached accounts or not.
+///
+/// To verify cached accounts we require wallet vault password.
+pub enum AccountVerification {
+    No,
+    Yes(String),
+}
+
+/// List of accounts and amount of tokens they hold with different ASSET_IDs.
+pub type AccountBalances = Vec<HashMap<String, u64>>;
+/// A mapping between account index and the bech32 address for that account.
+pub type AccountsMap = BTreeMap<usize, Bech32Address>;
+
+/// Return a map of accounts after desired verification applied in a map where each key is account
+/// index and each value is the `Bech32Address` of that account.
+pub fn collect_accounts_with_verification(
+    wallet_path: &Path,
+    verification: AccountVerification,
+) -> Result<AccountsMap> {
     let wallet = load_wallet(wallet_path)?;
     let mut addresses = read_cached_addresses(&wallet.crypto.ciphertext)?;
-    if !balance.account.unverified.unverified {
-        let prompt = "Please enter your wallet password to verify accounts: ";
-        let password = rpassword::prompt_password(prompt)?;
+    if let AccountVerification::Yes(password) = verification {
         for (&ix, addr) in addresses.iter_mut() {
             let account = derive_account(wallet_path, ix, &password)?;
             if verify_address_and_update_cache(ix, &account, addr, &wallet.crypto.ciphertext)? {
                 *addr = account.address().clone();
             }
         }
+    }
+
+    Ok(addresses)
+}
+
+/// Print collected account balances for each asset type.
+pub fn print_account_balances(accounts_map: &AccountsMap, account_balances: &AccountBalances) {
+    for (ix, balance) in accounts_map.keys().zip(account_balances) {
+        let balance: BTreeMap<_, _> = balance
+            .iter()
+            .map(|(id, &val)| (id.clone(), u128::from(val)))
+            .collect();
+        if balance.is_empty() {
+            continue;
+        }
+        println!("\nAccount {ix} -- {}:", accounts_map[ix]);
+        print_balance(&balance);
+    }
+}
+pub async fn cli(wallet_path: &Path, balance: &Balance) -> Result<()> {
+    let verification = if !balance.account.unverified.unverified {
+        let prompt = "Please enter your wallet password to verify accounts: ";
+        let password = rpassword::prompt_password(prompt)?;
+        AccountVerification::Yes(password)
+    } else {
+        AccountVerification::No
     };
-    println!("Connecting to {}", balance.account.node_url);
-    let provider = Provider::connect(&balance.account.node_url).await?;
+    let addresses = collect_accounts_with_verification(wallet_path, verification)?;
+
+    let node_url = &balance.account.node_url;
+    println!("Connecting to {node_url}");
+    let provider = Provider::connect(node_url).await?;
     println!("Fetching and summing balances of the following accounts:");
     for (ix, addr) in &addresses {
         println!("  {ix:>3}: {addr}");
@@ -52,17 +100,7 @@ pub async fn cli(wallet_path: &Path, balance: &Balance) -> Result<()> {
         futures::future::try_join_all(accounts.iter().map(|acc| acc.get_balances())).await?;
 
     if balance.accounts {
-        for (ix, balance) in addresses.keys().zip(&account_balances) {
-            let balance: BTreeMap<_, _> = balance
-                .iter()
-                .map(|(id, &val)| (id.clone(), u128::from(val)))
-                .collect();
-            if balance.is_empty() {
-                continue;
-            }
-            println!("\nAccount {ix}:");
-            print_balance(&balance);
-        }
+        print_account_balances(&addresses, &account_balances);
     }
 
     let mut total_balance = BTreeMap::default();

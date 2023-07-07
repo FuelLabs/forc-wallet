@@ -227,7 +227,6 @@ pub(crate) fn verify_address_and_update_cache(
     expected_addr: &Bech32Address,
     wallet_ciphertext: &[u8],
 ) -> Result<bool> {
-    println!("Verifying account {acc_ix}");
     let addr = account.address();
     if addr == expected_addr {
         return Ok(true);
