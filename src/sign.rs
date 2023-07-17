@@ -169,10 +169,12 @@ fn msg_from_data(data: Data) -> Result<Message> {
 }
 
 fn bytes_from_hex_str(mut hex_str: &str) -> Result<Vec<u8>> {
-    // Strip the optional prefix.
-    const OPTIONAL_PREFIX: &str = "0x";
-    if hex_str.starts_with(OPTIONAL_PREFIX) {
-        hex_str = &hex_str[OPTIONAL_PREFIX.len()..];
+    // Check for the prefix.
+    const PREFIX: &str = "0x";
+    if hex_str.starts_with(PREFIX) {
+        hex_str = &hex_str[PREFIX.len()..];
+    }else {
+        bail!("missing 0x at the beginning of hex string")
     }
     hex::decode(hex_str).context("failed to decode bytes from hex string")
 }
