@@ -98,22 +98,16 @@ You may also sign a hex-encoded byte string:
 forc-wallet account <account_index> sign hex 0x0123456789ABCDEF
 ```
 
-The hex prefix at the beginning of the string is optional, e.g. the following is the same as above:
-
-```sh
-forc-wallet account <account_index> sign hex 0123456789ABCDEF
-```
-
 You can also use the `sign` subcommand directly, e.g. the following is the same:
 
 ```sh
-forc-wallet sign --account <account_index> hex 0123456789ABCDEF
+forc-wallet sign --account <account_index> hex 0x0123456789ABCDEF
 ```
 
 Using the `sign` subcommand, you can choose to sign directly with a private key (rather than a wallet account):
 
 ```sh
-forc-wallet sign --private-key hex 0123456789ABCDEF
+forc-wallet sign --private-key hex 0x0123456789ABCDEF
 ```
 
 ## Other useful commands
