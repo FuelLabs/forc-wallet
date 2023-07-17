@@ -98,7 +98,6 @@ You may also sign a hex-encoded byte string:
 forc-wallet account <account_index> sign hex 0x0123456789ABCDEF
 ```
 
-
 You can also use the `sign` subcommand directly, e.g. the following is the same:
 
 ```sh

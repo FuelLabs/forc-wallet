@@ -173,7 +173,7 @@ fn bytes_from_hex_str(mut hex_str: &str) -> Result<Vec<u8>> {
     const PREFIX: &str = "0x";
     if hex_str.starts_with(PREFIX) {
         hex_str = &hex_str[PREFIX.len()..];
-    }else {
+    } else {
         bail!("missing 0x at the beginning of hex string")
     }
     hex::decode(hex_str).context("failed to decode bytes from hex string")
