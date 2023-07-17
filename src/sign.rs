@@ -169,10 +169,12 @@ fn msg_from_data(data: Data) -> Result<Message> {
 }
 
 fn bytes_from_hex_str(mut hex_str: &str) -> Result<Vec<u8>> {
-    // Strip the optional prefix.
-    const OPTIONAL_PREFIX: &str = "0x";
-    if hex_str.starts_with(OPTIONAL_PREFIX) {
-        hex_str = &hex_str[OPTIONAL_PREFIX.len()..];
+    // Check for the prefix.
+    const PREFIX: &str = "0x";
+    if hex_str.starts_with(PREFIX) {
+        hex_str = &hex_str[PREFIX.len()..];
+    } else {
+        bail!("missing 0x at the beginning of hex string")
     }
     hex::decode(hex_str).context("failed to decode bytes from hex string")
 }
@@ -228,16 +230,12 @@ mod tests {
     #[test]
     fn sign_hex() {
         with_tmp_dir_and_wallet(|_dir, wallet_path| {
-            let hex_encoded = hex::encode(TEST_STR);
+            let hex_encoded = format!("0x{}", hex::encode(TEST_STR));
             let msg = msg_from_hex_str(&hex_encoded).unwrap();
             let account_ix = 0;
             let sig =
                 sign_msg_with_wallet_account(wallet_path, account_ix, &msg, TEST_PASSWORD).unwrap();
             assert_eq!(sig.to_string(), EXPECTED_SIG);
-            // The hex prefix should be ignored if it exists.
-            let prefixed = format!("0x{hex_encoded}");
-            let prefixed_msg = msg_from_hex_str(&prefixed).unwrap();
-            assert_eq!(msg, prefixed_msg);
         });
     }
 }
