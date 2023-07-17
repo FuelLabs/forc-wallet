@@ -13,10 +13,8 @@ clap = { version = "4.2.4", features = ["derive"] }
 eth-keystore = { version = "0.5" }
 fuel-crypto = "0.34"
 fuel-types = "0.34"
-# fuels = "0.43.0"
-# fuels-core = "0.43.0"
-fuels = { git = "https://github.com/FuelLabs/fuels-rs", branch = "iqdecay/deps-fuel-core-update" }
-fuels-core = { git = "https://github.com/FuelLabs/fuels-rs", branch = "iqdecay/deps-fuel-core-update" }
+fuels = "0.44.0"
+fuels-core = "0.44.0"
 futures = "0.3"
 hex = "0.4"
 home = "0.5.3"
