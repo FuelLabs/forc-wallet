@@ -18,6 +18,7 @@ use crate::{
 };
 
 #[derive(Debug, Args)]
+#[group(skip)]
 pub struct Balance {
     // Account-specific args.
     #[clap(flatten)]
