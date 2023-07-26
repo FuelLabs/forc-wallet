@@ -1172,7 +1172,7 @@ dependencies = [
 [[package]]
 name = "fuels"
 version = "0.44.0"
-source = "git+https://github.com/FuelLabs/fuels-rs?branch=upgrade/fuel-core-master#69e14e2af77c7c830ff5bf2247ecaf18526d64c5"
+source = "git+https://github.com/FuelLabs/fuels-rs?branch=upgrade/fuel-core-v0.20.1#f921c6e37f58e9274101987b22702fdf83bb8cda"
 dependencies = [
  "fuel-core-client",
  "fuel-tx",
@@ -1186,7 +1186,7 @@ dependencies = [
 [[package]]
 name = "fuels-accounts"
 version = "0.44.0"
-source = "git+https://github.com/FuelLabs/fuels-rs?branch=upgrade/fuel-core-master#69e14e2af77c7c830ff5bf2247ecaf18526d64c5"
+source = "git+https://github.com/FuelLabs/fuels-rs?branch=upgrade/fuel-core-v0.20.1#f921c6e37f58e9274101987b22702fdf83bb8cda"
 dependencies = [
  "async-trait",
  "bytes",
@@ -1212,7 +1212,7 @@ dependencies = [
 [[package]]
 name = "fuels-code-gen"
 version = "0.44.0"
-source = "git+https://github.com/FuelLabs/fuels-rs?branch=upgrade/fuel-core-master#69e14e2af77c7c830ff5bf2247ecaf18526d64c5"
+source = "git+https://github.com/FuelLabs/fuels-rs?branch=upgrade/fuel-core-v0.20.1#f921c6e37f58e9274101987b22702fdf83bb8cda"
 dependencies = [
  "Inflector",
  "fuel-abi-types",
@@ -1227,7 +1227,7 @@ dependencies = [
 [[package]]
 name = "fuels-core"
 version = "0.44.0"
-source = "git+https://github.com/FuelLabs/fuels-rs?branch=upgrade/fuel-core-master#69e14e2af77c7c830ff5bf2247ecaf18526d64c5"
+source = "git+https://github.com/FuelLabs/fuels-rs?branch=upgrade/fuel-core-v0.20.1#f921c6e37f58e9274101987b22702fdf83bb8cda"
 dependencies = [
  "bech32 0.9.1",
  "chrono",
@@ -1255,7 +1255,7 @@ dependencies = [
 [[package]]
 name = "fuels-macros"
 version = "0.44.0"
-source = "git+https://github.com/FuelLabs/fuels-rs?branch=upgrade/fuel-core-master#69e14e2af77c7c830ff5bf2247ecaf18526d64c5"
+source = "git+https://github.com/FuelLabs/fuels-rs?branch=upgrade/fuel-core-v0.20.1#f921c6e37f58e9274101987b22702fdf83bb8cda"
 dependencies = [
  "Inflector",
  "fuel-abi-types",
@@ -1272,14 +1272,14 @@ dependencies = [
 [[package]]
 name = "fuels-programs"
 version = "0.44.0"
-source = "git+https://github.com/FuelLabs/fuels-rs?branch=upgrade/fuel-core-master#69e14e2af77c7c830ff5bf2247ecaf18526d64c5"
+source = "git+https://github.com/FuelLabs/fuels-rs?branch=upgrade/fuel-core-v0.20.1#f921c6e37f58e9274101987b22702fdf83bb8cda"
 dependencies = [
  "async-trait",
  "bytes",
  "fuel-abi-types",
+ "fuel-asm",
  "fuel-tx",
  "fuel-types",
- "fuel-vm",
  "fuels-accounts",
  "fuels-core",
  "hex",
@@ -1299,14 +1299,13 @@ dependencies = [
 [[package]]
 name = "fuels-test-helpers"
 version = "0.44.0"
-source = "git+https://github.com/FuelLabs/fuels-rs?branch=upgrade/fuel-core-master#69e14e2af77c7c830ff5bf2247ecaf18526d64c5"
+source = "git+https://github.com/FuelLabs/fuels-rs?branch=upgrade/fuel-core-v0.20.1#f921c6e37f58e9274101987b22702fdf83bb8cda"
 dependencies = [
  "fuel-core-chain-config",
  "fuel-core-client",
  "fuel-core-types",
  "fuel-tx",
  "fuel-types",
- "fuel-vm",
  "fuels-accounts",
  "fuels-core",
  "futures",
