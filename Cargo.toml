@@ -11,10 +11,15 @@ description = "A forc plugin for generating or importing wallets using BIP39 phr
 anyhow = "1.0"
 clap = { version = "4.2.4", features = ["derive"] }
 eth-keystore = { version = "0.5" }
-fuel-crypto = "0.34"
-fuel-types = "0.34"
-fuels = "0.44.0"
-fuels-core = "0.44.0"
+
+# Dependencies from the `fuel-vm` repository:
+fuel-crypto = "0.35"
+fuel-types = "0.35"
+
+# Dependencies from the `fuels-rs` repository:
+fuels = "0.45"
+fuels-core = "0.45"
+
 futures = "0.3"
 hex = "0.4"
 home = "0.5.3"
@@ -33,3 +38,4 @@ path = "src/lib.rs"
 [[bin]]
 name = "forc-wallet"
 path = "src/main.rs"
+
