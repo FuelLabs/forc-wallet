@@ -12,14 +12,13 @@ anyhow = "1.0"
 clap = { version = "4.2.4", features = ["derive"] }
 eth-keystore = { version = "0.5" }
 
-# Depednencies from the `fuel-vm` repository:
-# For dependencies from the `fuel-vm` repository, we need to use the same version as the `fuels-rs upgrade/fuel-core-master`.
-fuel-crypto = { version = "0.35" }
-fuel-types = { version = "0.35" }
+# Dependencies from the `fuel-vm` repository:
+fuel-crypto = "0.35"
+fuel-types = "0.35"
 
-# Depednencies from the `fuels-rs` repository:
-fuels = { version = "0.44" }
-fuels-core = { version = "0.44" }
+# Dependencies from the `fuels-rs` repository:
+fuels = "0.45"
+fuels-core = "0.45"
 
 futures = "0.3"
 hex = "0.4"
@@ -40,7 +39,3 @@ path = "src/lib.rs"
 name = "forc-wallet"
 path = "src/main.rs"
 
-# Keep it until release of the `fuels-rs`.
-[patch.crates-io]
-fuels = { git = "https://github.com/FuelLabs/fuels-rs", branch = "upgrade/fuel-core-v0.20.1" }
-fuels-core = { git = "https://github.com/FuelLabs/fuels-rs", branch = "upgrade/fuel-core-v0.20.1" }
