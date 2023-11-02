@@ -12,7 +12,6 @@ use fuels::{
     prelude::*,
     types::bech32::FUEL_BECH32_HRP,
 };
-use fuels_core::constants::{DEFAULT_GAS_LIMIT, DEFAULT_GAS_PRICE, DEFAULT_MATURITY};
 use std::{
     collections::BTreeMap,
     fmt, fs,
@@ -113,11 +112,11 @@ pub(crate) struct Transfer {
     asset_id: AssetId,
     #[clap(long, default_value_t = crate::network::DEFAULT.parse().unwrap())]
     node_url: Url,
-    #[clap(long, default_value_t = DEFAULT_GAS_PRICE)]
-    gas_price: u64,
-    #[clap(long, default_value_t = DEFAULT_GAS_LIMIT)]
-    gas_limit: u64,
-    #[clap(long, default_value_t = DEFAULT_MATURITY)]
+    #[clap(long)]
+    gas_price: Option<u64>,
+    #[clap(long)]
+    gas_limit: Option<u64>,
+    #[clap(long, default_value_t = 0)]
     maturity: u32,
 }
 
