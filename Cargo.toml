@@ -28,8 +28,8 @@ fuel-crypto = { version = "0.35" }
 fuel-types = { version = "0.35" }
 
 # Depednencies from the `fuels-rs` repository:
-fuels = { version = "0.49" }
-fuels-core = { version = "0.49" }
+fuels = { version = "0.50.1" }
+fuels-core = { version = "0.50.1" }
 
 [lib]
 name = "forc_wallet"
@@ -41,5 +41,5 @@ path = "src/main.rs"
 
 # Keep it until release of the `fuels-rs`.
 [patch.crates-io]
-fuels = { git = "https://github.com/FuelLabs/fuels-rs", branch = "upgrade/fuel-core-master" }
-fuels-core = { git = "https://github.com/FuelLabs/fuels-rs", branch = "upgrade/fuel-core-master" }
+fuels = { git = "https://github.com/FuelLabs/fuels-rs", branch = "upgrade/fuel-core-master-draft" }
+fuels-core = { git = "https://github.com/FuelLabs/fuels-rs", branch = "upgrade/fuel-core-master-draft" }
