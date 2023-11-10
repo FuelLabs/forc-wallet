@@ -11,6 +11,15 @@ description = "A forc plugin for generating or importing wallets using BIP39 phr
 anyhow = "1.0"
 clap = { version = "4.2.4", features = ["derive"] }
 eth-keystore = { version = "0.5" }
+
+# Dependencies from the `fuel-vm` repository:
+fuel-crypto = "0.35.4"
+fuel-types = "0.35.4"
+
+# Dependencies from the `fuels-rs` repository:
+fuels = "0.50.1"
+fuels-core = "0.50.1"
+
 futures = "0.3"
 hex = "0.4"
 home = "0.5.3"
@@ -21,15 +30,6 @@ termion = "2.0"
 tiny-bip39 = "1.0"
 tokio = { version = "1.10.1", features = ["full"] }
 url = "2.3"
-
-# Dependencies from the `fuel-vm` repository:
-fuel-crypto = "0.35.4"
-fuel-types = "0.35.4"
-
-# Dependencies from the `fuels-rs` repository:
-fuels = "0.50.1"
-fuels-core = "0.50.1"
-
 
 [lib]
 name = "forc_wallet"
