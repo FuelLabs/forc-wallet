@@ -46,7 +46,7 @@ pub struct Account {
 #[derive(Debug, Args)]
 pub(crate) struct Fmt {
     /// Option for public key to be displayed as hex / bytes.
-    ///  
+    ///
     /// pass in --as-hex for this alternative display.
     #[clap(long)]
     as_hex: bool,
@@ -484,7 +484,13 @@ pub(crate) async fn transfer_cli(
             &to,
             1,
             Default::default(),
-            TxParameters::new(transfer.gas_price, transfer.gas_limit, transfer.maturity),
+            TxPolicies::new(
+                transfer.gas_price,
+                None,
+                transfer.maturity,
+                None,
+                transfer.gas_limit,
+            ),
         )
         .await?;
 

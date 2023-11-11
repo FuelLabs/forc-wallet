@@ -39,7 +39,7 @@ pub fn load_wallet(wallet_path: &Path) -> Result<EthKeystore> {
         anyhow!(
             "Failed to load a wallet from {wallet_path:?}: {e}.\n\
             Please be sure to initialize a wallet before creating an account.\n\
-            To initialize a wallet, use `forc-wallet init`"
+            To initialize a wallet, use `forc-wallet new`"
         )
     })?;
     let reader = std::io::BufReader::new(file);
