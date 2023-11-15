@@ -12,11 +12,11 @@ anyhow = "1.0"
 clap = { version = "4.2.4", features = ["derive"] }
 eth-keystore = { version = "0.5" }
 
-# Depednencies from the `fuel-vm` repository:
+# Dependencies from the `fuel-vm` repository:
 fuel-crypto = { version = "0.42.0" }
 fuel-types = { version = "0.42.0" }
 
-# Depednencies from the `fuels-rs` repository:
+# Dependencies from the `fuels-rs` repository:
 fuels = { version = "0.50.1" }
 fuels-core = { version = "0.50.1" }
 
