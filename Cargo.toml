@@ -12,13 +12,13 @@ anyhow = "1.0"
 clap = { version = "4.2.4", features = ["derive"] }
 eth-keystore = { version = "0.5" }
 
-# Dependencies from the `fuel-vm` repository:
-fuel-crypto = "0.35.4"
-fuel-types = "0.35.4"
+# Depednencies from the `fuel-vm` repository:
+fuel-crypto = { version = "0.41.0" }
+fuel-types = { version = "0.41.0" }
 
-# Dependencies from the `fuels-rs` repository:
-fuels = "0.50.1"
-fuels-core = "0.50.1"
+# Depednencies from the `fuels-rs` repository:
+fuels = { version = "0.50.1" }
+fuels-core = { version = "0.50.1" }
 
 futures = "0.3"
 hex = "0.4"
@@ -38,3 +38,13 @@ path = "src/lib.rs"
 [[bin]]
 name = "forc-wallet"
 path = "src/main.rs"
+
+# Keep it until release of the `fuels-rs`.
+[patch.crates-io]
+fuels-core = { git = "https://github.com/FuelLabs/fuels-rs", branch = "hal3e/transaction-policies" }
+fuels = { git = "https://github.com/FuelLabs/fuels-rs", branch = "hal3e/transaction-policies" }
+fuel-crypto = { git = "https://github.com/FuelLabs/fuel-vm/", branch = "master" }
+fuel-types = { git = "https://github.com/FuelLabs/fuel-vm/", branch = "master" }
+fuel-asm = { git = "https://github.com/FuelLabs/fuel-vm/", branch = "master" }
+fuel-tx = { git = "https://github.com/FuelLabs/fuel-vm/", branch = "master" }
+fuel-vm = { git = "https://github.com/FuelLabs/fuel-vm/", branch = "master" }
