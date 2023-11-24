@@ -13,8 +13,8 @@ clap = { version = "4.2.4", features = ["derive"] }
 eth-keystore = { version = "0.5" }
 
 # Dependencies from the `fuel-vm` repository:
-fuel-crypto = { version = "0.42.0" }
-fuel-types = { version = "0.42.0" }
+fuel-crypto = { version = "0.43.0" }
+fuel-types = { version = "0.43.0" }
 
 # Dependencies from the `fuels-rs` repository:
 fuels = { version = "0.51.0" }
@@ -38,3 +38,7 @@ path = "src/lib.rs"
 [[bin]]
 name = "forc-wallet"
 path = "src/main.rs"
+
+[patch.crates-io]
+fuels = { git = "https://github.com/FuelLabs/fuels-rs", branch = "hal3e/tx-status-log-and-response" }
+fuels-core = { git = "https://github.com/FuelLabs/fuels-rs", branch = "hal3e/tx-status-log-and-response" }
