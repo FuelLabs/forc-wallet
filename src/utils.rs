@@ -199,13 +199,12 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    fn write_wallet_to_existing_file_should_fail() {
+    fn write_wallet_to_existing_file_with_force() {
         with_tmp_dir(|tmp_dir| {
             let wallet_path = tmp_dir.join("wallet.json");
             write_wallet_from_mnemonic_and_password(&wallet_path, false, TEST_MNEMONIC, TEST_PASSWORD)
                 .unwrap();
-            write_wallet_from_mnemonic_and_password(&wallet_path, false, TEST_MNEMONIC, TEST_PASSWORD)
+            write_wallet_from_mnemonic_and_password(&wallet_path, true, TEST_MNEMONIC, TEST_PASSWORD)
                 .unwrap();
         })
     }
