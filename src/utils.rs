@@ -102,9 +102,7 @@ pub(crate) fn write_wallet_from_mnemonic_and_password(
     password: &str,
 ) -> Result<()> {
     if wallet_path.exists() {
-        if force_write {
-            fs::remove_file(wallet_path)?;
-        } else {
+        if !force_write {
             println!(
                 "There is an existing wallet at {wallet_path:?}. \
                 Do you wish to replace it with a new wallet? (y/N) "
@@ -112,14 +110,11 @@ pub(crate) fn write_wallet_from_mnemonic_and_password(
             let mut need_replace = String::new();
             stdin().read_line(&mut need_replace)?;
             let need_replace_real = need_replace.trim();
-            if need_replace_real == "N" || need_replace_real == "n" {
+            if need_replace_real != "Y" && need_replace_real != "y" {
                 return Ok(())
-            } else if need_replace_real == "Y" || need_replace_real == "y" {
-                fs::remove_file(wallet_path)?;
-            } else {
-                bail!("invalid input: [{}]", need_replace_real)
             }
         }
+        fs::remove_file(wallet_path)?;
     }
 
     // Ensure the parent directory exists.
