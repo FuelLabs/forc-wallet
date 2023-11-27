@@ -12,7 +12,7 @@ pub use forc_wallet::network;
 use crate::{
     account::{Account, Accounts},
     import::import_wallet_cli,
-    new::new_wallet_cli,
+    new::{New, new_wallet_cli},
     sign::Sign,
 };
 use anyhow::Result;
@@ -38,7 +38,9 @@ enum Command {
     /// Create a new wallet from a random mnemonic phrase.
     ///
     /// If a `--path` is specified, the wallet will be created at this location.
-    New,
+    /// 
+    /// If a '--fore' is specified, will automatically removes the existing wallet at the same path.
+    New(New),
     /// Import a wallet from the provided mnemonic phrase.
     ///
     /// If a `--path` is specified, the wallet will be imported to this location.
@@ -71,6 +73,9 @@ const EXAMPLES: &str = r#"
 EXAMPLES:
     # Create a new wallet at the default path `~/.fuel/wallets/.wallet`.
     forc wallet new
+
+    # Create a new wallet and automatically replace the existing wallet if it's at the same path.
+    forc wallet new --force
 
     # Import a new wallet from a mnemonic phrase.
     forc wallet import
@@ -122,7 +127,7 @@ async fn main() -> Result<()> {
     let app = App::parse();
     let wallet_path = app.wallet_path.unwrap_or_else(utils::default_wallet_path);
     match app.cmd {
-        Command::New => new_wallet_cli(&wallet_path)?,
+        Command::New(new) => new_wallet_cli(&wallet_path, new)?,
         Command::Import => import_wallet_cli(&wallet_path)?,
         Command::Accounts(accounts) => account::print_accounts_cli(&wallet_path, accounts)?,
         Command::Account(account) => account::cli(&wallet_path, account).await?,

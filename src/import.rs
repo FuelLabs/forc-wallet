@@ -16,7 +16,7 @@ pub fn import_wallet_cli(wallet_path: &Path) -> Result<()> {
     let mnemonic = rpassword::prompt_password("Please enter your mnemonic phrase: ")?;
     check_mnemonic(&mnemonic)?;
     let password = request_new_password();
-    write_wallet_from_mnemonic_and_password(wallet_path, &mnemonic, &password)?;
+    write_wallet_from_mnemonic_and_password(wallet_path, false, &mnemonic, &password)?;
     Ok(())
 }
 

@@ -4,7 +4,7 @@ use fuels::accounts::wallet::DEFAULT_DERIVATION_PATH_PREFIX;
 use home::home_dir;
 use std::{
     fs,
-    io::{Read, Write},
+    io::{stdin, Read, Write},
     path::{Path, PathBuf},
 };
 
@@ -97,15 +97,29 @@ pub(crate) fn display_string_discreetly(
 /// [1]: https://ethereum.org/en/developers/docs/data-structures-and-encoding/web3-secret-storage.
 pub(crate) fn write_wallet_from_mnemonic_and_password(
     wallet_path: &Path,
+    force_write: bool,
     mnemonic: &str,
     password: &str,
 ) -> Result<()> {
-    // Ensure we're not overwriting an existing wallet or other file.
     if wallet_path.exists() {
-        bail!(
-            "File or directory already exists at {wallet_path:?}. \
-            Remove the existing file, or provide a different path."
-        );
+        if force_write {
+            fs::remove_file(wallet_path)?;
+        } else {
+            println!(
+                "There is an existing wallet at {wallet_path:?}. \
+                Do you wish to replace it with a new wallet? (y/N) "
+            );
+            let mut need_replace = String::new();
+            stdin().read_line(&mut need_replace)?;
+            let need_replace_real = need_replace.trim();
+            if need_replace_real == "N" || need_replace_real == "n" {
+                return Ok(())
+            } else if need_replace_real == "Y" || need_replace_real == "y" {
+                fs::remove_file(wallet_path)?;
+            } else {
+                bail!("invalid input: [{}]", need_replace_real)
+            }
+        }
     }
 
     // Ensure the parent directory exists.
@@ -142,7 +156,7 @@ mod tests {
         with_tmp_dir(|tmp_dir| {
             let tmp_dir_abs = tmp_dir.canonicalize().unwrap();
             let wallet_path = tmp_dir_abs.join("wallet.json");
-            write_wallet_from_mnemonic_and_password(&wallet_path, TEST_MNEMONIC, TEST_PASSWORD)
+            write_wallet_from_mnemonic_and_password(&wallet_path, false, TEST_MNEMONIC, TEST_PASSWORD)
                 .unwrap();
             load_wallet(&wallet_path).unwrap();
         })
@@ -152,7 +166,7 @@ mod tests {
     fn handle_relative_path_argument() {
         let wallet_path = Path::new("test-wallet.json");
         let panic = std::panic::catch_unwind(|| {
-            write_wallet_from_mnemonic_and_password(wallet_path, TEST_MNEMONIC, TEST_PASSWORD)
+            write_wallet_from_mnemonic_and_password(wallet_path, false, TEST_MNEMONIC, TEST_PASSWORD)
                 .unwrap();
             load_wallet(wallet_path).unwrap();
         });
@@ -171,7 +185,7 @@ mod tests {
     fn encrypt_and_save_phrase() {
         with_tmp_dir(|tmp_dir| {
             let wallet_path = tmp_dir.join("wallet.json");
-            write_wallet_from_mnemonic_and_password(&wallet_path, TEST_MNEMONIC, TEST_PASSWORD)
+            write_wallet_from_mnemonic_and_password(&wallet_path, false, TEST_MNEMONIC, TEST_PASSWORD)
                 .unwrap();
             let phrase_recovered = eth_keystore::decrypt_key(wallet_path, TEST_PASSWORD).unwrap();
             let phrase = String::from_utf8(phrase_recovered).unwrap();
@@ -183,7 +197,7 @@ mod tests {
     fn write_wallet() {
         with_tmp_dir(|tmp_dir| {
             let wallet_path = tmp_dir.join("wallet.json");
-            write_wallet_from_mnemonic_and_password(&wallet_path, TEST_MNEMONIC, TEST_PASSWORD)
+            write_wallet_from_mnemonic_and_password(&wallet_path, false, TEST_MNEMONIC, TEST_PASSWORD)
                 .unwrap();
             load_wallet(&wallet_path).unwrap();
         })
@@ -194,9 +208,9 @@ mod tests {
     fn write_wallet_to_existing_file_should_fail() {
         with_tmp_dir(|tmp_dir| {
             let wallet_path = tmp_dir.join("wallet.json");
-            write_wallet_from_mnemonic_and_password(&wallet_path, TEST_MNEMONIC, TEST_PASSWORD)
+            write_wallet_from_mnemonic_and_password(&wallet_path, false, TEST_MNEMONIC, TEST_PASSWORD)
                 .unwrap();
-            write_wallet_from_mnemonic_and_password(&wallet_path, TEST_MNEMONIC, TEST_PASSWORD)
+            write_wallet_from_mnemonic_and_password(&wallet_path, false, TEST_MNEMONIC, TEST_PASSWORD)
                 .unwrap();
         })
     }
@@ -205,7 +219,7 @@ mod tests {
     fn write_wallet_subdir() {
         with_tmp_dir(|tmp_dir| {
             let wallet_path = tmp_dir.join("path").join("to").join("wallet");
-            write_wallet_from_mnemonic_and_password(&wallet_path, TEST_MNEMONIC, TEST_PASSWORD)
+            write_wallet_from_mnemonic_and_password(&wallet_path, false, TEST_MNEMONIC, TEST_PASSWORD)
                 .unwrap();
             load_wallet(&wallet_path).unwrap();
         })
@@ -237,7 +251,7 @@ pub(crate) mod test_utils {
 
     /// Saves a default test mnemonic to the disk
     pub(crate) fn save_dummy_wallet_file(wallet_path: &Path) {
-        write_wallet_from_mnemonic_and_password(wallet_path, TEST_MNEMONIC, TEST_PASSWORD).unwrap();
+        write_wallet_from_mnemonic_and_password(wallet_path, false, TEST_MNEMONIC, TEST_PASSWORD).unwrap();
     }
 
     /// The same as `with_tmp_dir`, but also provides a test wallet.
