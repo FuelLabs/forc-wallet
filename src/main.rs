@@ -11,7 +11,7 @@ pub use forc_wallet::network;
 
 use crate::{
     account::{Account, Accounts},
-    import::import_wallet_cli,
+    import::{Import, import_wallet_cli},
     new::{New, new_wallet_cli},
     sign::Sign,
 };
@@ -44,7 +44,9 @@ enum Command {
     /// Import a wallet from the provided mnemonic phrase.
     ///
     /// If a `--path` is specified, the wallet will be imported to this location.
-    Import,
+    /// 
+    /// If a '--fore' is specified, will automatically removes the existing wallet at the same path.
+    Import(Import),
     /// Lists all accounts derived for the wallet so far.
     ///
     /// Note that this only includes accounts that have been previously derived
@@ -79,6 +81,9 @@ EXAMPLES:
 
     # Import a new wallet from a mnemonic phrase.
     forc wallet import
+
+    # Import a new wallet from a mnemonic phrase and automatically replace the existing wallet if it's at the same path.
+    forc wallet import --force
 
     # Derive a new account for the default wallet.
     forc wallet account new
@@ -128,7 +133,7 @@ async fn main() -> Result<()> {
     let wallet_path = app.wallet_path.unwrap_or_else(utils::default_wallet_path);
     match app.cmd {
         Command::New(new) => new_wallet_cli(&wallet_path, new)?,
-        Command::Import => import_wallet_cli(&wallet_path)?,
+        Command::Import(import) => import_wallet_cli(&wallet_path, import)?,
         Command::Accounts(accounts) => account::print_accounts_cli(&wallet_path, accounts)?,
         Command::Account(account) => account::cli(&wallet_path, account).await?,
         Command::Sign(sign) => sign::cli(&wallet_path, sign)?,

@@ -1,7 +1,19 @@
 use crate::utils::{request_new_password, write_wallet_from_mnemonic_and_password};
 use anyhow::{bail, Result};
 use fuels::accounts::wallet::WalletUnlocked;
-use std::path::Path;
+use std::{
+    fs,
+    io::stdin,
+    path::Path, 
+};
+use clap::Args;
+
+#[derive(Debug, Args)]
+pub struct Import {
+    /// Set true to automatically replace the existing wallet
+    #[clap(short, long)]
+    force: bool,
+}
 
 /// Check if given mnemonic is valid by trying to create a `WalletUnlocked` from it
 fn check_mnemonic(mnemonic: &str) -> Result<()> {
@@ -12,12 +24,32 @@ fn check_mnemonic(mnemonic: &str) -> Result<()> {
     Ok(())
 }
 
-pub fn import_wallet_cli(wallet_path: &Path) -> Result<()> {
+pub fn import_wallet_cli(wallet_path: &Path, import: Import) -> Result<()> {
+    if wallet_path.exists() {
+        if import.force {
+            fs::remove_file(wallet_path)?;
+        } else {
+            println!(
+                "There is an existing wallet at {wallet_path:?}. \
+                Do you wish to replace it with a new wallet? (y/N) "
+            );
+            let mut need_replace = String::new();
+            stdin().read_line(&mut need_replace)?;
+            if need_replace.trim() == "y" {
+                fs::remove_file(wallet_path)?;
+            } else {
+                bail!(
+                    "File or directory already exists at {wallet_path:?}. \
+                    Remove the existing file, or provide a different path."
+                );
+            }
+        }
+    }
+    
     let mnemonic = rpassword::prompt_password("Please enter your mnemonic phrase: ")?;
     check_mnemonic(&mnemonic)?;
     let password = request_new_password();
-    let force_write = false;
-    write_wallet_from_mnemonic_and_password(wallet_path, force_write, &mnemonic, &password)?;
+    write_wallet_from_mnemonic_and_password(wallet_path, &mnemonic, &password)?;
     Ok(())
 }
 
