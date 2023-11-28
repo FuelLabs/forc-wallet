@@ -100,9 +100,10 @@ pub(crate) fn write_wallet_from_mnemonic_and_password(
     mnemonic: &str,
     password: &str,
 ) -> Result<()> {
+    // Ensure we're not overwriting an existing wallet or other file.
     // As we have check the wallet path above, there should be no existing wallet. 
     // In case it exists(as there is an interactive inputting password or inputting mnemonic phrase flow above, 
-    // there maybe another process come here), return error
+    // there maybe another processes come here), return error
     if wallet_path.exists() {
         bail!(
             "File or directory already exists at {wallet_path:?}. \
@@ -154,7 +155,7 @@ mod tests {
     fn handle_relative_path_argument() {
         let wallet_path = Path::new("test-wallet.json");
         let panic = std::panic::catch_unwind(|| {
-            write_wallet_from_mnemonic_and_password(&wallet_path, TEST_MNEMONIC, TEST_PASSWORD)
+            write_wallet_from_mnemonic_and_password(wallet_path, TEST_MNEMONIC, TEST_PASSWORD)
                 .unwrap();
             load_wallet(wallet_path).unwrap();
         });
