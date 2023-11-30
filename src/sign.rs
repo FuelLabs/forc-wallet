@@ -1,7 +1,7 @@
 use crate::account;
 use anyhow::{bail, Context, Result};
 use clap::{Args, Subcommand};
-use fuel_crypto::{Message, SecretKey, Signature};
+use fuel_crypto::{Message, PublicKey, SecretKey, Signature};
 use fuel_types::Bytes32;
 use rpassword::prompt_password;
 use std::{
@@ -58,6 +58,18 @@ pub enum Data {
     /// The string may optionally start with the `0x` prefix which will be
     /// discarded before decoding and signing the remainder of the string.
     Hex { hex_string: String },
+}
+
+/// Recover pubkey
+#[derive(Debug, Args)]
+pub struct Recover {
+    /// Uses a discrete interactive prompt for password input.
+    #[clap(long)]
+    pub message: String,
+    /// Sign using a private key.
+    /// Uses a discrete interactive prompt for collecting the private key.
+    #[clap(long)]
+    pub signature: Signature,
 }
 
 pub fn cli(wallet_path: &Path, sign: Sign) -> Result<()> {
@@ -179,6 +191,17 @@ fn bytes_from_hex_str(mut hex_str: &str) -> Result<Vec<u8>> {
     hex::decode(hex_str).context("failed to decode bytes from hex string")
 }
 
+pub fn recover_public_key_cli(recover: Recover) -> Result<()> {
+    let msg = Message::new(&recover.message);
+    let public_key = recover_public_key(msg, recover.signature)?;
+    println!("Public key: {}", public_key);
+    Ok(())
+}
+fn recover_public_key(message: Message, sig: Signature) -> Result<PublicKey> {
+    let public_key = Signature::recover(&sig, &message)?;
+    Ok(public_key)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -236,6 +259,18 @@ mod tests {
             let sig =
                 sign_msg_with_wallet_account(wallet_path, account_ix, &msg, TEST_PASSWORD).unwrap();
             assert_eq!(sig.to_string(), EXPECTED_SIG);
+        });
+    }
+    #[test]
+    fn recover_key() {
+        with_tmp_dir_and_wallet(|_dir, wallet_path| {
+            let msg = Message::new(TEST_STR);
+            let account_ix = 0;
+            let sig =
+                sign_msg_with_wallet_account(wallet_path, account_ix, &msg, TEST_PASSWORD).unwrap();
+            let public_key = recover_public_key(msg, sig).unwrap();
+
+            assert_eq!(public_key.to_string(), "13858749b644c470791c21f87f6aeca8c5583ca29295a55b4579de643e16f57ecc1869925c49bdcf43f06c459b6c3c1aeaf54ad835cc638c869c1015c5c17d5a");
         });
     }
 }

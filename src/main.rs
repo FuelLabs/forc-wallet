@@ -13,7 +13,7 @@ use crate::{
     account::{Account, Accounts},
     import::import_wallet_cli,
     new::new_wallet_cli,
-    sign::Sign,
+    sign::{Recover, Sign},
 };
 use anyhow::Result;
 use clap::{Parser, Subcommand};
@@ -64,6 +64,8 @@ enum Command {
     /// Only includes accounts that have been previously derived, i.e. those
     /// that show under `forc-wallet accounts`.
     Balance(Balance),
+    ///Recover the public key from a message and signature
+    Recover(Recover),
 }
 
 const ABOUT: &str = "A forc plugin for generating or importing wallets using BIP39 phrases.";
@@ -115,6 +117,10 @@ EXAMPLES:
     # Transfer 1 token of the base asset id to a hex address at the gas price of 1. 
     forc wallet account 0 transfer --to 0x0b8d0f6a7f271919708530d11bdd9398205137e012424b611e9d97118c180bea 
     --amount 1 --asset-id 0x0000000000000000000000000000000000000000000000000000000000000000 --gas-price 1
+
+    # Recover a public key from signature and hash
+    forc wallet recover --message "Blah blah blah" --signature 0xb0b2f29b52d95c1cba47ea7c7edeec6c84a0bd196df489e219f6f388b69d760479b994f4bae2d5f2abef7d5faf7d9f5ee3ea47ada4d15b7a7ee2777dcd7b36bb 
+
 "#;
 
 #[tokio::main]
@@ -127,6 +133,7 @@ async fn main() -> Result<()> {
         Command::Accounts(accounts) => account::print_accounts_cli(&wallet_path, accounts)?,
         Command::Account(account) => account::cli(&wallet_path, account).await?,
         Command::Sign(sign) => sign::cli(&wallet_path, sign)?,
+        Command::Recover(recover) => sign::recover_public_key_cli(recover)?,
         Command::Balance(balance) => balance::cli(&wallet_path, &balance).await?,
     }
     Ok(())
