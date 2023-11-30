@@ -1,7 +1,7 @@
 use crate::utils::{request_new_password, write_wallet_from_mnemonic_and_password, should_replace_wallet};
 use anyhow::{bail, Result};
 use fuels::accounts::wallet::WalletUnlocked;
-use std::path::Path;
+use std::{path::Path, io::stdin};
 use clap::Args;
 
 #[derive(Debug, Args)]
@@ -21,7 +21,7 @@ fn check_mnemonic(mnemonic: &str) -> Result<()> {
 }
 
 pub fn import_wallet_cli(wallet_path: &Path, import: Import) -> Result<()> {
-    if !should_replace_wallet(wallet_path, import.force) {
+    if !should_replace_wallet(wallet_path, import.force, stdin().lock()) {
         return Ok(());
     }
 

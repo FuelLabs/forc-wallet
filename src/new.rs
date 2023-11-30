@@ -2,7 +2,7 @@ use crate::utils::{
     display_string_discreetly, request_new_password, write_wallet_from_mnemonic_and_password, should_replace_wallet
 };
 use fuels::prelude::*;
-use std::path::Path;
+use std::{path::Path, io::stdin};
 use clap::Args;
 
 #[derive(Debug, Args)]
@@ -13,7 +13,7 @@ pub struct New {
 }
 
 pub fn new_wallet_cli(wallet_path: &Path, new: New) -> anyhow::Result<()> {
-    if !should_replace_wallet(wallet_path, new.force) {
+    if !should_replace_wallet(wallet_path, new.force, stdin().lock()) {
         return Ok(());
     }
     let password = request_new_password();

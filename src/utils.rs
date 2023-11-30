@@ -4,8 +4,7 @@ use fuels::accounts::wallet::DEFAULT_DERIVATION_PATH_PREFIX;
 use home::home_dir;
 use std::{
     fs,
-    io::stdin,
-    io::{Read, Write},
+    io::{Read, Write, BufRead},
     path::{Path, PathBuf},
 };
 use forc_tracing::{println_warning, println_red_err};
@@ -137,7 +136,12 @@ pub(crate) fn write_wallet_from_mnemonic_and_password(
     .map(|_| ())
 }
 
-pub(crate) fn should_replace_wallet(wallet_path: &Path, force: bool) -> bool {
+/// Determine whether to replace an existing wallet
+///
+/// If return true and there is an existing wallet, will be remove first
+/// 
+/// If return false, nothing changes
+pub(crate) fn should_replace_wallet(wallet_path: &Path, force: bool, mut reader: impl BufRead) -> bool {
     if wallet_path.exists() {
         if force {
             fs::remove_file(wallet_path).unwrap();
@@ -148,7 +152,7 @@ pub(crate) fn should_replace_wallet(wallet_path: &Path, force: bool) -> bool {
                 wallet_path.display(),
             ));
             let mut need_replace = String::new();
-            stdin().read_line(&mut need_replace).unwrap();
+            reader.read_line(&mut need_replace).unwrap();
             if need_replace.trim() == "y" {
                 fs::remove_file(wallet_path).unwrap();
             } else {
@@ -240,6 +244,44 @@ mod tests {
             write_wallet_from_mnemonic_and_password(&wallet_path, TEST_MNEMONIC, TEST_PASSWORD)
                 .unwrap();
             load_wallet(&wallet_path).unwrap();
+        })
+    }
+
+    #[test]
+    fn test_should_replace_wallet() {
+        with_tmp_dir(|tmp_dir| {
+            let wallet_path = tmp_dir.join("wallet.json");
+            // simulate input
+            let input_nop = b"\n";
+            let input_yes = b"y\n";
+            let input_no = b"n\n";
+            // case: wallet path not exist
+            assert_eq!(
+                should_replace_wallet(&wallet_path, false, &input_nop[..]),
+                true
+            );
+        
+            fs::File::create(&wallet_path).unwrap();
+        
+            // case: wallet path exist without --force and input[no]
+            assert_eq!(
+                should_replace_wallet(&wallet_path, false, &input_no[..]),
+                false
+            );
+        
+            // case: wallet path exist without --force and input[yes]
+            assert_eq!(
+                should_replace_wallet(&wallet_path, true, &input_yes[..]),
+                true
+            );
+            
+            fs::File::create(&wallet_path).unwrap();
+            
+            // case: wallet path exist with --force
+            assert_eq!(
+                should_replace_wallet(&wallet_path, true, &input_nop[..]),
+                true
+            );
         })
     }
 }
