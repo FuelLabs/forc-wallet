@@ -12,7 +12,7 @@ use forc_tracing::{println_warning, println_red_err};
 
 #[derive(Debug, Args)]
 pub struct New {
-    /// Set true to automatically replace the existing wallet
+    /// Forces wallet creation, removing any existing wallet file
     #[clap(short, long)]
     force: bool,
 }
