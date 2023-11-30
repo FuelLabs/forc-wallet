@@ -1,13 +1,8 @@
-use crate::utils::{request_new_password, write_wallet_from_mnemonic_and_password};
+use crate::utils::{request_new_password, write_wallet_from_mnemonic_and_password, should_replace_wallet};
 use anyhow::{bail, Result};
 use fuels::accounts::wallet::WalletUnlocked;
-use std::{
-    fs,
-    io::stdin,
-    path::Path, 
-};
+use std::path::Path;
 use clap::Args;
-use forc_tracing::{println_warning, println_red_err};
 
 #[derive(Debug, Args)]
 pub struct Import {
@@ -26,28 +21,8 @@ fn check_mnemonic(mnemonic: &str) -> Result<()> {
 }
 
 pub fn import_wallet_cli(wallet_path: &Path, import: Import) -> Result<()> {
-    if wallet_path.exists() {
-        if import.force {
-            fs::remove_file(wallet_path)?;
-        } else {
-            println_warning(
-                &format!("There is an existing wallet at {}. \
-                Do you wish to replace it with a new wallet? (y/N) ", 
-                wallet_path.display(),
-            ));
-            let mut need_replace = String::new();
-            stdin().read_line(&mut need_replace)?;
-            if need_replace.trim() == "y" {
-                fs::remove_file(wallet_path)?;
-            } else {
-                println_red_err(
-                    &format!("Failed to import a new wallet at {} \
-                    because a wallet already exists at that location.", 
-                    wallet_path.display(),
-                ));
-                return Ok(());
-            }
-        }
+    if !should_replace_wallet(wallet_path, import.force) {
+        return Ok(());
     }
 
     let mnemonic = rpassword::prompt_password("Please enter your mnemonic phrase: ")?;
