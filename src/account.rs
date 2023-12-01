@@ -116,8 +116,8 @@ pub(crate) struct Transfer {
     gas_price: Option<u64>,
     #[clap(long)]
     gas_limit: Option<u64>,
-    #[clap(long, default_value_t = 0)]
-    maturity: u32,
+    #[clap(long)]
+    maturity: Option<u64>,
 }
 
 #[derive(Debug, Clone)]
@@ -482,8 +482,8 @@ pub(crate) async fn transfer_cli(
     let (tx_id, receipts) = account
         .transfer(
             &to,
-            1,
-            Default::default(),
+            transfer.amount,
+            transfer.asset_id,
             TxPolicies::new(
                 transfer.gas_price,
                 None,
