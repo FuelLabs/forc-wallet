@@ -13,9 +13,7 @@ pub struct New {
 }
 
 pub fn new_wallet_cli(wallet_path: &Path, new: New) -> anyhow::Result<()> {
-    if !should_replace_wallet(wallet_path, new.force, stdin().lock()) {
-        return Ok(());
-    }
+    ensure_no_wallet_exists(wallet_path, new.force, stdin().lock())?;
     let password = request_new_password();
     // Generate a random mnemonic phrase.
     let mnemonic = generate_mnemonic_phrase(&mut rand::thread_rng(), 24)?;
