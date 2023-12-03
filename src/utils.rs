@@ -1,4 +1,4 @@
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{anyhow, bail, Context, Result, Ok};
 use eth_keystore::EthKeystore;
 use fuels::accounts::wallet::DEFAULT_DERIVATION_PATH_PREFIX;
 use home::home_dir;
@@ -7,7 +7,7 @@ use std::{
     io::{Read, Write, BufRead},
     path::{Path, PathBuf},
 };
-use forc_tracing::{println_warning, println_red_err};
+use forc_tracing::println_warning;
 
 /// The user's fuel directory (stores state related to fuel-core, wallet, etc).
 pub fn user_fuel_dir() -> PathBuf {
@@ -142,7 +142,7 @@ pub(crate) fn write_wallet_from_mnemonic_and_password(
 pub(crate) fn ensure_no_wallet_exists(wallet_path: &Path, force: bool, mut reader: impl BufRead) -> Result<()> {
     if wallet_path.exists() {
         if force {
-            println_warning("Because the `--force` argument was supplied, the wallet at {} will be removed.", wallet_path.display());
+            println_warning(&format!("Because the `--force` argument was supplied, the wallet at {} will be removed.", wallet_path.display()));
             fs::remove_file(wallet_path).unwrap();
         } else {
             println_warning(
@@ -155,22 +155,36 @@ pub(crate) fn ensure_no_wallet_exists(wallet_path: &Path, force: bool, mut reade
             if need_replace.trim() == "y" {
                 fs::remove_file(wallet_path).unwrap();
             } else {
-                println_red_err(
-                    &format!("Failed to create a new wallet at {} \
+                bail!(
+                    "Failed to create a new wallet at {} \
                     because a wallet already exists at that location.", 
                     wallet_path.display(),
-                ));
-                return false;
+                );
             }
         }
     }
-    true
+    Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::utils::test_utils::{with_tmp_dir, TEST_MNEMONIC, TEST_PASSWORD};
+    // simulate input
+    const INPUT_NOP: &[u8; 1] = b"\n";
+    const INPUT_YES: &[u8; 2] = b"y\n";
+    const INPUT_NO: &[u8; 2] = b"n\n";
+
+    fn remove_wallet(wallet_path: &Path) {
+        if wallet_path.exists() {
+            fs::remove_file(wallet_path).unwrap();
+        }
+    }
+    fn create_wallet(wallet_path: &Path) {
+        if !wallet_path.exists() {
+            fs::File::create(&wallet_path).unwrap();
+        }
+    }
 
     #[test]
     fn handle_absolute_path_argument() {
@@ -247,41 +261,41 @@ mod tests {
     }
 
     #[test]
-    fn test_should_replace_wallet() {
+    // case: wallet path not exist
+    fn test_ensure_no_wallet_exists_no_wallet() {
         with_tmp_dir(|tmp_dir| {
             let wallet_path = tmp_dir.join("wallet.json");
-            // simulate input
-            let input_nop = b"\n";
-            let input_yes = b"y\n";
-            let input_no = b"n\n";
-            // case: wallet path not exist
-            assert_eq!(
-                should_replace_wallet(&wallet_path, false, &input_nop[..]),
-                true
-            );
-        
-            fs::File::create(&wallet_path).unwrap();
-        
-            // case: wallet path exist without --force and input[no]
-            assert_eq!(
-                should_replace_wallet(&wallet_path, false, &input_no[..]),
-                false
-            );
-        
-            // case: wallet path exist without --force and input[yes]
-            assert_eq!(
-                should_replace_wallet(&wallet_path, true, &input_yes[..]),
-                true
-            );
-            
-            fs::File::create(&wallet_path).unwrap();
-            
-            // case: wallet path exist with --force
-            assert_eq!(
-                should_replace_wallet(&wallet_path, true, &input_nop[..]),
-                true
-            );
-        })
+            remove_wallet(&wallet_path);
+            ensure_no_wallet_exists(&wallet_path, false, &INPUT_NOP[..]).unwrap();
+        });
+    }
+
+    #[test]
+    #[should_panic]
+    // case: wallet path exist without --force and input[no]
+    fn test_ensure_no_wallet_exists_throws_err() {
+        with_tmp_dir(|tmp_dir| {
+            let wallet_path = tmp_dir.join("wallet.json");
+            create_wallet(&wallet_path);
+            ensure_no_wallet_exists(&wallet_path, false, &INPUT_NO[..]).unwrap();
+        });
+    }
+
+    #[test]
+    // case: wallet path exist
+    fn test_ensure_no_wallet_exists_exists_wallet() {
+        // case: wallet path exist without --force and input[yes]
+        with_tmp_dir(|tmp_dir| {
+            let wallet_path = tmp_dir.join("wallet.json");
+            create_wallet(&wallet_path);
+            ensure_no_wallet_exists(&wallet_path, false, &INPUT_YES[..]).unwrap();
+        });
+        // case: wallet path exist with --force
+        with_tmp_dir(|tmp_dir| {
+            let wallet_path = tmp_dir.join("wallet.json");
+            create_wallet(&wallet_path);
+            ensure_no_wallet_exists(&wallet_path, true, &INPUT_NOP[..]).unwrap();
+        });
     }
 }
 

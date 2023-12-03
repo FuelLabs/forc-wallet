@@ -18,7 +18,7 @@ use crate::{
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
-use forc_tracing::init_tracing_subscriber;
+use forc_tracing::{init_tracing_subscriber, println_error};
 
 #[derive(Debug, Parser)]
 #[clap(name = "forc wallet", about = ABOUT, after_long_help = EXAMPLES, version)]
@@ -129,8 +129,15 @@ EXAMPLES:
 "#;
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() {
     init_tracing_subscriber(Default::default());
+    if let Err(err) = run().await {
+        println_error(&format!("{}", err));
+        std::process::exit(1);
+    }
+}
+
+async fn run() -> Result<()> {
     let app = App::parse();
     let wallet_path = app.wallet_path.unwrap_or_else(utils::default_wallet_path);
     match app.cmd {

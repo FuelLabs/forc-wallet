@@ -1,5 +1,5 @@
 use crate::utils::{
-    display_string_discreetly, request_new_password, write_wallet_from_mnemonic_and_password, should_replace_wallet
+    display_string_discreetly, request_new_password, write_wallet_from_mnemonic_and_password, ensure_no_wallet_exists
 };
 use fuels::prelude::*;
 use std::{path::Path, io::stdin};

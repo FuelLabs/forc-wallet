@@ -1,4 +1,4 @@
-use crate::utils::{request_new_password, write_wallet_from_mnemonic_and_password, should_replace_wallet};
+use crate::utils::{request_new_password, write_wallet_from_mnemonic_and_password, ensure_no_wallet_exists};
 use anyhow::{bail, Result};
 use fuels::accounts::wallet::WalletUnlocked;
 use std::{path::Path, io::stdin};
@@ -21,9 +21,7 @@ fn check_mnemonic(mnemonic: &str) -> Result<()> {
 }
 
 pub fn import_wallet_cli(wallet_path: &Path, import: Import) -> Result<()> {
-    if !should_replace_wallet(wallet_path, import.force, stdin().lock()) {
-        return Ok(());
-    }
+    ensure_no_wallet_exists(wallet_path, import.force, stdin().lock())?;
 
     let mnemonic = rpassword::prompt_password("Please enter your mnemonic phrase: ")?;
     check_mnemonic(&mnemonic)?;
