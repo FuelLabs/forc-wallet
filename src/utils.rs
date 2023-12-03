@@ -136,11 +136,9 @@ pub(crate) fn write_wallet_from_mnemonic_and_password(
     .map(|_| ())
 }
 
-/// Determine whether to replace an existing wallet
-///
-/// If return true and there is an existing wallet, will be remove first
-/// 
-/// If return false, nothing changes
+/// Ensures there is no wallet at the given [Path], removing an existing wallet if the user has
+/// provided the `--force` option or chooses to remove it in the CLI interaction.
+/// Returns [Err] if there is an existing wallet and the user chooses not to remove it.
 pub(crate) fn ensure_no_wallet_exists(wallet_path: &Path, force: bool, mut reader: impl BufRead) -> Result<()> {
     if wallet_path.exists() {
         if force {
