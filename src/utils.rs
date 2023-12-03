@@ -144,6 +144,7 @@ pub(crate) fn write_wallet_from_mnemonic_and_password(
 pub(crate) fn should_replace_wallet(wallet_path: &Path, force: bool, mut reader: impl BufRead) -> bool {
     if wallet_path.exists() {
         if force {
+            println_warning("Because the `--force` argument was supplied, the wallet at {} will be removed.", wallet_path.display());
             fs::remove_file(wallet_path).unwrap();
         } else {
             println_warning(
