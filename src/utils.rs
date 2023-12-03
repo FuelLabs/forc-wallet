@@ -141,7 +141,7 @@ pub(crate) fn write_wallet_from_mnemonic_and_password(
 /// If return true and there is an existing wallet, will be remove first
 /// 
 /// If return false, nothing changes
-pub(crate) fn should_replace_wallet(wallet_path: &Path, force: bool, mut reader: impl BufRead) -> bool {
+pub(crate) fn ensure_no_wallet_exists(wallet_path: &Path, force: bool, mut reader: impl BufRead) -> Result<()> {
     if wallet_path.exists() {
         if force {
             println_warning("Because the `--force` argument was supplied, the wallet at {} will be removed.", wallet_path.display());
