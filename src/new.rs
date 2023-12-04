@@ -1,9 +1,10 @@
 use crate::utils::{
-    display_string_discreetly, request_new_password, write_wallet_from_mnemonic_and_password, ensure_no_wallet_exists
+    display_string_discreetly, ensure_no_wallet_exists, request_new_password,
+    write_wallet_from_mnemonic_and_password,
 };
-use fuels::prelude::*;
-use std::{path::Path, io::stdin};
 use clap::Args;
+use fuels::prelude::*;
+use std::{io::stdin, path::Path};
 
 #[derive(Debug, Args)]
 pub struct New {

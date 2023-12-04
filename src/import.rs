@@ -1,8 +1,10 @@
-use crate::utils::{request_new_password, write_wallet_from_mnemonic_and_password, ensure_no_wallet_exists};
+use crate::utils::{
+    ensure_no_wallet_exists, request_new_password, write_wallet_from_mnemonic_and_password,
+};
 use anyhow::{bail, Result};
-use fuels::accounts::wallet::WalletUnlocked;
-use std::{path::Path, io::stdin};
 use clap::Args;
+use fuels::accounts::wallet::WalletUnlocked;
+use std::{io::stdin, path::Path};
 
 #[derive(Debug, Args)]
 pub struct Import {

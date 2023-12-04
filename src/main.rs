@@ -11,14 +11,14 @@ pub use forc_wallet::network;
 
 use crate::{
     account::{Account, Accounts},
-    import::{Import, import_wallet_cli},
-    new::{New, new_wallet_cli},
+    import::{import_wallet_cli, Import},
+    new::{new_wallet_cli, New},
     sign::Sign,
 };
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-use std::path::PathBuf;
 use forc_tracing::{init_tracing_subscriber, println_error};
+use std::path::PathBuf;
 
 #[derive(Debug, Parser)]
 #[clap(name = "forc wallet", about = ABOUT, after_long_help = EXAMPLES, version)]
@@ -39,13 +39,13 @@ enum Command {
     /// Create a new wallet from a random mnemonic phrase.
     ///
     /// If a `--path` is specified, the wallet will be created at this location.
-    /// 
+    ///
     /// If a '--fore' is specified, will automatically removes the existing wallet at the same path.
     New(New),
     /// Import a wallet from the provided mnemonic phrase.
     ///
     /// If a `--path` is specified, the wallet will be imported to this location.
-    /// 
+    ///
     /// If a '--fore' is specified, will automatically removes the existing wallet at the same path.
     Import(Import),
     /// Lists all accounts derived for the wallet so far.

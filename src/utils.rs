@@ -1,13 +1,13 @@
-use anyhow::{anyhow, bail, Context, Result, Ok};
+use anyhow::{anyhow, bail, Context, Ok, Result};
 use eth_keystore::EthKeystore;
+use forc_tracing::println_warning;
 use fuels::accounts::wallet::DEFAULT_DERIVATION_PATH_PREFIX;
 use home::home_dir;
 use std::{
     fs,
-    io::{Read, Write, BufRead},
+    io::{BufRead, Read, Write},
     path::{Path, PathBuf},
 };
-use forc_tracing::println_warning;
 
 /// The user's fuel directory (stores state related to fuel-core, wallet, etc).
 pub fn user_fuel_dir() -> PathBuf {
@@ -102,8 +102,8 @@ pub(crate) fn write_wallet_from_mnemonic_and_password(
     password: &str,
 ) -> Result<()> {
     // Ensure we're not overwriting an existing wallet or other file.
-    // As we have check the wallet path above, there should be no existing wallet. 
-    // In case it exists(as there is an interactive inputting password or inputting mnemonic phrase flow above, 
+    // As we have check the wallet path above, there should be no existing wallet.
+    // In case it exists(as there is an interactive inputting password or inputting mnemonic phrase flow above,
     // there maybe another processes come here), return error
     if wallet_path.exists() {
         bail!(
@@ -139,15 +139,22 @@ pub(crate) fn write_wallet_from_mnemonic_and_password(
 /// Ensures there is no wallet at the given [Path], removing an existing wallet if the user has
 /// provided the `--force` option or chooses to remove it in the CLI interaction.
 /// Returns [Err] if there is an existing wallet and the user chooses not to remove it.
-pub(crate) fn ensure_no_wallet_exists(wallet_path: &Path, force: bool, mut reader: impl BufRead) -> Result<()> {
+pub(crate) fn ensure_no_wallet_exists(
+    wallet_path: &Path,
+    force: bool,
+    mut reader: impl BufRead,
+) -> Result<()> {
     if wallet_path.exists() {
         if force {
-            println_warning(&format!("Because the `--force` argument was supplied, the wallet at {} will be removed.", wallet_path.display()));
+            println_warning(&format!(
+                "Because the `--force` argument was supplied, the wallet at {} will be removed.",
+                wallet_path.display(),
+            ));
             fs::remove_file(wallet_path).unwrap();
         } else {
-            println_warning(
-                &format!("There is an existing wallet at {}. \
-                Do you wish to replace it with a new wallet? (y/N) ", 
+            println_warning(&format!(
+                "There is an existing wallet at {}. \
+                Do you wish to replace it with a new wallet? (y/N) ",
                 wallet_path.display(),
             ));
             let mut need_replace = String::new();
@@ -157,7 +164,7 @@ pub(crate) fn ensure_no_wallet_exists(wallet_path: &Path, force: bool, mut reade
             } else {
                 bail!(
                     "Failed to create a new wallet at {} \
-                    because a wallet already exists at that location.", 
+                    because a wallet already exists at that location.",
                     wallet_path.display(),
                 );
             }
