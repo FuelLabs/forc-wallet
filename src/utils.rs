@@ -189,7 +189,7 @@ mod tests {
     }
     fn create_wallet(wallet_path: &Path) {
         if !wallet_path.exists() {
-            fs::File::create(&wallet_path).unwrap();
+            fs::File::create(wallet_path).unwrap();
         }
     }
 
