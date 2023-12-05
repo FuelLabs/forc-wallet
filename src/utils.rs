@@ -102,9 +102,7 @@ pub(crate) fn write_wallet_from_mnemonic_and_password(
     password: &str,
 ) -> Result<()> {
     // Ensure we're not overwriting an existing wallet or other file.
-    // As we have check the wallet path above, there should be no existing wallet.
-    // In case it exists(as there is an interactive inputting password or inputting mnemonic phrase flow above,
-    // there maybe another processes come here), return error
+    // The wallet should have been removed in `ensure_no_wallet_exists`, but we check again to be safe.
     if wallet_path.exists() {
         bail!(
             "File or directory already exists at {wallet_path:?}. \
