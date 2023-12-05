@@ -298,6 +298,13 @@ mod tests {
             create_wallet(&wallet_path);
             ensure_no_wallet_exists(&wallet_path, true, &INPUT_NOP[..]).unwrap();
         });
+        // case: wallet path exist without --force and supply a different wallet path
+        with_tmp_dir(|tmp_dir| {
+            let wallet_path = tmp_dir.join("wallet.json");
+            create_wallet(&wallet_path);
+            let diff_wallet_path = tmp_dir.join("custom-wallet.json");
+            ensure_no_wallet_exists(&diff_wallet_path, false, &INPUT_NOP[..]).unwrap();
+        });
     }
 }
 
