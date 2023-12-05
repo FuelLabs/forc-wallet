@@ -266,7 +266,6 @@ mod tests {
     }
 
     #[test]
-    // case: wallet path not exist
     fn test_ensure_no_wallet_exists_no_wallet() {
         with_tmp_dir(|tmp_dir| {
             let wallet_path = tmp_dir.join("wallet.json");
