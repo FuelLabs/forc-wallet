@@ -285,7 +285,6 @@ mod tests {
     }
 
     #[test]
-    // case: wallet path exist
     fn test_ensure_no_wallet_exists_exists_wallet() {
         // case: wallet path exist without --force and input[yes]
         with_tmp_dir(|tmp_dir| {
