@@ -1,10 +1,11 @@
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{anyhow, bail, Context, Ok, Result};
 use eth_keystore::EthKeystore;
+use forc_tracing::println_warning;
 use fuels::accounts::wallet::DEFAULT_DERIVATION_PATH_PREFIX;
 use home::home_dir;
 use std::{
     fs,
-    io::{Read, Write},
+    io::{BufRead, Read, Write},
     path::{Path, PathBuf},
 };
 
@@ -101,6 +102,7 @@ pub(crate) fn write_wallet_from_mnemonic_and_password(
     password: &str,
 ) -> Result<()> {
     // Ensure we're not overwriting an existing wallet or other file.
+    // The wallet should have been removed in `ensure_no_wallet_exists`, but we check again to be safe.
     if wallet_path.exists() {
         bail!(
             "File or directory already exists at {wallet_path:?}. \
@@ -132,10 +134,62 @@ pub(crate) fn write_wallet_from_mnemonic_and_password(
     .map(|_| ())
 }
 
+/// Ensures there is no wallet at the given [Path], removing an existing wallet if the user has
+/// provided the `--force` option or chooses to remove it in the CLI interaction.
+/// Returns [Err] if there is an existing wallet and the user chooses not to remove it.
+pub(crate) fn ensure_no_wallet_exists(
+    wallet_path: &Path,
+    force: bool,
+    mut reader: impl BufRead,
+) -> Result<()> {
+    if wallet_path.exists() {
+        if force {
+            println_warning(&format!(
+                "Because the `--force` argument was supplied, the wallet at {} will be removed.",
+                wallet_path.display(),
+            ));
+            fs::remove_file(wallet_path).unwrap();
+        } else {
+            println_warning(&format!(
+                "There is an existing wallet at {}. \
+                Do you wish to replace it with a new wallet? (y/N) ",
+                wallet_path.display(),
+            ));
+            let mut need_replace = String::new();
+            reader.read_line(&mut need_replace).unwrap();
+            if need_replace.trim() == "y" {
+                fs::remove_file(wallet_path).unwrap();
+            } else {
+                bail!(
+                    "Failed to create a new wallet at {} \
+                    because a wallet already exists at that location.",
+                    wallet_path.display(),
+                );
+            }
+        }
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::utils::test_utils::{with_tmp_dir, TEST_MNEMONIC, TEST_PASSWORD};
+    // simulate input
+    const INPUT_NOP: &[u8; 1] = b"\n";
+    const INPUT_YES: &[u8; 2] = b"y\n";
+    const INPUT_NO: &[u8; 2] = b"n\n";
+
+    fn remove_wallet(wallet_path: &Path) {
+        if wallet_path.exists() {
+            fs::remove_file(wallet_path).unwrap();
+        }
+    }
+    fn create_wallet(wallet_path: &Path) {
+        if !wallet_path.exists() {
+            fs::File::create(wallet_path).unwrap();
+        }
+    }
 
     #[test]
     fn handle_absolute_path_argument() {
@@ -209,6 +263,48 @@ mod tests {
                 .unwrap();
             load_wallet(&wallet_path).unwrap();
         })
+    }
+
+    #[test]
+    fn test_ensure_no_wallet_exists_no_wallet() {
+        with_tmp_dir(|tmp_dir| {
+            let wallet_path = tmp_dir.join("wallet.json");
+            remove_wallet(&wallet_path);
+            ensure_no_wallet_exists(&wallet_path, false, &INPUT_NOP[..]).unwrap();
+        });
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_ensure_no_wallet_exists_throws_err() {
+        with_tmp_dir(|tmp_dir| {
+            let wallet_path = tmp_dir.join("wallet.json");
+            create_wallet(&wallet_path);
+            ensure_no_wallet_exists(&wallet_path, false, &INPUT_NO[..]).unwrap();
+        });
+    }
+
+    #[test]
+    fn test_ensure_no_wallet_exists_exists_wallet() {
+        // case: wallet path exist without --force and input[yes]
+        with_tmp_dir(|tmp_dir| {
+            let wallet_path = tmp_dir.join("wallet.json");
+            create_wallet(&wallet_path);
+            ensure_no_wallet_exists(&wallet_path, false, &INPUT_YES[..]).unwrap();
+        });
+        // case: wallet path exist with --force
+        with_tmp_dir(|tmp_dir| {
+            let wallet_path = tmp_dir.join("wallet.json");
+            create_wallet(&wallet_path);
+            ensure_no_wallet_exists(&wallet_path, true, &INPUT_NOP[..]).unwrap();
+        });
+        // case: wallet path exist without --force and supply a different wallet path
+        with_tmp_dir(|tmp_dir| {
+            let wallet_path = tmp_dir.join("wallet.json");
+            create_wallet(&wallet_path);
+            let diff_wallet_path = tmp_dir.join("custom-wallet.json");
+            ensure_no_wallet_exists(&diff_wallet_path, false, &INPUT_NOP[..]).unwrap();
+        });
     }
 }
 

@@ -1,10 +1,20 @@
 use crate::utils::{
-    display_string_discreetly, request_new_password, write_wallet_from_mnemonic_and_password,
+    display_string_discreetly, ensure_no_wallet_exists, request_new_password,
+    write_wallet_from_mnemonic_and_password,
 };
+use clap::Args;
 use fuels::prelude::*;
-use std::path::Path;
+use std::{io::stdin, path::Path};
 
-pub fn new_wallet_cli(wallet_path: &Path) -> anyhow::Result<()> {
+#[derive(Debug, Args)]
+pub struct New {
+    /// Forces wallet creation, removing any existing wallet file
+    #[clap(short, long)]
+    force: bool,
+}
+
+pub fn new_wallet_cli(wallet_path: &Path, new: New) -> anyhow::Result<()> {
+    ensure_no_wallet_exists(wallet_path, new.force, stdin().lock())?;
     let password = request_new_password();
     // Generate a random mnemonic phrase.
     let mnemonic = generate_mnemonic_phrase(&mut rand::thread_rng(), 24)?;

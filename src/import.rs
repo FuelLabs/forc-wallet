@@ -1,7 +1,17 @@
-use crate::utils::{request_new_password, write_wallet_from_mnemonic_and_password};
+use crate::utils::{
+    ensure_no_wallet_exists, request_new_password, write_wallet_from_mnemonic_and_password,
+};
 use anyhow::{bail, Result};
+use clap::Args;
 use fuels::accounts::wallet::WalletUnlocked;
-use std::path::Path;
+use std::{io::stdin, path::Path};
+
+#[derive(Debug, Args)]
+pub struct Import {
+    /// Forces wallet creation, removing any existing wallet file
+    #[clap(short, long)]
+    force: bool,
+}
 
 /// Check if given mnemonic is valid by trying to create a `WalletUnlocked` from it
 fn check_mnemonic(mnemonic: &str) -> Result<()> {
@@ -12,7 +22,9 @@ fn check_mnemonic(mnemonic: &str) -> Result<()> {
     Ok(())
 }
 
-pub fn import_wallet_cli(wallet_path: &Path) -> Result<()> {
+pub fn import_wallet_cli(wallet_path: &Path, import: Import) -> Result<()> {
+    ensure_no_wallet_exists(wallet_path, import.force, stdin().lock())?;
+
     let mnemonic = rpassword::prompt_password("Please enter your mnemonic phrase: ")?;
     check_mnemonic(&mnemonic)?;
     let password = request_new_password();

@@ -11,12 +11,13 @@ pub use forc_wallet::network;
 
 use crate::{
     account::{Account, Accounts},
-    import::import_wallet_cli,
-    new::new_wallet_cli,
+    import::{import_wallet_cli, Import},
+    new::{new_wallet_cli, New},
     sign::Sign,
 };
 use anyhow::Result;
 use clap::{Parser, Subcommand};
+use forc_tracing::{init_tracing_subscriber, println_error};
 use std::path::PathBuf;
 
 #[derive(Debug, Parser)]
@@ -38,11 +39,15 @@ enum Command {
     /// Create a new wallet from a random mnemonic phrase.
     ///
     /// If a `--path` is specified, the wallet will be created at this location.
-    New,
+    ///
+    /// If a '--fore' is specified, will automatically removes the existing wallet at the same path.
+    New(New),
     /// Import a wallet from the provided mnemonic phrase.
     ///
     /// If a `--path` is specified, the wallet will be imported to this location.
-    Import,
+    ///
+    /// If a '--fore' is specified, will automatically removes the existing wallet at the same path.
+    Import(Import),
     /// Lists all accounts derived for the wallet so far.
     ///
     /// Note that this only includes accounts that have been previously derived
@@ -72,8 +77,14 @@ EXAMPLES:
     # Create a new wallet at the default path `~/.fuel/wallets/.wallet`.
     forc wallet new
 
+    # Create a new wallet and automatically replace the existing wallet if it's at the same path.
+    forc wallet new --force
+
     # Import a new wallet from a mnemonic phrase.
     forc wallet import
+
+    # Import a new wallet from a mnemonic phrase and automatically replace the existing wallet if it's at the same path.
+    forc wallet import --force
 
     # Derive a new account for the default wallet.
     forc wallet account new
@@ -118,12 +129,20 @@ EXAMPLES:
 "#;
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() {
+    init_tracing_subscriber(Default::default());
+    if let Err(err) = run().await {
+        println_error(&format!("{}", err));
+        std::process::exit(1);
+    }
+}
+
+async fn run() -> Result<()> {
     let app = App::parse();
     let wallet_path = app.wallet_path.unwrap_or_else(utils::default_wallet_path);
     match app.cmd {
-        Command::New => new_wallet_cli(&wallet_path)?,
-        Command::Import => import_wallet_cli(&wallet_path)?,
+        Command::New(new) => new_wallet_cli(&wallet_path, new)?,
+        Command::Import(import) => import_wallet_cli(&wallet_path, import)?,
         Command::Accounts(accounts) => account::print_accounts_cli(&wallet_path, accounts)?,
         Command::Account(account) => account::cli(&wallet_path, account).await?,
         Command::Sign(sign) => sign::cli(&wallet_path, sign)?,

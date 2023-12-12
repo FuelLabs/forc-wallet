@@ -11,6 +11,7 @@ description = "A forc plugin for generating or importing wallets using BIP39 phr
 anyhow = "1.0"
 clap = { version = "4.2.4", features = ["derive"] }
 eth-keystore = { version = "0.5" }
+forc-tracing = "0.47.0"
 
 # Dependencies from the `fuel-vm` repository:
 fuel-crypto = { version = "0.43.1" }
