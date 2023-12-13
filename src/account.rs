@@ -5,6 +5,7 @@ use crate::utils::{
 use anyhow::{anyhow, bail, Context, Result};
 use clap::{Args, Subcommand};
 use eth_keystore::EthKeystore;
+use forc_tracing::println_warning;
 use fuel_crypto::{PublicKey, SecretKey};
 use fuel_types::AssetId;
 use fuels::{
@@ -230,12 +231,13 @@ pub(crate) fn verify_address_and_update_cache(
     if addr == expected_addr {
         return Ok(true);
     }
-    println!(
-        "WARNING: Cached address for account {acc_ix} differs from derived address.\n  \
-          Cached:  {expected_addr}
-          Derived: {addr}
-        Updating cache with newly derived address.",
-    );
+    println_warning(&format!(
+        "Cached address for account {} differs from derived address.\n  \
+        Cached:  {}
+        Derived: {}
+      Updating cache with newly derived address.",
+        acc_ix, expected_addr, addr,
+    ));
     cache_address(wallet_ciphertext, acc_ix, addr)?;
     Ok(false)
 }
