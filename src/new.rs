@@ -10,7 +10,7 @@ use std::{io::stdin, path::Path};
 pub struct New {
     /// Forces wallet creation, removing any existing wallet file
     #[clap(short, long)]
-    force: bool,
+    pub force: bool,
 }
 
 pub fn new_wallet_cli(wallet_path: &Path, new: New) -> anyhow::Result<()> {
