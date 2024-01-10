@@ -70,7 +70,7 @@ pub(crate) fn request_new_password() -> String {
     let confirmation = rpassword::prompt_password("Please confirm your password: ").unwrap();
 
     if password != confirmation {
-        println!("Passwords do not match -- try again!");
+        println_warning("Passwords do not match -- try again!");
         std::process::exit(1);
     }
     password
