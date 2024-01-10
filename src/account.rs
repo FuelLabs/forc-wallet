@@ -232,11 +232,11 @@ pub(crate) fn verify_address_and_update_cache(
         return Ok(true);
     }
     println_warning(&format!(
-        "Cached address for account {} differs from derived address.\n  \
-        Cached:  {}
-        Derived: {}
-      Updating cache with newly derived address.",
-        acc_ix, expected_addr, addr,
+        "Cached address for account {} differs from derived address.\n\
+{:>2}Cached: {}
+{:>2}Derived: {}
+{:>2}Updating cache with newly derived address.",
+        acc_ix, "", expected_addr, "", addr, "",
     ));
     cache_address(wallet_ciphertext, acc_ix, addr)?;
     Ok(false)
