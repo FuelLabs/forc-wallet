@@ -13,6 +13,7 @@ use fuels::{
     prelude::*,
     types::bech32::FUEL_BECH32_HRP,
 };
+use std::ops::Range;
 use std::{
     collections::BTreeMap,
     fmt, fs,
@@ -383,6 +384,20 @@ fn derive_account_unlocked(
     Ok(wallet)
 }
 
+pub fn derive_and_cache_addresses(
+    wallet: &EthKeystore,
+    mnemonic: &str,
+    range: Range<usize>,
+) -> anyhow::Result<()> {
+    for acc_ix in range {
+        let derive_path = get_derivation_path(acc_ix);
+        let secret_key = SecretKey::new_from_mnemonic_phrase_with_path(mnemonic, &derive_path)?;
+        let account = WalletUnlocked::new_from_private_key(secret_key, None);
+        cache_address(&wallet.crypto.ciphertext, acc_ix, account.address())?;
+    }
+    Ok(())
+}
+
 pub(crate) fn derive_account(
     wallet_path: &Path,
     account_ix: usize,
@@ -543,7 +558,7 @@ fn address_path(wallet_ciphertext: &[u8], account_ix: usize) -> PathBuf {
 }
 
 /// Cache a single wallet account address to a file as a simple utf8 string.
-fn cache_address(
+pub fn cache_address(
     wallet_ciphertext: &[u8],
     account_ix: usize,
     account_addr: &Bech32Address,

@@ -5,16 +5,18 @@ use fuels::{
     prelude::*,
 };
 use std::{
+    cmp::max,
     collections::{BTreeMap, HashMap},
     path::Path,
 };
 
 use crate::{
     account::{
-        derive_account, print_balance, print_balance_empty, read_cached_addresses,
-        verify_address_and_update_cache,
+        derive_account, derive_and_cache_addresses, print_balance, print_balance_empty,
+        read_cached_addresses, verify_address_and_update_cache,
     },
     utils::load_wallet,
+    DEFAULT_CACHE_ACCOUNTS,
 };
 
 #[derive(Debug, Args)]
@@ -26,7 +28,7 @@ pub struct Balance {
     /// Show the balance for each individual non-empty account before showing
     /// the total.
     #[clap(long)]
-    accounts: bool,
+    pub(crate) accounts: bool,
 }
 
 /// Whether to verify cached accounts or not.
@@ -60,6 +62,31 @@ pub fn collect_accounts_with_verification(
     }
 
     Ok(addresses)
+}
+
+/// Select accounts from the cache and if the cache is empty, requests for the user password to
+/// unlock the wallet and fill the cache with a default number of addresses.
+/// If target_accounts is provided, that is the minimum number of accounts that should be returned.
+pub fn collect_cached_accounts_or_fill_cache(
+    wallet_path: &Path,
+    target_accounts: Option<usize>,
+) -> Result<AccountsMap> {
+    let wallet = load_wallet(wallet_path)?;
+    let addresses = read_cached_addresses(&wallet.crypto.ciphertext)?;
+    let target_accounts = target_accounts.unwrap_or(1);
+
+    Ok(if addresses.len() < target_accounts {
+        let prompt = "Please enter your wallet password to verify accounts: ";
+        let password = rpassword::prompt_password(prompt)?;
+        let phrase_recovered = eth_keystore::decrypt_key(wallet_path, password)?;
+        let phrase = String::from_utf8(phrase_recovered)?;
+
+        let range = addresses.len()..max(target_accounts, DEFAULT_CACHE_ACCOUNTS);
+        derive_and_cache_addresses(&wallet, &phrase, range)?;
+        read_cached_addresses(&wallet.crypto.ciphertext)?
+    } else {
+        addresses
+    })
 }
 
 /// Print collected account balances for each asset type.
