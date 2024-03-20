@@ -388,14 +388,19 @@ pub fn derive_and_cache_addresses(
     wallet: &EthKeystore,
     mnemonic: &str,
     range: Range<usize>,
-) -> anyhow::Result<()> {
-    for acc_ix in range {
-        let derive_path = get_derivation_path(acc_ix);
-        let secret_key = SecretKey::new_from_mnemonic_phrase_with_path(mnemonic, &derive_path)?;
-        let account = WalletUnlocked::new_from_private_key(secret_key, None);
-        cache_address(&wallet.crypto.ciphertext, acc_ix, account.address())?;
-    }
-    Ok(())
+) -> anyhow::Result<BTreeMap<usize, Bech32Address>> {
+    range
+        .into_iter()
+        .map(|acc_ix| {
+            let derive_path = get_derivation_path(acc_ix);
+            let secret_key = SecretKey::new_from_mnemonic_phrase_with_path(mnemonic, &derive_path)?;
+            let account = WalletUnlocked::new_from_private_key(secret_key, None);
+            cache_address(&wallet.crypto.ciphertext, acc_ix, account.address())?;
+
+            Ok(account.address().to_owned())
+        })
+        .collect::<Result<Vec<_>, _>>()
+        .map(|x| x.into_iter().enumerate().collect())
 }
 
 pub(crate) fn derive_account(
