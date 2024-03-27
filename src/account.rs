@@ -1,3 +1,4 @@
+use crate::format::Table;
 use crate::sign;
 use crate::utils::{
     display_string_discreetly, get_derivation_path, load_wallet, user_fuel_wallets_accounts_dir,
@@ -262,12 +263,16 @@ pub(crate) fn print_balance_empty(node_url: &Url) {
 }
 
 pub(crate) fn print_balance(balance: &BTreeMap<String, u128>) {
-    let asset_id_header = "Asset ID";
-    let amount_header = "Amount";
-    println!("  {asset_id_header:66} {amount_header}");
+    let mut table = Table::default();
+    table.add_header("Asset ID");
+    table.add_header("Amount");
+
     for (asset_id, amount) in balance {
-        println!("  {asset_id} {amount}");
+        table
+            .add_row(vec![asset_id.to_owned(), amount.to_string()])
+            .expect("add_row");
     }
+    println!("{}", table.to_string());
 }
 
 /// Prints a list of all known (cached) accounts for the wallet at the given path.

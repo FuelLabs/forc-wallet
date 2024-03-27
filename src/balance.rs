@@ -16,6 +16,7 @@ use crate::{
         derive_account, derive_and_cache_addresses, print_balance, print_balance_empty,
         read_cached_addresses, verify_address_and_update_cache,
     },
+    format::List,
     utils::load_wallet,
     DEFAULT_CACHE_ACCOUNTS,
 };
@@ -97,6 +98,8 @@ pub fn get_derived_accounts(
 
 /// Print collected account balances for each asset type.
 pub fn print_account_balances(accounts_map: &AccountsMap, account_balances: &AccountBalances) {
+    let mut list = List::default();
+    list.add_newline();
     for (ix, balance) in accounts_map.keys().zip(account_balances) {
         let balance: BTreeMap<_, _> = balance
             .iter()
@@ -105,9 +108,18 @@ pub fn print_account_balances(accounts_map: &AccountsMap, account_balances: &Acc
         if balance.is_empty() {
             continue;
         }
-        println!("\nAccount {ix} -- {}:", accounts_map[ix]);
-        print_balance(&balance);
+
+        list.add_seperator();
+        list.add(format!("Account {ix}"), accounts_map[ix].to_string());
+        list.add_newline();
+
+        for (asset_id, amount) in balance {
+            list.add("Asset ID", asset_id);
+            list.add("Amount", amount.to_string());
+        }
+        list.add_seperator();
     }
+    println!("{}", list.to_string());
 }
 
 pub(crate) async fn list_account_balances(

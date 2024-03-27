@@ -1,5 +1,6 @@
 pub mod account;
 pub mod balance;
+pub mod format;
 pub mod import;
 pub mod list;
 pub mod new;
