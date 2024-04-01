@@ -1,23 +1,15 @@
-mod account;
-mod balance;
-mod import;
-mod new;
-mod sign;
-mod utils;
-
-use balance::Balance;
-pub use forc_wallet::explorer;
-pub use forc_wallet::network;
-
-use crate::{
-    account::{Account, Accounts},
-    import::{import_wallet_cli, Import},
-    new::{new_wallet_cli, New},
-    sign::Sign,
-};
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use forc_tracing::{init_tracing_subscriber, println_error};
+use forc_wallet::{
+    account::{self, Account, Accounts},
+    balance::{self, Balance},
+    import::{import_wallet_cli, Import},
+    list::{list_wallet_cli, List},
+    new::{new_wallet_cli, New},
+    sign::{self, Sign},
+    utils,
+};
 use std::path::PathBuf;
 
 #[derive(Debug, Parser)]
@@ -40,13 +32,17 @@ enum Command {
     ///
     /// If a `--path` is specified, the wallet will be created at this location.
     ///
-    /// If a '--fore' is specified, will automatically removes the existing wallet at the same path.
+    /// If a '--fore' is specified, will automatically removes the existing wallet at the same
+    /// path.
     New(New),
+    /// TODO: List all wallets in the default wallet directory.
+    List(List),
     /// Import a wallet from the provided mnemonic phrase.
     ///
     /// If a `--path` is specified, the wallet will be imported to this location.
     ///
-    /// If a '--fore' is specified, will automatically removes the existing wallet at the same path.
+    /// If a '--fore' is specified, will automatically removes the existing wallet at the same
+    /// path.
     Import(Import),
     /// Lists all accounts derived for the wallet so far.
     ///
@@ -119,12 +115,12 @@ EXAMPLES:
     # Show the public key of the account at index 0.
     forc wallet account 0 public-key
 
-    # Transfer 1 token of the base asset id to a bech32 address at the gas price of 1. 
+    # Transfer 1 token of the base asset id to a bech32 address at the gas price of 1.
     forc wallet account 0 transfer --to fuel1dq2vgftet24u4nkpzmtfus9k689ap5avkm8kdjna8j3d6765yfdsjt6586
     --amount 1 --asset-id 0x0000000000000000000000000000000000000000000000000000000000000000 --gas-price 1
 
-    # Transfer 1 token of the base asset id to a hex address at the gas price of 1. 
-    forc wallet account 0 transfer --to 0x0b8d0f6a7f271919708530d11bdd9398205137e012424b611e9d97118c180bea 
+    # Transfer 1 token of the base asset id to a hex address at the gas price of 1.
+    forc wallet account 0 transfer --to 0x0b8d0f6a7f271919708530d11bdd9398205137e012424b611e9d97118c180bea
     --amount 1 --asset-id 0x0000000000000000000000000000000000000000000000000000000000000000 --gas-price 1
 "#;
 
@@ -142,6 +138,7 @@ async fn run() -> Result<()> {
     let wallet_path = app.wallet_path.unwrap_or_else(utils::default_wallet_path);
     match app.cmd {
         Command::New(new) => new_wallet_cli(&wallet_path, new)?,
+        Command::List(list) => list_wallet_cli(&wallet_path, list).await?,
         Command::Import(import) => import_wallet_cli(&wallet_path, import)?,
         Command::Accounts(accounts) => account::print_accounts_cli(&wallet_path, accounts)?,
         Command::Account(account) => account::cli(&wallet_path, account).await?,

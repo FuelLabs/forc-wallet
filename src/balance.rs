@@ -5,16 +5,20 @@ use fuels::{
     prelude::*,
 };
 use std::{
+    cmp::max,
     collections::{BTreeMap, HashMap},
     path::Path,
 };
+use url::Url;
 
 use crate::{
     account::{
-        derive_account, print_balance, print_balance_empty, read_cached_addresses,
-        verify_address_and_update_cache,
+        derive_account, derive_and_cache_addresses, print_balance, print_balance_empty,
+        read_cached_addresses, verify_address_and_update_cache,
     },
+    format::List,
     utils::load_wallet,
+    DEFAULT_CACHE_ACCOUNTS,
 };
 
 #[derive(Debug, Args)]
@@ -26,7 +30,7 @@ pub struct Balance {
     /// Show the balance for each individual non-empty account before showing
     /// the total.
     #[clap(long)]
-    accounts: bool,
+    pub(crate) accounts: bool,
 }
 
 /// Whether to verify cached accounts or not.
@@ -62,8 +66,40 @@ pub fn collect_accounts_with_verification(
     Ok(addresses)
 }
 
+/// Returns N derived addresses. If the `unverified` flag is set, it will not verify the addresses
+/// and will use the cached ones.
+///
+/// This function will override / fix the cached addresses if the user password is requested
+pub fn get_derived_accounts(
+    wallet_path: &Path,
+    unverified: bool,
+    target_accounts: Option<usize>,
+) -> Result<AccountsMap> {
+    let wallet = load_wallet(wallet_path)?;
+    let addresses = if unverified {
+        read_cached_addresses(&wallet.crypto.ciphertext)?
+    } else {
+        BTreeMap::new()
+    };
+    let target_accounts = target_accounts.unwrap_or(1);
+
+    if !unverified || addresses.len() < target_accounts {
+        let prompt = "Please enter your wallet password to verify accounts: ";
+        let password = rpassword::prompt_password(prompt)?;
+        let phrase_recovered = eth_keystore::decrypt_key(wallet_path, password)?;
+        let phrase = String::from_utf8(phrase_recovered)?;
+
+        let range = 0..max(target_accounts, DEFAULT_CACHE_ACCOUNTS);
+        derive_and_cache_addresses(&wallet, &phrase, range)
+    } else {
+        Ok(addresses)
+    }
+}
+
 /// Print collected account balances for each asset type.
 pub fn print_account_balances(accounts_map: &AccountsMap, account_balances: &AccountBalances) {
+    let mut list = List::default();
+    list.add_newline();
     for (ix, balance) in accounts_map.keys().zip(account_balances) {
         let balance: BTreeMap<_, _> = balance
             .iter()
@@ -72,25 +108,28 @@ pub fn print_account_balances(accounts_map: &AccountsMap, account_balances: &Acc
         if balance.is_empty() {
             continue;
         }
-        println!("\nAccount {ix} -- {}:", accounts_map[ix]);
-        print_balance(&balance);
-    }
-}
-pub async fn cli(wallet_path: &Path, balance: &Balance) -> Result<()> {
-    let verification = if !balance.account.unverified.unverified {
-        let prompt = "Please enter your wallet password to verify accounts: ";
-        let password = rpassword::prompt_password(prompt)?;
-        AccountVerification::Yes(password)
-    } else {
-        AccountVerification::No
-    };
-    let addresses = collect_accounts_with_verification(wallet_path, verification)?;
 
-    let node_url = &balance.account.node_url;
+        list.add_seperator();
+        list.add(format!("Account {ix}"), accounts_map[ix].to_string());
+        list.add_newline();
+
+        for (asset_id, amount) in balance {
+            list.add("Asset ID", asset_id);
+            list.add("Amount", amount.to_string());
+        }
+        list.add_seperator();
+    }
+    println!("{}", list.to_string());
+}
+
+pub(crate) async fn list_account_balances(
+    node_url: &Url,
+    addresses: &BTreeMap<usize, Bech32Address>,
+) -> Result<(Vec<HashMap<String, u64>>, BTreeMap<String, u128>)> {
     println!("Connecting to {node_url}");
-    let provider = Provider::connect(node_url).await?;
+    let provider = Provider::connect(&node_url).await?;
     println!("Fetching and summing balances of the following accounts:");
-    for (ix, addr) in &addresses {
+    for (ix, addr) in addresses {
         println!("  {ix:>3}: {addr}");
     }
     let accounts: Vec<_> = addresses
@@ -100,20 +139,36 @@ pub async fn cli(wallet_path: &Path, balance: &Balance) -> Result<()> {
     let account_balances =
         futures::future::try_join_all(accounts.iter().map(|acc| acc.get_balances())).await?;
 
-    if balance.accounts {
-        print_account_balances(&addresses, &account_balances);
-    }
-
     let mut total_balance = BTreeMap::default();
-    println!("\nTotal:");
-    for acc_bal in account_balances {
+    for acc_bal in &account_balances {
         for (asset_id, amt) in acc_bal {
             let entry = total_balance.entry(asset_id.clone()).or_insert(0u128);
-            *entry = entry.checked_add(u128::from(amt)).ok_or_else(|| {
+            *entry = entry.checked_add(u128::from(*amt)).ok_or_else(|| {
                 anyhow!("Failed to display balance for asset {asset_id}: Value out of range.")
             })?;
         }
     }
+
+    Ok((account_balances, total_balance))
+}
+
+pub async fn cli(wallet_path: &Path, balance: &Balance) -> Result<()> {
+    let verification = if !balance.account.unverified.unverified {
+        let prompt = "Please enter your wallet password to verify accounts: ";
+        let password = rpassword::prompt_password(prompt)?;
+        AccountVerification::Yes(password)
+    } else {
+        AccountVerification::No
+    };
+    let addresses = collect_accounts_with_verification(wallet_path, verification)?;
+    let node_url = &balance.account.node_url;
+    let (account_balances, total_balance) = list_account_balances(node_url, &addresses).await?;
+
+    if balance.accounts {
+        print_account_balances(&addresses, &account_balances);
+    }
+
+    println!("\nTotal:");
     if total_balance.is_empty() {
         print_balance_empty(&balance.account.node_url);
     } else {

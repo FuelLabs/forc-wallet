@@ -1,3 +1,4 @@
+use crate::format::Table;
 use crate::sign;
 use crate::utils::{
     display_string_discreetly, get_derivation_path, load_wallet, user_fuel_wallets_accounts_dir,
@@ -13,6 +14,7 @@ use fuels::{
     prelude::*,
     types::bech32::FUEL_BECH32_HRP,
 };
+use std::ops::Range;
 use std::{
     collections::BTreeMap,
     fmt, fs,
@@ -261,12 +263,16 @@ pub(crate) fn print_balance_empty(node_url: &Url) {
 }
 
 pub(crate) fn print_balance(balance: &BTreeMap<String, u128>) {
-    let asset_id_header = "Asset ID";
-    let amount_header = "Amount";
-    println!("  {asset_id_header:66} {amount_header}");
+    let mut table = Table::default();
+    table.add_header("Asset ID");
+    table.add_header("Amount");
+
     for (asset_id, amount) in balance {
-        println!("  {asset_id} {amount}");
+        table
+            .add_row(vec![asset_id.to_owned(), amount.to_string()])
+            .expect("add_row");
     }
+    println!("{}", table.to_string());
 }
 
 /// Prints a list of all known (cached) accounts for the wallet at the given path.
@@ -381,6 +387,25 @@ fn derive_account_unlocked(
     let secret_key = derive_secret_key(wallet_path, account_ix, password)?;
     let wallet = WalletUnlocked::new_from_private_key(secret_key, None);
     Ok(wallet)
+}
+
+pub fn derive_and_cache_addresses(
+    wallet: &EthKeystore,
+    mnemonic: &str,
+    range: Range<usize>,
+) -> anyhow::Result<BTreeMap<usize, Bech32Address>> {
+    range
+        .into_iter()
+        .map(|acc_ix| {
+            let derive_path = get_derivation_path(acc_ix);
+            let secret_key = SecretKey::new_from_mnemonic_phrase_with_path(mnemonic, &derive_path)?;
+            let account = WalletUnlocked::new_from_private_key(secret_key, None);
+            cache_address(&wallet.crypto.ciphertext, acc_ix, account.address())?;
+
+            Ok(account.address().to_owned())
+        })
+        .collect::<Result<Vec<_>, _>>()
+        .map(|x| x.into_iter().enumerate().collect())
 }
 
 pub(crate) fn derive_account(
@@ -543,7 +568,7 @@ fn address_path(wallet_ciphertext: &[u8], account_ix: usize) -> PathBuf {
 }
 
 /// Cache a single wallet account address to a file as a simple utf8 string.
-fn cache_address(
+pub fn cache_address(
     wallet_ciphertext: &[u8],
     account_ix: usize,
     account_addr: &Bech32Address,
