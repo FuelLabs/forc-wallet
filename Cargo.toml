@@ -18,8 +18,8 @@ fuel-crypto = { version = "0.48.0" }
 fuel-types = { version = "0.48.0" }
 
 # Dependencies from the `fuels-rs` repository:
-fuels = { git = "https://github.com/FuelLabs/fuels-rs", branch = "master" }
-fuels-core = { git = "https://github.com/FuelLabs/fuels-rs", branch = "master" }
+fuels = "0.57.0" 
+fuels-core = "0.57.0" 
 
 futures = "0.3"
 hex = "0.4"

@@ -1335,8 +1335,9 @@ dependencies = [
 
 [[package]]
 name = "fuels"
-version = "0.56.0"
-source = "git+https://github.com/FuelLabs/fuels-rs?branch=master#1857c2333ec03c05db7e0e4bd84aef86ee66102f"
+version = "0.57.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4b06b490d7b62a630ee2c3cba5b76d7f6c0d9e10fe0c3048686a8d03f830c72b"
 dependencies = [
  "fuel-core-client",
  "fuel-crypto",
@@ -1350,8 +1351,9 @@ dependencies = [
 
 [[package]]
 name = "fuels-accounts"
-version = "0.56.0"
-source = "git+https://github.com/FuelLabs/fuels-rs?branch=master#1857c2333ec03c05db7e0e4bd84aef86ee66102f"
+version = "0.57.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "523db6eac7f1e90947e5ddb238bcada48d04ae5f128236d5bf48bb2320edeadc"
 dependencies = [
  "async-trait",
  "chrono",
@@ -1374,8 +1376,9 @@ dependencies = [
 
 [[package]]
 name = "fuels-code-gen"
-version = "0.56.0"
-source = "git+https://github.com/FuelLabs/fuels-rs?branch=master#1857c2333ec03c05db7e0e4bd84aef86ee66102f"
+version = "0.57.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "22c4630056818ed04adc4f048462bc8fbde8b0332c847461b8ae55e8937e0b5c"
 dependencies = [
  "Inflector",
  "fuel-abi-types",
@@ -1389,8 +1392,9 @@ dependencies = [
 
 [[package]]
 name = "fuels-core"
-version = "0.56.0"
-source = "git+https://github.com/FuelLabs/fuels-rs?branch=master#1857c2333ec03c05db7e0e4bd84aef86ee66102f"
+version = "0.57.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "41f82f251f4558a3e0032043415118f2842089783e129ea07d0c63933ac9e2da"
 dependencies = [
  "async-trait",
  "bech32",
@@ -1415,8 +1419,9 @@ dependencies = [
 
 [[package]]
 name = "fuels-macros"
-version = "0.56.0"
-source = "git+https://github.com/FuelLabs/fuels-rs?branch=master#1857c2333ec03c05db7e0e4bd84aef86ee66102f"
+version = "0.57.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "41a33c1d1e58fe31593c77a87028cf8fd71e50ca206386c725fe0a0e1b3ff63c"
 dependencies = [
  "fuels-code-gen",
  "itertools 0.12.0",
@@ -1428,8 +1433,9 @@ dependencies = [
 
 [[package]]
 name = "fuels-programs"
-version = "0.56.0"
-source = "git+https://github.com/FuelLabs/fuels-rs?branch=master#1857c2333ec03c05db7e0e4bd84aef86ee66102f"
+version = "0.57.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "07c28368970cc75673fa25f932d7c925ca9e6344f8542bd2f3404341ae8fa71a"
 dependencies = [
  "async-trait",
  "bytes",
@@ -1447,8 +1453,9 @@ dependencies = [
 
 [[package]]
 name = "fuels-test-helpers"
-version = "0.56.0"
-source = "git+https://github.com/FuelLabs/fuels-rs?branch=master#1857c2333ec03c05db7e0e4bd84aef86ee66102f"
+version = "0.57.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3977a8b6c10bcddd12d77857479024363f2157329a771061157b5984de44ef9f"
 dependencies = [
  "fuel-core-chain-config",
  "fuel-core-client",
