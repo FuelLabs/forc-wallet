@@ -1,4 +1,4 @@
-use std::{cmp::max, collections::HashMap};
+use std::{cmp::max, collections::HashMap, fmt::Display};
 
 use anyhow::Result;
 
@@ -57,8 +57,8 @@ impl List {
     }
 }
 
-impl ToString for List {
-    fn to_string(&self) -> String {
+impl Display for List {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let longest_key = self.longest_title();
         let entries = self
             .0
@@ -81,11 +81,13 @@ impl ToString for List {
 
         let seperator = "-".repeat(longest_entry);
 
-        entries
+        let formatted = entries
             .into_iter()
             .map(|entry| entry.map(|s| s.to_string()).unwrap_or(seperator.clone()))
             .collect::<Vec<_>>()
-            .join("\n")
+            .join("\n");
+
+        write!(f, "{formatted}")
     }
 }
 
@@ -109,8 +111,9 @@ impl Table {
         Ok(())
     }
 }
-impl ToString for Table {
-    fn to_string(&self) -> String {
+
+impl Display for Table {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut longest_columns = self
             .headers
             .iter()
@@ -160,6 +163,8 @@ impl ToString for Table {
             table.push(separator.clone());
         }
 
-        table.join("\n")
+        let formatted = table.join("\n");
+
+        write!(f, "{formatted}")
     }
 }
