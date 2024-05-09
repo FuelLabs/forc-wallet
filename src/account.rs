@@ -272,7 +272,7 @@ pub(crate) fn print_balance(balance: &BTreeMap<String, u128>) {
             .add_row(vec![asset_id.to_owned(), amount.to_string()])
             .expect("add_row");
     }
-    println!("{}", table.to_string());
+    println!("{}", table);
 }
 
 /// Prints a list of all known (cached) accounts for the wallet at the given path.

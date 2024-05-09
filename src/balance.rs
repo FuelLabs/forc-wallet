@@ -119,7 +119,7 @@ pub fn print_account_balances(accounts_map: &AccountsMap, account_balances: &Acc
         }
         list.add_seperator();
     }
-    println!("{}", list.to_string());
+    println!("{}", list);
 }
 
 pub(crate) async fn list_account_balances(
