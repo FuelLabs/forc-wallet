@@ -320,6 +320,22 @@ To initialize a wallet, use `forc-wallet new`";
             assert!(root_cause.ends_with(&expected_error_msg_end));
         })
     }
+
+    #[test]
+    fn wallet_deserialization_fails() {
+        with_tmp_dir(|tmp_dir| {
+            let wallet_path = tmp_dir.join("wallet.json");
+            std::fs::write(&wallet_path, "this is an invalid wallet json file").unwrap();
+            let err = load_wallet(&wallet_path).unwrap_err();
+            let root_cause = format!("{}", err.root_cause());
+            let expected_error_msg_start =
+                format!("Failed to deserialize keystore from {wallet_path:?}");
+            let expected_error_msg_end =
+                format!("Please ensure that {wallet_path:?} is a valid wallet file.");
+            assert!(root_cause.starts_with(&expected_error_msg_start));
+            assert!(root_cause.ends_with(&expected_error_msg_end));
+        })
+    }
 }
 
 #[cfg(test)]
