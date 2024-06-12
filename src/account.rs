@@ -123,14 +123,14 @@ pub(crate) struct Transfer {
     maturity: Option<u64>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 enum To {
     Bech32Address(Bech32Address),
     HexAddress(fuel_types::Address),
 }
 
 impl FromStr for To {
-    type Err = &'static str;
+    type Err = String;
 
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         if let Ok(bech32_address) = Bech32Address::from_str(s) {
@@ -139,7 +139,10 @@ impl FromStr for To {
             return Ok(Self::HexAddress(hex_address));
         }
 
-        Err("Invalid address '{}': address must either be in bech32 or hex")
+        Err(format!(
+            "Invalid address '{}': address must either be in bech32 or hex",
+            s
+        ))
     }
 }
 
@@ -621,8 +624,14 @@ pub(crate) fn read_cached_addresses(wallet_ciphertext: &[u8]) -> Result<AccountA
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
+    use fuels::types::bech32::Bech32Address;
+
     use crate::account;
     use crate::utils::test_utils::{with_tmp_dir_and_wallet, TEST_PASSWORD};
+
+    use super::To;
 
     #[test]
     fn create_new_account() {
@@ -657,5 +666,50 @@ mod tests {
             .expect("RIP"),
             plain_address
         )
+    }
+
+    #[test]
+    fn parse_to_from_bech32_str() {
+        let bech32_str = "fuel1j78es08cyyz5n75jugal7p759ccs323etnykzpndsvhzu6399yqqpjmmd2";
+        let to = To::from_str(bech32_str).unwrap();
+
+        let bech32_address = Bech32Address::from_str(bech32_str).unwrap();
+        let expected_to = To::Bech32Address(bech32_address);
+        assert_eq!(to, expected_to)
+    }
+
+    #[test]
+    fn parse_to_from_hex_str_with_0x() {
+        let hex_str = "0xb0b695b9eb91d9597d9a98759b359f977c3c402c027ab3720aef6664bf974ce8";
+        let to = To::from_str(hex_str).unwrap();
+
+        let hex_address = fuel_types::Address::from_str(hex_str).unwrap();
+        let expected_to = To::HexAddress(hex_address);
+
+        assert_eq!(to, expected_to)
+    }
+
+    #[test]
+    fn parse_to_from_hex_str_without_0x() {
+        let hex_str = "b0b695b9eb91d9597d9a98759b359f977c3c402c027ab3720aef6664bf974ce8";
+        let to = To::from_str(hex_str).unwrap();
+
+        let hex_address = fuel_types::Address::from_str(hex_str).unwrap();
+        let expected_to = To::HexAddress(hex_address);
+
+        assert_eq!(to, expected_to)
+    }
+
+    #[test]
+    fn parse_to_error_msg() {
+        let invalid_str = "asd";
+        let err = To::from_str(invalid_str).unwrap_err();
+        let root_cause = format!("{}", err);
+
+        let expected_err = format!(
+            "Invalid address '{}': address must either be in bech32 or hex",
+            invalid_str
+        );
+        assert_eq!(root_cause, expected_err)
     }
 }
