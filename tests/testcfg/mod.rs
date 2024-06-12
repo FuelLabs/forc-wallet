@@ -3,13 +3,14 @@ use forc_wallet::{new::new_wallet, DEFAULT_CACHE_ACCOUNTS};
 use lazy_static::lazy_static;
 use std::{
     env, fs,
+    io::Read,
     path::{Path, PathBuf},
-    process::{Command, ExitStatus},
+    process::{Command, ExitStatus, Stdio},
 };
 use tempfile::tempdir;
 
 /// Default password to use while creating a wallet.
-const DEFAULT_PASSWORD: &str = "1234";
+pub(crate) const DEFAULT_PASSWORD: &str = "1234";
 
 pub enum ForcWalletState {
     /// Wallet is not initialized yet. No wallet file is present at the target folder.
@@ -69,19 +70,34 @@ impl TestCfg {
     }
 
     /// A function for executing forc wallet with given args at the given path.
-    pub fn exec(&mut self, args: &[&str]) -> TestOutput {
+    pub fn exec(&mut self, args: &[&str], f: &dyn Fn()) -> TestOutput {
         const PROC_NAME: &str = "forc-wallet";
-        let output = Command::new(PROC_NAME)
+        let mut cmd = Command::new(PROC_NAME)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
             .args(args)
             .current_dir(&self.forc_wallet_bin_path)
-            .output()
+            .spawn()
             .expect("Failed to execute command");
-        let stdout = String::from_utf8(output.stdout).unwrap();
-        let stderr = String::from_utf8(output.stderr).unwrap();
+
+        let _ = cmd.stdin.take();
+
+        f();
+
+        let mut cmd_stdout = cmd.stdout.take().unwrap();
+        let mut cmd_stderr = cmd.stderr.take().unwrap();
+
+        let status = cmd.wait().expect("failed to wait");
+
+        let mut stdout = String::new();
+        cmd_stdout.read_to_string(&mut stdout).unwrap();
+        let mut stderr = String::new();
+        cmd_stderr.read_to_string(&mut stderr).unwrap();
         TestOutput {
             stdout,
             stderr,
-            status: output.status,
+            status,
         }
     }
 }
@@ -118,7 +134,7 @@ pub(crate) fn setup(state: ForcWalletState, f: &dyn Fn(&mut TestCfg)) -> Result<
 
     let tmp_forc_wallet_path = tmp_forc.join("wallet");
     match state {
-        ForcWalletState::NotInitialized => todo!(),
+        ForcWalletState::NotInitialized => {}
         ForcWalletState::Initialized => {
             setup_new_wallet(&tmp_forc_wallet_path)?;
         }
@@ -126,4 +142,27 @@ pub(crate) fn setup(state: ForcWalletState, f: &dyn Fn(&mut TestCfg)) -> Result<
 
     f(&mut TestCfg::new(tmp_home, tmp_forc_wallet_path));
     Ok(())
+}
+
+pub mod input_utils {
+    use anyhow::Result;
+    use enigo::{Direction, Enigo, Key, Keyboard};
+
+    use super::DEFAULT_PASSWORD;
+    pub fn write_to_stdin(input: &str, enigo: &mut Enigo) -> Result<()> {
+        enigo.text(input).unwrap();
+        Ok(())
+    }
+
+    pub fn send_enter(enigo: &mut Enigo) -> Result<()> {
+        enigo.key(Key::Return, Direction::Press)?;
+        enigo.key(Key::Return, Direction::Release)?;
+        Ok(())
+    }
+
+    pub fn enter_password(enigo: &mut Enigo) -> Result<()> {
+        write_to_stdin(DEFAULT_PASSWORD, enigo)?;
+        send_enter(enigo)?;
+        Ok(())
+    }
 }

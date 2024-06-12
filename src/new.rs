@@ -16,7 +16,7 @@ pub struct New {
     #[clap(short, long)]
     pub force: bool,
 
-    /// How many accounts to cache by default (Default 10)
+    /// How many accounts to cache by default (Default 1)
     #[clap(short, long)]
     pub cache_accounts: Option<usize>,
 }
