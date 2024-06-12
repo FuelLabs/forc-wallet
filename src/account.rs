@@ -712,4 +712,22 @@ mod tests {
         );
         assert_eq!(root_cause, expected_err)
     }
+
+    #[test]
+    fn display_to_bech32() {
+        let bech32_str = "fuel1j78es08cyyz5n75jugal7p759ccs323etnykzpndsvhzu6399yqqpjmmd2";
+        let to = To::from_str(bech32_str).unwrap();
+        let to_str = format!("{}", to);
+        assert_eq!(to_str, bech32_str)
+    }
+
+    #[test]
+    fn display_to_hex() {
+        let hex_str = "b0b695b9eb91d9597d9a98759b359f977c3c402c027ab3720aef6664bf974ce8";
+        let to = To::from_str(hex_str).unwrap();
+        let to_str = format!("{}", to);
+        let expected_hex = format!("0x{}", hex_str);
+
+        assert_eq!(to_str, expected_hex)
+    }
 }
