@@ -1,5 +1,10 @@
-use crate::utils::{
-    ensure_no_wallet_exists, request_new_password, write_wallet_from_mnemonic_and_password,
+use crate::{
+    account::derive_and_cache_addresses,
+    utils::{
+        ensure_no_wallet_exists, load_wallet, request_new_password,
+        write_wallet_from_mnemonic_and_password,
+    },
+    DEFAULT_CACHE_ACCOUNTS,
 };
 use anyhow::{bail, Result};
 use clap::Args;
@@ -11,6 +16,9 @@ pub struct Import {
     /// Forces wallet creation, removing any existing wallet file
     #[clap(short, long)]
     force: bool,
+    /// How many accounts to cache by default (Default 10)
+    #[clap(short, long)]
+    pub cache_accounts: Option<usize>,
 }
 
 /// Check if given mnemonic is valid by trying to create a `WalletUnlocked` from it
@@ -29,6 +37,11 @@ pub fn import_wallet_cli(wallet_path: &Path, import: Import) -> Result<()> {
     check_mnemonic(&mnemonic)?;
     let password = request_new_password();
     write_wallet_from_mnemonic_and_password(wallet_path, &mnemonic, &password)?;
+    derive_and_cache_addresses(
+        &load_wallet(wallet_path)?,
+        &mnemonic,
+        0..import.cache_accounts.unwrap_or(DEFAULT_CACHE_ACCOUNTS),
+    )?;
     Ok(())
 }
 
