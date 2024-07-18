@@ -18,8 +18,8 @@ fuel-crypto = { version = "0.55.0" }
 fuel-types = { version = "0.55.0" }
 
 # Dependencies from the `fuels-rs` repository:
-fuels = { git = "https://github.com/FuelLabs/fuels-rs", branch = "hal3e/new-fuel-abi-spec" }
-fuels-core = { git = "https://github.com/FuelLabs/fuels-rs", branch = "hal3e/new-fuel-abi-spec" }
+fuels = { git = "https://github.com/FuelLabs/fuels-rs", branch = "esdrubal/abi_changes2" }
+fuels-core = { git = "https://github.com/FuelLabs/fuels-rs", branch = "esdrubal/abi_changes2" }
 
 futures = "0.3"
 hex = "0.4"
