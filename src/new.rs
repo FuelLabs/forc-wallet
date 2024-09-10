@@ -19,11 +19,22 @@ pub struct New {
     /// How many accounts to cache by default (Default 10)
     #[clap(short, long)]
     pub cache_accounts: Option<usize>,
+
+    /// Directly provide the wallet password when create new wallet.
+    ///
+    /// WARNING: This is primarily provided for non-interactive testing. Using this flag is
+    /// prone to leaving your password exposed in your shell command history!
+    #[clap(short, long)]
+    pub password_non_interactive: Option<String>,
+
+    /// Silent mode, do not display the mnemonic phrase.
+    #[clap(short, long)]
+    pub silent: bool,
 }
 
 pub fn new_wallet_cli(wallet_path: &Path, new: New) -> anyhow::Result<()> {
     ensure_no_wallet_exists(wallet_path, new.force, stdin().lock())?;
-    let password = request_new_password();
+    let password = new.password_non_interactive.unwrap_or_else(request_new_password);
     // Generate a random mnemonic phrase.
     let mnemonic = generate_mnemonic_phrase(&mut rand::thread_rng(), 24)?;
     write_wallet_from_mnemonic_and_password(wallet_path, &mnemonic, &password)?;
@@ -35,9 +46,12 @@ pub fn new_wallet_cli(wallet_path: &Path, new: New) -> anyhow::Result<()> {
     )?;
 
     let mnemonic_string = format!("Wallet mnemonic phrase: {mnemonic}\n");
-    display_string_discreetly(
-        &mnemonic_string,
-        "### Do not share or lose this mnemonic phrase! Press any key to complete. ###",
-    )?;
+
+    if !new.silent {
+        display_string_discreetly(
+            &mnemonic_string,
+            "### Do not share or lose this mnemonic phrase! Press any key to complete. ###",
+        )?;
+    }
     Ok(())
 }
