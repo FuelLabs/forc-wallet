@@ -25,7 +25,7 @@ pub struct New {
     /// WARNING: This is primarily provided for non-interactive testing. Using this flag is
     /// prone to leaving your password exposed in your shell command history!
     #[clap(short, long)]
-    pub password_non_interactive: Option<String>,
+    pub unsafe_password: Option<String>,
 
     /// Silent mode, do not display the mnemonic phrase.
     #[clap(short, long)]
@@ -34,7 +34,7 @@ pub struct New {
 
 pub fn new_wallet_cli(wallet_path: &Path, new: New) -> anyhow::Result<()> {
     ensure_no_wallet_exists(wallet_path, new.force, stdin().lock())?;
-    let password = new.password_non_interactive.unwrap_or_else(request_new_password);
+    let password = new.unsafe_password.unwrap_or_else(request_new_password);
     // Generate a random mnemonic phrase.
     let mnemonic = generate_mnemonic_phrase(&mut rand::thread_rng(), 24)?;
     write_wallet_from_mnemonic_and_password(wallet_path, &mnemonic, &password)?;
