@@ -31,7 +31,7 @@ pub struct Accounts {
     #[clap(flatten)]
     unverified: Unverified,
     #[clap(long)]
-    as_hex: bool,
+    as_bech32: bool,
 }
 
 #[derive(Debug, Args)]
@@ -153,7 +153,7 @@ impl fmt::Display for To {
 }
 
 /// A map from an account's index to its bech32 address.
-type AccountAddresses = BTreeMap<usize, Bech32Address>;
+type AccountAddresses = BTreeMap<usize, fuel_types::Address>;
 
 pub async fn cli(wallet_path: &Path, account: Account) -> Result<()> {
     match (account.index, account.cmd) {
@@ -192,11 +192,13 @@ pub(crate) async fn account_balance_cli(
         .remove(&acc_ix)
         .ok_or_else(|| anyhow!("No cached address for account {acc_ix}"))?;
     let mut account = if balance.unverified.unverified {
+        let cached_addr = Bech32Address::from(cached_addr);
         Wallet::from_address(cached_addr.clone(), None)
     } else {
         let prompt = format!("Please enter your wallet password to verify account {acc_ix}: ");
         let password = rpassword::prompt_password(prompt)?;
         let account = derive_account(wallet_path, acc_ix, &password)?;
+        let cached_addr = Bech32Address::from(cached_addr);
         verify_address_and_update_cache(acc_ix, &account, &cached_addr, &wallet.crypto.ciphertext)?;
         account
     };
@@ -286,10 +288,10 @@ pub fn print_accounts_cli(wallet_path: &Path, accounts: Accounts) -> Result<()> 
         println!("Account addresses (unverified, printed from cache):");
         addresses
             .iter()
-            .for_each(|(ix, addr)| match accounts.as_hex {
+            .for_each(|(ix, addr)| match accounts.as_bech32 {
                 false => println!("[{ix}] {addr}"),
                 true => {
-                    let bytes_addr: fuel_types::Address = addr.into();
+                    let bytes_addr: Bech32Address = Bech32Address::from(*addr);
                     println!("[{ix}] {bytes_addr}");
                 }
             });
@@ -299,10 +301,10 @@ pub fn print_accounts_cli(wallet_path: &Path, accounts: Accounts) -> Result<()> 
         for &ix in addresses.keys() {
             let account = derive_account(wallet_path, ix, &password)?;
             let account_addr = account.address();
-            match accounts.as_hex {
+            match accounts.as_bech32 {
                 false => println!("[{ix}] {account_addr}"),
                 true => {
-                    let bytes_addr: fuel_types::Address = account_addr.into();
+                    let bytes_addr: Bech32Address = Bech32Address::from(account_addr);
                     println!("[{ix}] {bytes_addr}");
                 }
             }
@@ -396,7 +398,7 @@ pub fn derive_and_cache_addresses(
     wallet: &EthKeystore,
     mnemonic: &str,
     range: Range<usize>,
-) -> anyhow::Result<BTreeMap<usize, Bech32Address>> {
+) -> anyhow::Result<BTreeMap<usize, fuel_types::Address>> {
     range
         .into_iter()
         .map(|acc_ix| {
@@ -405,7 +407,7 @@ pub fn derive_and_cache_addresses(
             let account = WalletUnlocked::new_from_private_key(secret_key, None);
             cache_address(&wallet.crypto.ciphertext, acc_ix, account.address())?;
 
-            Ok(account.address().to_owned())
+            Ok(account.address().to_owned().into())
         })
         .collect::<Result<Vec<_>, _>>()
         .map(|x| x.into_iter().enumerate().collect())
@@ -611,9 +613,10 @@ pub(crate) fn read_cached_addresses(wallet_ciphertext: &[u8]) -> Result<AccountA
                 .context("failed to parse account index from file name")?;
             let account_addr_str = std::fs::read_to_string(&path)
                 .context("failed to read account address from cache")?;
-            let account_addr = account_addr_str
+            let account_addr_bech32: Bech32Address = account_addr_str
                 .parse()
                 .context("failed to parse cached account address as a bech32 address")?;
+            let account_addr: fuel_types::Address = account_addr_bech32.into();
             Ok((account_ix, account_addr))
         })
         .collect()

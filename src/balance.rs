@@ -44,7 +44,7 @@ pub enum AccountVerification {
 /// List of accounts and amount of tokens they hold with different ASSET_IDs.
 pub type AccountBalances = Vec<HashMap<String, u64>>;
 /// A mapping between account index and the bech32 address for that account.
-pub type AccountsMap = BTreeMap<usize, Bech32Address>;
+pub type AccountsMap = BTreeMap<usize, fuel_types::Address>;
 
 /// Return a map of accounts after desired verification applied in a map where each key is account
 /// index and each value is the `Bech32Address` of that account.
@@ -56,9 +56,15 @@ pub fn collect_accounts_with_verification(
     let mut addresses = read_cached_addresses(&wallet.crypto.ciphertext)?;
     if let AccountVerification::Yes(password) = verification {
         for (&ix, addr) in addresses.iter_mut() {
+            let addr_bech32 = Bech32Address::from(*addr);
             let account = derive_account(wallet_path, ix, &password)?;
-            if verify_address_and_update_cache(ix, &account, addr, &wallet.crypto.ciphertext)? {
-                *addr = account.address().clone();
+            if verify_address_and_update_cache(
+                ix,
+                &account,
+                &addr_bech32,
+                &wallet.crypto.ciphertext,
+            )? {
+                *addr = account.address().clone().into();
             }
         }
     }
@@ -124,7 +130,7 @@ pub fn print_account_balances(accounts_map: &AccountsMap, account_balances: &Acc
 
 pub(crate) async fn list_account_balances(
     node_url: &Url,
-    addresses: &BTreeMap<usize, Bech32Address>,
+    addresses: &BTreeMap<usize, fuel_types::Address>,
 ) -> Result<(Vec<HashMap<String, u64>>, BTreeMap<String, u128>)> {
     println!("Connecting to {node_url}");
     let provider = Provider::connect(&node_url).await?;
@@ -134,7 +140,7 @@ pub(crate) async fn list_account_balances(
     }
     let accounts: Vec<_> = addresses
         .values()
-        .map(|addr| Wallet::from_address(addr.clone(), Some(provider.clone())))
+        .map(|addr| Wallet::from_address(addr.clone().into(), Some(provider.clone())))
         .collect();
     let account_balances =
         futures::future::try_join_all(accounts.iter().map(|acc| acc.get_balances())).await?;
