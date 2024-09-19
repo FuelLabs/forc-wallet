@@ -140,7 +140,7 @@ pub(crate) async fn list_account_balances(
     }
     let accounts: Vec<_> = addresses
         .values()
-        .map(|addr| Wallet::from_address(addr.clone().into(), Some(provider.clone())))
+        .map(|addr| Wallet::from_address((*addr).into(), Some(provider.clone())))
         .collect();
     let account_balances =
         futures::future::try_join_all(accounts.iter().map(|acc| acc.get_balances())).await?;

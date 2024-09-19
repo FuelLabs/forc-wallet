@@ -33,7 +33,7 @@ pub async fn list_wallet_cli(wallet_path: &Path, opts: List) -> Result<()> {
         opts.target_accounts,
     )?
     .range(0..opts.target_accounts.unwrap_or(1))
-    .map(|(a, b)| (*a, b.clone()))
+    .map(|(a, b)| (*a, *b))
     .collect::<BTreeMap<_, _>>();
 
     let (account_balances, total_balance) =
