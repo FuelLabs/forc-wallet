@@ -131,21 +131,25 @@ enum To {
 }
 
 impl FromStr for To {
-    type Err = &'static str;
+    type Err = String;
 
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         if let Ok(bech32_address) = Bech32Address::from_str(s) {
             return Ok(Self::Bech32Address(bech32_address));
         } else if let Ok(hex_address) = fuel_types::Address::from_str(s) {
             if !is_checksum_valid(s) {
-                return Err(
+                return Err(format!(
                     "Checksum is not valid for address `{}`, the address might not be an account.",
-                );
+                    s
+                ));
             }
             return Ok(Self::HexAddress(hex_address));
         }
 
-        Err("Invalid address '{}': address must either be in bech32 or hex")
+        Err(format!(
+            "Invalid address '{}': address must either be in bech32 or hex",
+            s
+        ))
     }
 }
 
