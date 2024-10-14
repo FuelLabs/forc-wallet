@@ -529,8 +529,11 @@ pub(crate) async fn transfer_cli(
         .await?;
 
     let block_explorer_url = match transfer.node_url.host_str() {
-        host if host == crate::network::TESTNET.parse::<Url>().unwrap().host_str() => {
+        host if host == crate::network::MAINNET.parse::<Url>().unwrap().host_str() => {
             crate::explorer::DEFAULT
+        }
+        host if host == crate::network::TESTNET.parse::<Url>().unwrap().host_str() => {
+            crate::explorer::TESTNET
         }
         host if host == crate::network::BETA_5.parse::<Url>().unwrap().host_str() => {
             crate::explorer::BETA_5
