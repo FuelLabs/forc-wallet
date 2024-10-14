@@ -8,7 +8,8 @@ use clap::{Args, Subcommand};
 use eth_keystore::EthKeystore;
 use forc_tracing::println_warning;
 use fuel_crypto::{PublicKey, SecretKey};
-use fuel_types::AssetId;
+use fuel_types::{AssetId, Bytes32};
+use fuels::types::checksum_address::{checksum_encode, is_checksum_valid};
 use fuels::{
     accounts::wallet::{Wallet, WalletUnlocked},
     prelude::*,
@@ -136,6 +137,11 @@ impl FromStr for To {
         if let Ok(bech32_address) = Bech32Address::from_str(s) {
             return Ok(Self::Bech32Address(bech32_address));
         } else if let Ok(hex_address) = fuel_types::Address::from_str(s) {
+            if !is_checksum_valid(s) {
+                return Err(
+                    "Checksum is not valid for address `{}`, the address might not be an account.",
+                );
+            }
             return Ok(Self::HexAddress(hex_address));
         }
 
@@ -147,7 +153,13 @@ impl fmt::Display for To {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             To::Bech32Address(bech32_addr) => write!(f, "{bech32_addr}"),
-            To::HexAddress(hex_addr) => write!(f, "0x{hex_addr}"),
+            To::HexAddress(hex_addr) => {
+                // This `unwrap` is fine, because only way to create a `To` is
+                // `from_str` and providing an invalid checksum, or non-hex
+                // addr is already handled by that routine.
+                let hex_addr = checksum_encode(&format!("0x{hex_addr}")).unwrap();
+                write!(f, "{hex_addr}")
+            }
         }
     }
 }
@@ -204,7 +216,8 @@ pub(crate) async fn account_balance_cli(
     };
     println!("Connecting to {}", balance.node_url);
     println!("Fetching the balance of the following account:",);
-    println!("  {acc_ix:>3}: {}", account.address());
+    let account_adr = checksum_encode(&format!("0x{}", account.address()))?;
+    println!("  {acc_ix:>3}: {}", account_adr);
     let provider = Provider::connect(&balance.node_url).await?;
     account.set_provider(provider);
     let account_balance: BTreeMap<_, _> = account
@@ -261,10 +274,17 @@ pub(crate) fn print_balance_empty(node_url: &Url) {
         host if host == testnet_url.host_str() => crate::network::TESTNET_FAUCET,
         _ => return println!("  Account empty."),
     };
-    println!(
-        "  Account empty. Visit the faucet to acquire some test funds: {}",
-        faucet_url
-    );
+    if node_url
+        .host_str()
+        .is_some_and(|a| a == crate::network::MAINNET)
+    {
+        println!("  Account empty.");
+    } else {
+        println!(
+            "  Account empty. Visit the faucet to acquire some test funds: {}",
+            faucet_url
+        );
+    }
 }
 
 pub(crate) fn print_balance(balance: &BTreeMap<String, u128>) {
@@ -289,7 +309,9 @@ pub fn print_accounts_cli(wallet_path: &Path, accounts: Accounts) -> Result<()> 
         addresses
             .iter()
             .for_each(|(ix, addr)| match accounts.as_bech32 {
-                false => println!("[{ix}] {addr}"),
+                false => {
+                    println!("[{ix}] {addr}")
+                }
                 true => {
                     let bytes_addr: Bech32Address = Bech32Address::from(*addr);
                     println!("[{ix}] {bytes_addr}");
@@ -302,7 +324,11 @@ pub fn print_accounts_cli(wallet_path: &Path, accounts: Accounts) -> Result<()> 
             let account = derive_account(wallet_path, ix, &password)?;
             let account_addr = account.address();
             match accounts.as_bech32 {
-                false => println!("[{ix}] {account_addr}"),
+                false => {
+                    let account_addr: Address = account.address().into();
+                    let account_addr = checksum_encode(&format!("0x{account_addr}"))?;
+                    println!("[{ix}] {account_addr}")
+                }
                 true => {
                     let bytes_addr: Bech32Address = Bech32Address::from(account_addr);
                     println!("[{ix}] {bytes_addr}");
@@ -359,7 +385,9 @@ pub fn print_address(wallet_path: &Path, account_ix: usize, unverified: bool) ->
         let password = rpassword::prompt_password(prompt)?;
         let account = derive_account(wallet_path, account_ix, &password)?;
         let account_addr = account.address();
-        println!("Account {account_ix} address: {account_addr}");
+        let checksum_addr =
+            checksum_encode(&format!("0x{}", fuel_types::Address::from(account_addr)))?;
+        println!("Account {account_ix} address: {checksum_addr}");
         cache_address(&wallet.crypto.ciphertext, account_ix, account_addr)?;
     }
     Ok(())
@@ -498,10 +526,22 @@ pub(crate) async fn transfer_cli(
         "Preparing to transfer:\n  Amount: {}\n  Asset ID: 0x{}\n  To: {}\n",
         transfer.amount, transfer.asset_id, transfer.to
     );
+    let provider = Provider::connect(&transfer.node_url).await?;
 
     let to = match transfer.to {
         To::Bech32Address(bech32_addr) => bech32_addr,
-        To::HexAddress(hex_addr) => Bech32Address::from(hex_addr),
+        To::HexAddress(hex_addr) => {
+            // Check if `to` is an account, we know that checksum is valid at
+            // this point. Otherwise, `To` won't even parse from user input.
+            // At this point we want to query the provider to see if the
+            // acount is actually something we can transfer to.
+            let addr = checksum_encode(&format!("0x{hex_addr}"))?;
+            let to_addr = Bytes32::from_str(&addr).map_err(|e| anyhow!("{e}"))?;
+            if !provider.is_user_account(to_addr).await? {
+                bail!(format!("{addr} is not a user account. Aborting transfer."))
+            }
+            Bech32Address::from(hex_addr)
+        }
     };
 
     let prompt = format!(
@@ -509,7 +549,6 @@ pub(crate) async fn transfer_cli(
     );
     let password = rpassword::prompt_password(prompt)?;
     let mut account = derive_account_unlocked(wallet_path, acc_ix, &password)?;
-    let provider = Provider::connect(&transfer.node_url).await?;
     account.set_provider(provider);
     println!("Transferring...");
 
@@ -550,7 +589,7 @@ pub(crate) async fn transfer_cli(
         _ => "",
     };
 
-    let tx_explorer_url = format!("{block_explorer_url}/#/transaction/0x{tx_id}");
+    let tx_explorer_url = format!("{block_explorer_url}/tx/0x{tx_id}");
     println!(
         "\nTransfer complete!\nSummary:\n  Transaction ID: 0x{tx_id}\n  Receipts: {:#?}\n  Explorer: {tx_explorer_url}\n",
         receipts

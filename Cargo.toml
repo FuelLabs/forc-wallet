@@ -14,12 +14,12 @@ eth-keystore = { version = "0.5" }
 forc-tracing = "0.47.0"
 
 # Dependencies from the `fuel-vm` repository:
-fuel-crypto = { version = "0.58.0" }
-fuel-types = { version = "0.58.0" }
+fuel-crypto = { version = "0.58.2" }
+fuel-types = { version = "0.58.2" }
 
 # Dependencies from the `fuels-rs` repository:
-fuels = "0.66.6" 
-fuels-core = "0.66.6" 
+fuels = "0.66.8" 
+fuels-core = "0.66.8" 
 
 futures = "0.3"
 hex = "0.4"

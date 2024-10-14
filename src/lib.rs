@@ -32,6 +32,6 @@ pub mod explorer {
     pub const BETA_3: &str = "https://fuellabs.github.io/block-explorer-v2/beta-3";
     pub const BETA_4: &str = "https://fuellabs.github.io/block-explorer-v2/beta-4";
     pub const BETA_5: &str = "https://fuellabs.github.io/block-explorer-v2/beta-5";
-    pub const TESTNET: &str = "https://app.fuel.network/";
-    pub const MAINNET: &str = "https://app.fuel.network/";
+    pub const TESTNET: &str = "https://app-testnet.fuel.network";
+    pub const MAINNET: &str = "https://app.fuel.network";
 }

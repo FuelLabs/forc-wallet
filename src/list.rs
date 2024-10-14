@@ -38,7 +38,7 @@ pub async fn list_wallet_cli(wallet_path: &Path, opts: List) -> Result<()> {
 
     let (account_balances, total_balance) =
         list_account_balances(&opts.node_url, &addresses).await?;
-    print_account_balances(&addresses, &account_balances);
+    print_account_balances(&addresses, &account_balances)?;
     println!("\nTotal:");
     if total_balance.is_empty() {
         print_balance_empty(&opts.node_url);
