@@ -35,7 +35,7 @@ enum Command {
     /// If a '--fore' is specified, will automatically removes the existing wallet at the same
     /// path.
     New(New),
-    /// TODO: List all wallets in the default wallet directory.
+    /// List all wallets in the default wallet directory.
     List(List),
     /// Import a wallet from the provided mnemonic phrase.
     ///

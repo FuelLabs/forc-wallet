@@ -3,6 +3,7 @@ use clap::Args;
 use fuels::{
     accounts::{wallet::Wallet, ViewOnlyAccount},
     prelude::*,
+    types::checksum_address::checksum_encode,
 };
 use std::{
     cmp::max,
@@ -103,7 +104,10 @@ pub fn get_derived_accounts(
 }
 
 /// Print collected account balances for each asset type.
-pub fn print_account_balances(accounts_map: &AccountsMap, account_balances: &AccountBalances) {
+pub fn print_account_balances(
+    accounts_map: &AccountsMap,
+    account_balances: &AccountBalances,
+) -> Result<()> {
     let mut list = List::default();
     list.add_newline();
     for (ix, balance) in accounts_map.keys().zip(account_balances) {
@@ -116,7 +120,10 @@ pub fn print_account_balances(accounts_map: &AccountsMap, account_balances: &Acc
         }
 
         list.add_seperator();
-        list.add(format!("Account {ix}"), accounts_map[ix].to_string());
+        list.add(
+            format!("Account {ix}"),
+            checksum_encode(&format!("0x{}", accounts_map[ix]))?,
+        );
         list.add_newline();
 
         for (asset_id, amount) in balance {
@@ -126,6 +133,7 @@ pub fn print_account_balances(accounts_map: &AccountsMap, account_balances: &Acc
         list.add_seperator();
     }
     println!("{}", list);
+    Ok(())
 }
 
 pub(crate) async fn list_account_balances(
@@ -136,7 +144,9 @@ pub(crate) async fn list_account_balances(
     let provider = Provider::connect(&node_url).await?;
     println!("Fetching and summing balances of the following accounts:");
     for (ix, addr) in addresses {
-        println!("  {ix:>3}: {addr}");
+        let addr = format!("0x{}", addr);
+        let checksum_addr = checksum_encode(&addr)?;
+        println!("  {ix:>3}: {checksum_addr}");
     }
     let accounts: Vec<_> = addresses
         .values()
@@ -171,7 +181,7 @@ pub async fn cli(wallet_path: &Path, balance: &Balance) -> Result<()> {
     let (account_balances, total_balance) = list_account_balances(node_url, &addresses).await?;
 
     if balance.accounts {
-        print_account_balances(&addresses, &account_balances);
+        print_account_balances(&addresses, &account_balances)?;
     }
 
     println!("\nTotal:");
