@@ -324,35 +324,15 @@ pub(crate) mod test_utils {
     pub(crate) const TEST_MNEMONIC: &str = "rapid mechanic escape victory bacon switch soda math embrace frozen novel document wait motor thrive ski addict ripple bid magnet horse merge brisk exile";
     pub(crate) const TEST_PASSWORD: &str = "1234";
 
-    /// Create a tmp folder and execute the given test function `f`
-    pub(crate) fn with_tmp_dir<F>(f: F)
-    where
-        F: FnOnce(&Path) + panic::UnwindSafe,
-    {
-        let tmp_dir_name = format!("forc-wallet-test-{:x}", rand::random::<u64>());
-        let tmp_dir = user_fuel_dir().join(".tmp").join(tmp_dir_name);
-        std::fs::create_dir_all(&tmp_dir).unwrap();
-        let panic = panic::catch_unwind(|| f(&tmp_dir));
-        std::fs::remove_dir_all(&tmp_dir).unwrap();
-        if let Err(e) = panic {
-            panic::resume_unwind(e);
-        }
-    }
-
-    /// Saves a default test mnemonic to the disk
-    pub(crate) fn save_dummy_wallet_file(wallet_path: &Path) {
-        write_wallet_from_mnemonic_and_password(wallet_path, TEST_MNEMONIC, TEST_PASSWORD).unwrap();
-    }
-
-    /// The same as `with_tmp_dir`, but also provides a test wallet.
+    /// Creates temp dir with a temp/test wallet.
     pub(crate) fn with_tmp_dir_and_wallet<F>(f: F)
     where
         F: FnOnce(&Path, &Path) + panic::UnwindSafe,
     {
-        with_tmp_dir(|dir| {
-            let wallet_path = dir.join("wallet.json");
-            save_dummy_wallet_file(&wallet_path);
-            f(dir, &wallet_path);
-        })
+        let tmp_dir = tempfile::TempDir::new().unwrap();
+        let wallet_path = tmp_dir.path().join("wallet.json");
+        write_wallet_from_mnemonic_and_password(&wallet_path, TEST_MNEMONIC, TEST_PASSWORD)
+            .unwrap();
+        f(&tmp_dir.path(), &wallet_path);
     }
 }
