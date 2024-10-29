@@ -188,20 +188,30 @@ mod tests {
     const INPUT_YES: &[u8; 2] = b"y\n";
     const INPUT_NO: &[u8; 2] = b"n\n";
 
-    fn remove_wallet(wallet_path: &Path) {
-        if wallet_path.exists() {
-            fs::remove_file(wallet_path).unwrap();
-        }
+    /// Represents the possible serialized states of a wallet.
+    /// Used primarily for simulating wallet creation and serialization processes.
+    enum WalletSerializedState {
+        Empty,
+        WithData(String),
     }
 
-    /// Create a wallet file with optional wallet data; the data is written to the file if provided.
-    /// The data does not have to be a valid JSON.
-    fn create_wallet(wallet_path: &Path, data: Option<&str>) {
+    /// Simulates the serialization of a wallet to a file, optionally including dummy data.
+    /// Primarily used to test if checks for wallet file existence are functioning correctly.
+    fn serialize_wallet_to_file(wallet_path: &Path, state: WalletSerializedState) {
+        // Create the wallet file if it does not exist.
         if !wallet_path.exists() {
             fs::File::create(wallet_path).unwrap();
         }
-        if let Some(data) = data {
+
+        // Write content to the wallet file based on the specified state.
+        if let WalletSerializedState::WithData(data) = state {
             fs::write(wallet_path, data).unwrap();
+        }
+    }
+
+    fn remove_wallet(wallet_path: &Path) {
+        if wallet_path.exists() {
+            fs::remove_file(wallet_path).unwrap();
         }
     }
 
@@ -287,13 +297,13 @@ mod tests {
         // case: wallet path exist without --force and input[yes]
         let tmp_dir = tempfile::TempDir::new().unwrap();
         let wallet_path = tmp_dir.path().join("wallet.json");
-        create_wallet(&wallet_path, None);
+        serialize_wallet_to_file(&wallet_path, WalletSerializedState::Empty);
         ensure_no_wallet_exists(&wallet_path, false, &INPUT_YES[..]).unwrap();
 
         // case: wallet path exist with --force
         let tmp_dir = tempfile::TempDir::new().unwrap();
         let wallet_path = tmp_dir.path().join("empty_wallet.json");
-        create_wallet(&wallet_path, None);
+        serialize_wallet_to_file(&wallet_path, WalletSerializedState::Empty);
 
         // Empty file should not trigger the replacement prompt
         ensure_no_wallet_exists(&wallet_path, false, &INPUT_YES[..]).unwrap();
@@ -306,7 +316,10 @@ mod tests {
         let wallet_path = tmp_dir.path().join("nonempty_wallet.json");
 
         // Create non-empty file
-        create_wallet(&wallet_path, Some("some wallet content"));
+        serialize_wallet_to_file(
+            &wallet_path,
+            WalletSerializedState::WithData("some wallet content".to_string()),
+        );
 
         // Test with --force flag
         ensure_no_wallet_exists(&wallet_path, true, &INPUT_NO[..]).unwrap();
@@ -316,7 +329,10 @@ mod tests {
         );
 
         // Test with user confirmation (yes)
-        create_wallet(&wallet_path, Some("some wallet content"));
+        serialize_wallet_to_file(
+            &wallet_path,
+            WalletSerializedState::WithData("some wallet content".to_string()),
+        );
         ensure_no_wallet_exists(&wallet_path, false, &INPUT_YES[..]).unwrap();
         assert!(
             !wallet_path.exists(),
@@ -324,7 +340,10 @@ mod tests {
         );
 
         // Test with user rejection (no)
-        create_wallet(&wallet_path, Some("some wallet content"));
+        serialize_wallet_to_file(
+            &wallet_path,
+            WalletSerializedState::WithData("some wallet content".to_string()),
+        );
         let result = ensure_no_wallet_exists(&wallet_path, false, &INPUT_NO[..]);
         assert!(
             result.is_err(),
