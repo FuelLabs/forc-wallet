@@ -142,13 +142,21 @@ pub(crate) fn ensure_no_wallet_exists(
     force: bool,
     mut reader: impl BufRead,
 ) -> Result<()> {
-    if wallet_path.exists() {
+    let remove_wallet = || {
+        if wallet_path.is_dir() {
+            fs::remove_dir_all(wallet_path).unwrap();
+        } else {
+            fs::remove_file(wallet_path).unwrap();
+        }
+    };
+
+    if wallet_path.exists() && fs::metadata(wallet_path)?.len() > 0 {
         if force {
             println_warning(&format!(
                 "Because the `--force` argument was supplied, the wallet at {} will be removed.",
                 wallet_path.display(),
             ));
-            fs::remove_file(wallet_path).unwrap();
+            remove_wallet();
         } else {
             println_warning(&format!(
                 "There is an existing wallet at {}. \
@@ -158,7 +166,7 @@ pub(crate) fn ensure_no_wallet_exists(
             let mut need_replace = String::new();
             reader.read_line(&mut need_replace).unwrap();
             if need_replace.trim() == "y" {
-                fs::remove_file(wallet_path).unwrap();
+                remove_wallet();
             } else {
                 bail!(
                     "Failed to create a new wallet at {} \
