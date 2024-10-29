@@ -193,6 +193,9 @@ mod tests {
             fs::remove_file(wallet_path).unwrap();
         }
     }
+
+    /// Create a wallet file with optional wallet content.
+    /// Creates empty wallet file if content is None.
     fn create_wallet(wallet_path: &Path, content: Option<&str>) {
         if !wallet_path.exists() {
             fs::File::create(wallet_path).unwrap();
