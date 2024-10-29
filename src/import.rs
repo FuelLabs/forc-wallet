@@ -15,7 +15,7 @@ use std::{io::stdin, path::Path};
 pub struct Import {
     /// Forces wallet creation, removing any existing wallet file
     #[clap(short, long)]
-    force: bool,
+    pub force: bool,
     /// How many accounts to cache by default (Default 10)
     #[clap(short, long)]
     pub cache_accounts: Option<usize>,
