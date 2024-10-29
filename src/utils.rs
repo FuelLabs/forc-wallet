@@ -194,14 +194,14 @@ mod tests {
         }
     }
 
-    /// Create a wallet file with optional wallet content.
-    /// Creates empty wallet file if content is None.
-    fn create_wallet(wallet_path: &Path, content: Option<&str>) {
+    /// Create a wallet file with optional wallet data; the data is written to the file if provided.
+    /// The data does not have to be a valid JSON.
+    fn create_wallet(wallet_path: &Path, data: Option<&str>) {
         if !wallet_path.exists() {
             fs::File::create(wallet_path).unwrap();
         }
-        if let Some(content) = content {
-            fs::write(wallet_path, content).unwrap();
+        if let Some(data) = data {
+            fs::write(wallet_path, data).unwrap();
         }
     }
 
