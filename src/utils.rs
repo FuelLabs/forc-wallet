@@ -351,6 +351,6 @@ pub(crate) mod test_utils {
         let wallet_path = tmp_dir.path().join("wallet.json");
         write_wallet_from_mnemonic_and_password(&wallet_path, TEST_MNEMONIC, TEST_PASSWORD)
             .unwrap();
-        f(&tmp_dir.path(), &wallet_path);
+        f(tmp_dir.path(), &wallet_path);
     }
 }
