@@ -182,7 +182,7 @@ pub(crate) fn ensure_no_wallet_exists(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::utils::test_utils::{with_tmp_dir, TEST_MNEMONIC, TEST_PASSWORD};
+    use crate::utils::test_utils::{TEST_MNEMONIC, TEST_PASSWORD};
     // simulate input
     const INPUT_NOP: &[u8; 1] = b"\n";
     const INPUT_YES: &[u8; 2] = b"y\n";
@@ -193,9 +193,12 @@ mod tests {
             fs::remove_file(wallet_path).unwrap();
         }
     }
-    fn create_wallet(wallet_path: &Path) {
+    fn create_wallet(wallet_path: &Path, content: Option<&str>) {
         if !wallet_path.exists() {
             fs::File::create(wallet_path).unwrap();
+        }
+        if let Some(content) = content {
+            fs::write(wallet_path, content).unwrap();
         }
     }
 
