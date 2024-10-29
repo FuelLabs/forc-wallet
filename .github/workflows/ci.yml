@@ -12,8 +12,7 @@ env:
   CARGO_TERM_COLOR: always
   RUSTFLAGS: -D warnings
   REGISTRY: ghcr.io
-  RUST_VERSION: 1.80.0
-  NIGHTLY_RUST_VERSION: nightly-2024-07-21
+  NIGHTLY_RUST_VERSION: nightly-2024-07-15
 
 jobs:
   cancel-previous-runs:
@@ -34,7 +33,7 @@ jobs:
       - name: Install latest Rust
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: ${{ env.RUST_VERSION }}
+          toolchain: ${{ env.NIGHTLY_RUST_VERSION }}
 
       - name: Install cargo-llvm-codecov
         uses: taiki-e/install-action@cargo-llvm-cov
