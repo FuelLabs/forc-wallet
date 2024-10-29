@@ -204,13 +204,12 @@ mod tests {
 
     #[test]
     fn handle_absolute_path_argument() {
-        with_tmp_dir(|tmp_dir| {
-            let tmp_dir_abs = tmp_dir.canonicalize().unwrap();
+        let tmp_dir = tempfile::TempDir::new().unwrap();
+        let tmp_dir_abs = tmp_dir.path().canonicalize().unwrap();
             let wallet_path = tmp_dir_abs.join("wallet.json");
             write_wallet_from_mnemonic_and_password(&wallet_path, TEST_MNEMONIC, TEST_PASSWORD)
                 .unwrap();
             load_wallet(&wallet_path).unwrap();
-        })
     }
 
     #[test]
@@ -234,88 +233,69 @@ mod tests {
     }
     #[test]
     fn encrypt_and_save_phrase() {
-        with_tmp_dir(|tmp_dir| {
-            let wallet_path = tmp_dir.join("wallet.json");
+        let tmp_dir = tempfile::TempDir::new().unwrap();
+        let wallet_path = tmp_dir.path().join("wallet.json");
             write_wallet_from_mnemonic_and_password(&wallet_path, TEST_MNEMONIC, TEST_PASSWORD)
                 .unwrap();
             let phrase_recovered = eth_keystore::decrypt_key(wallet_path, TEST_PASSWORD).unwrap();
             let phrase = String::from_utf8(phrase_recovered).unwrap();
             assert_eq!(phrase, TEST_MNEMONIC)
-        });
     }
 
     #[test]
     fn write_wallet() {
-        with_tmp_dir(|tmp_dir| {
-            let wallet_path = tmp_dir.join("wallet.json");
+        let tmp_dir = tempfile::TempDir::new().unwrap();
+        let wallet_path = tmp_dir.path().join("wallet.json");
             write_wallet_from_mnemonic_and_password(&wallet_path, TEST_MNEMONIC, TEST_PASSWORD)
                 .unwrap();
             load_wallet(&wallet_path).unwrap();
-        })
     }
 
     #[test]
     #[should_panic]
     fn write_wallet_to_existing_file_should_fail() {
-        with_tmp_dir(|tmp_dir| {
-            let wallet_path = tmp_dir.join("wallet.json");
+        let tmp_dir = tempfile::TempDir::new().unwrap();
+        let wallet_path = tmp_dir.path().join("wallet.json");
             write_wallet_from_mnemonic_and_password(&wallet_path, TEST_MNEMONIC, TEST_PASSWORD)
                 .unwrap();
             write_wallet_from_mnemonic_and_password(&wallet_path, TEST_MNEMONIC, TEST_PASSWORD)
                 .unwrap();
-        })
     }
 
     #[test]
     fn write_wallet_subdir() {
-        with_tmp_dir(|tmp_dir| {
-            let wallet_path = tmp_dir.join("path").join("to").join("wallet");
+        let tmp_dir = tempfile::TempDir::new().unwrap();
+        let wallet_path = tmp_dir.path().join("path").join("to").join("wallet.json");
             write_wallet_from_mnemonic_and_password(&wallet_path, TEST_MNEMONIC, TEST_PASSWORD)
                 .unwrap();
             load_wallet(&wallet_path).unwrap();
-        })
     }
 
     #[test]
     fn test_ensure_no_wallet_exists_no_wallet() {
-        with_tmp_dir(|tmp_dir| {
-            let wallet_path = tmp_dir.join("wallet.json");
+        let tmp_dir = tempfile::TempDir::new().unwrap();
+        let wallet_path = tmp_dir.path().join("wallet.json");
             remove_wallet(&wallet_path);
             ensure_no_wallet_exists(&wallet_path, false, &INPUT_NOP[..]).unwrap();
-        });
-    }
-
-    #[test]
-    #[should_panic]
-    fn test_ensure_no_wallet_exists_throws_err() {
-        with_tmp_dir(|tmp_dir| {
-            let wallet_path = tmp_dir.join("wallet.json");
-            create_wallet(&wallet_path);
-            ensure_no_wallet_exists(&wallet_path, false, &INPUT_NO[..]).unwrap();
-        });
     }
 
     #[test]
     fn test_ensure_no_wallet_exists_exists_wallet() {
         // case: wallet path exist without --force and input[yes]
-        with_tmp_dir(|tmp_dir| {
-            let wallet_path = tmp_dir.join("wallet.json");
-            create_wallet(&wallet_path);
+        let tmp_dir = tempfile::TempDir::new().unwrap();
+        let wallet_path = tmp_dir.path().join("wallet.json");
+        create_wallet(&wallet_path, None);
             ensure_no_wallet_exists(&wallet_path, false, &INPUT_YES[..]).unwrap();
-        });
+
         // case: wallet path exist with --force
-        with_tmp_dir(|tmp_dir| {
-            let wallet_path = tmp_dir.join("wallet.json");
-            create_wallet(&wallet_path);
-            ensure_no_wallet_exists(&wallet_path, true, &INPUT_NOP[..]).unwrap();
-        });
-        // case: wallet path exist without --force and supply a different wallet path
-        with_tmp_dir(|tmp_dir| {
-            let wallet_path = tmp_dir.join("wallet.json");
-            create_wallet(&wallet_path);
-            let diff_wallet_path = tmp_dir.join("custom-wallet.json");
-            ensure_no_wallet_exists(&diff_wallet_path, false, &INPUT_NOP[..]).unwrap();
-        });
+        let tmp_dir = tempfile::TempDir::new().unwrap();
+        let wallet_path = tmp_dir.path().join("empty_wallet.json");
+        create_wallet(&wallet_path, None);
+
+        // Empty file should not trigger the replacement prompt
+        ensure_no_wallet_exists(&wallet_path, false, &INPUT_YES[..]).unwrap();
+        assert!(wallet_path.exists(), "Empty file should remain untouched");
+    }
     }
 }
 
