@@ -13,6 +13,7 @@ env:
   RUSTFLAGS: -D warnings
   REGISTRY: ghcr.io
   RUST_VERSION: 1.80.0
+  NIGHTLY_RUST_VERSION: nightly-2024-07-21
 
 jobs:
   cancel-previous-runs:
@@ -39,7 +40,7 @@ jobs:
         uses: taiki-e/install-action@cargo-llvm-cov
 
       - name: Code coverage report
-        run: cargo +${{ env.RUST_VERSION }} llvm-cov --all-features --lcov --branch --output-path lcov.info
+        run: cargo +${{ env.NIGHTLY_RUST_VERSION }} llvm-cov --all-features --lcov --branch --output-path lcov.info
 
       - name: Setup LCOV
         uses: hrishikesh-kadam/setup-lcov@v1
