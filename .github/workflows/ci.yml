@@ -34,7 +34,7 @@ jobs:
       - name: Install latest Rust
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: ${{ env.RUST_VERSION }}
+          toolchain: ${{ env.NIGHTLY_RUST_VERSION }}
 
       - name: Install cargo-llvm-codecov
         uses: taiki-e/install-action@cargo-llvm-cov
