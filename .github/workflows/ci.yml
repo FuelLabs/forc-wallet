@@ -12,7 +12,8 @@ env:
   CARGO_TERM_COLOR: always
   RUSTFLAGS: -D warnings
   REGISTRY: ghcr.io
-  RUST_VERSION_COV: nightly-2024-06-05
+  RUST_VERSION: 1.82.0
+  NIGHTLY_RUST_VERSION: nightly-2024-10-28
 
 jobs:
   cancel-previous-runs:
@@ -29,17 +30,17 @@ jobs:
     permissions: # Write access to push changes to pages
       contents: write
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Install latest Rust
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: ${{ env.RUST_VERSION_COV }}
+          toolchain: ${{ env.NIGHTLY_RUST_VERSION }}
 
       - name: Install cargo-llvm-codecov
         uses: taiki-e/install-action@cargo-llvm-cov
 
       - name: Code coverage report
-        run: cargo  +${{ env.RUST_VERSION_COV }} llvm-cov --all-features --lcov --branch --output-path lcov.info
+        run: cargo +${{ env.NIGHTLY_RUST_VERSION }} llvm-cov --all-features --lcov --branch --output-path lcov.info
 
       - name: Setup LCOV
         uses: hrishikesh-kadam/setup-lcov@v1

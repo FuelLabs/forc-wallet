@@ -453,18 +453,15 @@ pub(crate) fn derive_account(
     Ok(derive_account_unlocked(wallet_path, account_ix, password)?.lock())
 }
 
-fn new_at_index(
-    keystore: &EthKeystore,
-    wallet_path: &Path,
-    account_ix: usize,
-) -> Result<Bech32Address> {
+fn new_at_index(keystore: &EthKeystore, wallet_path: &Path, account_ix: usize) -> Result<String> {
     let prompt = format!("Please enter your wallet password to derive account {account_ix}: ");
     let password = rpassword::prompt_password(prompt)?;
     let account = derive_account(wallet_path, account_ix, &password)?;
     let account_addr = account.address();
     cache_address(&keystore.crypto.ciphertext, account_ix, account_addr)?;
-    println!("Wallet address: {account_addr}");
-    Ok(account_addr.clone())
+    let checksum_addr = checksum_encode(&Address::from(account_addr).to_string())?;
+    println!("Wallet address: {checksum_addr}");
+    Ok(checksum_addr)
 }
 
 pub fn new_at_index_cli(wallet_path: &Path, account_ix: usize) -> Result<()> {

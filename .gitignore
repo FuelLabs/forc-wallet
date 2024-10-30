@@ -1,1 +1,6 @@
+
+# IDE
+.vscode
+
+# Output
 /target

@@ -985,6 +985,7 @@ dependencies = [
  "rand",
  "rpassword",
  "serde_json",
+ "tempfile",
  "termion",
  "tiny-bip39",
  "tokio",

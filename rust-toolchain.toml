@@ -1,0 +1,3 @@
+[toolchain]
+profile = "default" # include rustfmt, clippy
+channel = "1.82.0"
