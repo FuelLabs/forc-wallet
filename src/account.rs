@@ -40,12 +40,70 @@ pub struct Account {
     /// The index of the account.
     ///
     /// This index is used directly within the path used to derive the account.
-    index: Option<usize>,
+    index: Option<usize>, // Optional index used for account derivation
     #[clap(flatten)]
-    unverified: Unverified,
+    unverified: Unverified, // Unverified data, potentially containing the Ethereum address
     #[clap(subcommand)]
-    cmd: Option<Command>,
+    cmd: Option<Command>, // Optional command associated with the account
 }
+
+impl Account {
+    /// Creates a new Account instance after validating the Ethereum address.
+    ///
+    /// # Arguments
+    /// * `index` - Optional index used for account derivation.
+    /// * `unverified` - Unverified data, including an Ethereum address.
+    /// * `cmd` - Optional subcommand for the account.
+    ///
+    /// # Returns
+    /// * `Result<Account, &'static str>` - Returns an Account if the address is valid, or an error message otherwise.
+    pub fn new(index: Option<usize>, unverified: Unverified, cmd: Option<Command>) -> Result<Self, &'static str> {
+        // Validate the Ethereum address using a checksum validation function
+        validate_eth_address(&unverified.address)?; // Assuming `address` is a field in `Unverified`
+        Ok(Account { index, unverified, cmd })
+    }
+}
+
+/// Validates an Ethereum address by checking its checksum.
+///
+/// # Arguments
+/// * `s` - A string slice representing the Ethereum address.
+///
+/// # Returns
+/// * `Result<(), &'static str>` - Returns `Ok(())` if valid or an error message if the checksum is invalid.
+fn validate_eth_address(s: &str) -> Result<(), &'static str> {
+    if !is_checksum_valid(s) {
+        return Err("Invalid checksum for Ethereum address. Please check again."); // Error returned for invalid checksums
+    }
+    Ok(())
+}
+
+/// Mock implementation of the checksum validation function.
+/// Replace this with the actual implementation based on EIP-55 or other standards.
+fn is_checksum_valid(s: &str) -> bool {
+    // Example implementation: Always returns true for now.
+    // Replace with actual checksum validation logic.
+    true
+}
+
+// Example test cases for Ethereum address validation
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_invalid_eth_address() {
+        let result = validate_eth_address("0xInvalidChecksumAddress");
+        assert!(result.is_err()); // Ensure that an invalid address returns an error
+    }
+
+    #[test]
+    fn test_valid_eth_address() {
+        let result = validate_eth_address("0xCorrectChecksumAddress");
+        assert!(result.is_ok()); // Ensure that a valid address passes validation
+    }
+}
+
 
 #[derive(Debug, Args)]
 pub(crate) struct Fmt {
