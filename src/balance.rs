@@ -43,7 +43,7 @@ pub enum AccountVerification {
 }
 
 /// List of accounts and amount of tokens they hold with different ASSET_IDs.
-pub type AccountBalances = Vec<HashMap<String, u64>>;
+pub type AccountBalances = Vec<HashMap<String, u128>>;
 /// A mapping between account index and the bech32 address for that account.
 pub type AccountsMap = BTreeMap<usize, fuel_types::Address>;
 
@@ -111,10 +111,7 @@ pub fn print_account_balances(
     let mut list = List::default();
     list.add_newline();
     for (ix, balance) in accounts_map.keys().zip(account_balances) {
-        let balance: BTreeMap<_, _> = balance
-            .iter()
-            .map(|(id, &val)| (id.clone(), u128::from(val)))
-            .collect();
+        let balance: BTreeMap<_, _> = balance.iter().map(|(id, &val)| (id.clone(), val)).collect();
         if balance.is_empty() {
             continue;
         }
@@ -139,7 +136,7 @@ pub fn print_account_balances(
 pub(crate) async fn list_account_balances(
     node_url: &Url,
     addresses: &BTreeMap<usize, fuel_types::Address>,
-) -> Result<(Vec<HashMap<String, u64>>, BTreeMap<String, u128>)> {
+) -> Result<(Vec<HashMap<String, u128>>, BTreeMap<String, u128>)> {
     println!("Connecting to {node_url}");
     let provider = Provider::connect(&node_url).await?;
     println!("Fetching and summing balances of the following accounts:");
@@ -159,7 +156,7 @@ pub(crate) async fn list_account_balances(
     for acc_bal in &account_balances {
         for (asset_id, amt) in acc_bal {
             let entry = total_balance.entry(asset_id.clone()).or_insert(0u128);
-            *entry = entry.checked_add(u128::from(*amt)).ok_or_else(|| {
+            *entry = entry.checked_add(*amt).ok_or_else(|| {
                 anyhow!("Failed to display balance for asset {asset_id}: Value out of range.")
             })?;
         }

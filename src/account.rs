@@ -224,12 +224,7 @@ pub(crate) async fn account_balance_cli(
     println!("  {acc_ix:>3}: {}", account_adr);
     let provider = Provider::connect(&balance.node_url).await?;
     account.set_provider(provider);
-    let account_balance: BTreeMap<_, _> = account
-        .get_balances()
-        .await?
-        .into_iter()
-        .map(|(ix, val)| (ix, u128::from(val)))
-        .collect();
+    let account_balance: BTreeMap<_, _> = account.get_balances().await?.into_iter().collect();
     println!("\nAccount {acc_ix}:");
     if account_balance.is_empty() {
         print_balance_empty(&balance.node_url);
