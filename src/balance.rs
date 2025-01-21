@@ -43,7 +43,7 @@ pub enum AccountVerification {
 }
 
 /// List of accounts and amount of tokens they hold with different ASSET_IDs.
-pub type AccountBalances = Vec<HashMap<String, u64>>;
+pub type AccountBalances = Vec<HashMap<String, u128>>;
 /// A mapping between account index and the bech32 address for that account.
 pub type AccountsMap = BTreeMap<usize, fuel_types::Address>;
 
@@ -139,7 +139,7 @@ pub fn print_account_balances(
 pub(crate) async fn list_account_balances(
     node_url: &Url,
     addresses: &BTreeMap<usize, fuel_types::Address>,
-) -> Result<(Vec<HashMap<String, u64>>, BTreeMap<String, u128>)> {
+) -> Result<(Vec<HashMap<String, u128>>, BTreeMap<String, u128>)> {
     println!("Connecting to {node_url}");
     let provider = Provider::connect(&node_url).await?;
     println!("Fetching and summing balances of the following accounts:");
