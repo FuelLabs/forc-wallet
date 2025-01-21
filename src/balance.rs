@@ -111,10 +111,7 @@ pub fn print_account_balances(
     let mut list = List::default();
     list.add_newline();
     for (ix, balance) in accounts_map.keys().zip(account_balances) {
-        let balance: BTreeMap<_, _> = balance
-            .iter()
-            .map(|(id, &val)| (id.clone(), u128::from(val)))
-            .collect();
+        let balance: BTreeMap<_, _> = balance.iter().map(|(id, &val)| (id.clone(), val)).collect();
         if balance.is_empty() {
             continue;
         }
@@ -159,7 +156,7 @@ pub(crate) async fn list_account_balances(
     for acc_bal in &account_balances {
         for (asset_id, amt) in acc_bal {
             let entry = total_balance.entry(asset_id.clone()).or_insert(0u128);
-            *entry = entry.checked_add(u128::from(*amt)).ok_or_else(|| {
+            *entry = entry.checked_add(*amt).ok_or_else(|| {
                 anyhow!("Failed to display balance for asset {asset_id}: Value out of range.")
             })?;
         }
