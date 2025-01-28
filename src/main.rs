@@ -4,6 +4,7 @@ use forc_tracing::{init_tracing_subscriber, println_error};
 use forc_wallet::{
     account::{self, Account, Accounts},
     balance::{self, Balance},
+    export::{export_wallet_cli, Export},
     import::{import_wallet_cli, Import},
     list::{list_wallet_cli, List},
     new::{new_wallet_cli, New},
@@ -44,6 +45,8 @@ enum Command {
     /// If a '--fore' is specified, will automatically removes the existing wallet at the same
     /// path.
     Import(Import),
+    /// Export the mnemonic phrase from an existing wallet.
+    Export(Export),
     /// Lists all accounts derived for the wallet so far.
     ///
     /// Note that this only includes accounts that have been previously derived
@@ -140,6 +143,7 @@ async fn run() -> Result<()> {
         Command::New(new) => new_wallet_cli(&wallet_path, new)?,
         Command::List(list) => list_wallet_cli(&wallet_path, list).await?,
         Command::Import(import) => import_wallet_cli(&wallet_path, import)?,
+        Command::Export(export) => export_wallet_cli(&wallet_path, export)?,
         Command::Accounts(accounts) => account::print_accounts_cli(&wallet_path, accounts)?,
         Command::Account(account) => account::cli(&wallet_path, account).await?,
         Command::Sign(sign) => sign::cli(&wallet_path, sign)?,
