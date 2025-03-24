@@ -7,7 +7,7 @@ use crate::{
     DEFAULT_CACHE_ACCOUNTS,
 };
 use clap::Args;
-use fuels::prelude::*;
+use fuels::accounts::wallet::generate_mnemonic_phrase;
 use std::{io::stdin, path::Path};
 
 #[derive(Debug, Args)]

@@ -1,8 +1,8 @@
 use crate::account;
 use anyhow::{bail, Context, Result};
 use clap::{Args, Subcommand};
-use fuel_crypto::{Message, SecretKey, Signature};
-use fuel_types::Bytes32;
+use fuels::crypto::{Message, SecretKey, Signature};
+use fuels::types::Bytes32;
 use rpassword::prompt_password;
 use std::{
     path::{Path, PathBuf},
@@ -45,7 +45,7 @@ pub enum Data {
     /// The tx ID is signed directly, i.e. it is not re-hashed before signing.
     ///
     /// Previously `tx`, though renamed in anticipation of support for signing transaction files.
-    TxId { tx_id: fuel_types::Bytes32 },
+    TxId { tx_id: Bytes32 },
     /// Read the file at the given path into bytes and sign the raw data.
     File { path: PathBuf },
     /// Sign the given string as a slice of bytes.
@@ -183,7 +183,7 @@ fn bytes_from_hex_str(mut hex_str: &str) -> Result<Vec<u8>> {
 mod tests {
     use super::*;
     use crate::utils::test_utils::{with_tmp_dir_and_wallet, TEST_PASSWORD};
-    use fuel_crypto::Message;
+    use fuels::crypto::Message;
 
     #[test]
     fn sign_tx_id() {

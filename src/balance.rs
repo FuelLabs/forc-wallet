@@ -1,17 +1,3 @@
-use anyhow::{anyhow, Result};
-use clap::Args;
-use fuels::{
-    accounts::{wallet::Wallet, ViewOnlyAccount},
-    prelude::*,
-    types::checksum_address::checksum_encode,
-};
-use std::{
-    cmp::max,
-    collections::{BTreeMap, HashMap},
-    path::Path,
-};
-use url::Url;
-
 use crate::{
     account::{
         derive_account, derive_and_cache_addresses, print_balance, print_balance_empty,
@@ -21,6 +7,18 @@ use crate::{
     utils::load_wallet,
     DEFAULT_CACHE_ACCOUNTS,
 };
+use anyhow::{anyhow, Result};
+use clap::Args;
+use fuels::{
+    accounts::{provider::Provider, wallet::Wallet, ViewOnlyAccount},
+    types::{bech32::Bech32Address, Address, checksum_address::checksum_encode},
+};
+use std::{
+    cmp::max,
+    collections::{BTreeMap, HashMap},
+    path::Path,
+};
+use url::Url;
 
 #[derive(Debug, Args)]
 #[group(skip)]
@@ -45,7 +43,7 @@ pub enum AccountVerification {
 /// List of accounts and amount of tokens they hold with different ASSET_IDs.
 pub type AccountBalances = Vec<HashMap<String, u128>>;
 /// A mapping between account index and the bech32 address for that account.
-pub type AccountsMap = BTreeMap<usize, fuel_types::Address>;
+pub type AccountsMap = BTreeMap<usize, Address>;
 
 /// Return a map of accounts after desired verification applied in a map where each key is account
 /// index and each value is the `Bech32Address` of that account.
@@ -135,7 +133,7 @@ pub fn print_account_balances(
 
 pub(crate) async fn list_account_balances(
     node_url: &Url,
-    addresses: &BTreeMap<usize, fuel_types::Address>,
+    addresses: &BTreeMap<usize, Address>,
 ) -> Result<(Vec<HashMap<String, u128>>, BTreeMap<String, u128>)> {
     println!("Connecting to {node_url}");
     let provider = Provider::connect(&node_url).await?;

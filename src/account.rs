@@ -7,13 +7,15 @@ use anyhow::{anyhow, bail, Context, Result};
 use clap::{Args, Subcommand};
 use eth_keystore::EthKeystore;
 use forc_tracing::println_warning;
-use fuel_crypto::{PublicKey, SecretKey};
-use fuel_types::{AssetId, Bytes32};
+use fuels::accounts::provider::Provider;
+use fuels::accounts::ViewOnlyAccount;
+use fuels::crypto::{PublicKey, SecretKey};
 use fuels::types::checksum_address::{checksum_encode, is_checksum_valid};
+use fuels::types::transaction::TxPolicies;
+use fuels::types::{Address, AssetId};
 use fuels::{
     accounts::wallet::{Wallet, WalletUnlocked},
-    prelude::*,
-    types::bech32::FUEL_BECH32_HRP,
+    types::bech32::{Bech32Address, FUEL_BECH32_HRP},
 };
 use std::ops::Range;
 use std::{
@@ -127,7 +129,7 @@ pub(crate) struct Transfer {
 #[derive(Debug, Clone)]
 enum To {
     Bech32Address(Bech32Address),
-    HexAddress(fuel_types::Address),
+    HexAddress(Address),
 }
 
 impl FromStr for To {
@@ -136,7 +138,7 @@ impl FromStr for To {
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         if let Ok(bech32_address) = Bech32Address::from_str(s) {
             return Ok(Self::Bech32Address(bech32_address));
-        } else if let Ok(hex_address) = fuel_types::Address::from_str(s) {
+        } else if let Ok(hex_address) = Address::from_str(s) {
             if !is_checksum_valid(s) {
                 return Err(format!(
                     "Checksum is not valid for address `{}`, the address might not be an account.",
@@ -169,7 +171,7 @@ impl fmt::Display for To {
 }
 
 /// A map from an account's index to its bech32 address.
-type AccountAddresses = BTreeMap<usize, fuel_types::Address>;
+type AccountAddresses = BTreeMap<usize, Address>;
 
 pub async fn cli(wallet_path: &Path, account: Account) -> Result<()> {
     match (account.index, account.cmd) {
@@ -376,8 +378,7 @@ pub fn print_address(wallet_path: &Path, account_ix: usize, unverified: bool) ->
         let password = rpassword::prompt_password(prompt)?;
         let account = derive_account(wallet_path, account_ix, &password)?;
         let account_addr = account.address();
-        let checksum_addr =
-            checksum_encode(&format!("0x{}", fuel_types::Address::from(account_addr)))?;
+        let checksum_addr = checksum_encode(&format!("0x{}", Address::from(account_addr)))?;
         println!("Account {account_ix} address: {checksum_addr}");
         cache_address(&wallet.crypto.ciphertext, account_ix, account_addr)?;
     }
@@ -417,7 +418,7 @@ pub fn derive_and_cache_addresses(
     wallet: &EthKeystore,
     mnemonic: &str,
     range: Range<usize>,
-) -> anyhow::Result<BTreeMap<usize, fuel_types::Address>> {
+) -> anyhow::Result<BTreeMap<usize, Address>> {
     range
         .into_iter()
         .map(|acc_ix| {
@@ -497,7 +498,7 @@ pub(crate) fn hex_address_cli(wallet_path: &Path, account_ix: usize) -> Result<(
     let public_key = PublicKey::from(&secret_key);
     let hashed = public_key.hash();
     let bech = Bech32Address::new(FUEL_BECH32_HRP, hashed);
-    let plain_address: fuel_types::Address = bech.into();
+    let plain_address: Address = bech.into();
     println!("Plain address for {}: {}", account_ix, plain_address);
     Ok(())
 }
@@ -524,7 +525,7 @@ pub(crate) async fn transfer_cli(
             // At this point we want to query the provider to see if the
             // acount is actually something we can transfer to.
             let addr = checksum_encode(&format!("0x{hex_addr}"))?;
-            let to_addr = Bytes32::from_str(&addr).map_err(|e| anyhow!("{e}"))?;
+            let to_addr = fuels::types::Bytes32::from_str(&addr).map_err(|e| anyhow!("{e}"))?;
             if !provider.is_user_account(to_addr).await? {
                 bail!(format!("{addr} is not a user account. Aborting transfer."))
             }
@@ -634,7 +635,7 @@ pub(crate) fn read_cached_addresses(wallet_ciphertext: &[u8]) -> Result<AccountA
             let account_addr_bech32: Bech32Address = account_addr_str
                 .parse()
                 .context("failed to parse cached account address as a bech32 address")?;
-            let account_addr: fuel_types::Address = account_addr_bech32.into();
+            let account_addr: Address = account_addr_bech32.into();
             Ok((account_ix, account_addr))
         })
         .collect()
@@ -644,6 +645,7 @@ pub(crate) fn read_cached_addresses(wallet_ciphertext: &[u8]) -> Result<AccountA
 mod tests {
     use crate::account;
     use crate::utils::test_utils::{with_tmp_dir_and_wallet, TEST_PASSWORD};
+    use fuels::types::Address;
 
     #[test]
     fn create_new_account() {
@@ -670,9 +672,9 @@ mod tests {
         let address = "fuel1j78es08cyyz5n75jugal7p759ccs323etnykzpndsvhzu6399yqqpjmmd2";
         let bech32 = <fuels::types::bech32::Bech32Address as std::str::FromStr>::from_str(address)
             .expect("failed to create Bech32 address from string");
-        let plain_address: fuel_types::Address = bech32.into();
+        let plain_address: Address = bech32.into();
         assert_eq!(
-            <fuel_types::Address as std::str::FromStr>::from_str(
+            <Address as std::str::FromStr>::from_str(
                 "978f983cf8210549fa92e23bff07d42e3108aa395cc961066d832e2e6a252900"
             )
             .expect("RIP"),
