@@ -6,22 +6,29 @@ use forc_wallet::{
     balance::{self, Balance},
     import::{import_wallet_cli, Import},
     list::{list_wallet_cli, List},
+    network::DEFAULT as DEFAULT_NODE_URL,
     new::{new_wallet_cli, New},
     sign::{self, Sign},
-    utils,
+    utils::default_wallet_path,
+    CliContext,
 };
 use std::path::PathBuf;
+use url::Url;
 
 #[derive(Debug, Parser)]
 #[clap(name = "forc wallet", about = ABOUT, after_long_help = EXAMPLES, version)]
 struct App {
     /// The path to a wallet. A wallet is a JSON keystore file as described in
     /// the Web3 Secret Storage Definition.
-    /// By default, this is `$HOME/.fuel/wallets/.wallet`.
     /// Read more about the Web3 Secret Storage Definition here:
     /// https://ethereum.org/en/developers/docs/data-structures-and-encoding/web3-secret-storage
-    #[clap(long = "path")]
-    wallet_path: Option<PathBuf>,
+    #[clap(long = "path", default_value_os_t = default_wallet_path() )]
+    wallet_path: PathBuf,
+
+    /// The URL of the Fuel node to connect to.
+    #[clap(long, default_value_t = Url::parse(DEFAULT_NODE_URL).unwrap())]
+    node_url: Url,
+
     #[clap(subcommand)]
     pub cmd: Command,
 }
@@ -135,15 +142,18 @@ async fn main() {
 
 async fn run() -> Result<()> {
     let app = App::parse();
-    let wallet_path = app.wallet_path.unwrap_or_else(utils::default_wallet_path);
+    let ctx = CliContext {
+        wallet_path: app.wallet_path,
+        node_url: app.node_url,
+    };
     match app.cmd {
-        Command::New(new) => new_wallet_cli(&wallet_path, new)?,
-        Command::List(list) => list_wallet_cli(&wallet_path, list).await?,
-        Command::Import(import) => import_wallet_cli(&wallet_path, import)?,
-        Command::Accounts(accounts) => account::print_accounts_cli(&wallet_path, accounts)?,
-        Command::Account(account) => account::cli(&wallet_path, account).await?,
-        Command::Sign(sign) => sign::cli(&wallet_path, sign)?,
-        Command::Balance(balance) => balance::cli(&wallet_path, &balance).await?,
+        Command::New(new) => new_wallet_cli(&ctx, new).await?,
+        Command::List(list) => list_wallet_cli(&ctx, list).await?,
+        Command::Import(import) => import_wallet_cli(&ctx, import).await?,
+        Command::Accounts(accounts) => account::print_accounts_cli(&ctx, accounts).await?,
+        Command::Account(account) => account::cli(&ctx, account).await?,
+        Command::Sign(sign) => sign::cli(&ctx, sign)?,
+        Command::Balance(balance) => balance::cli(&ctx, &balance).await?,
     }
     Ok(())
 }

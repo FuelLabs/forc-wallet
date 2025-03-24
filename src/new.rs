@@ -1,14 +1,14 @@
 use crate::{
     account::derive_and_cache_addresses,
     utils::{
-        display_string_discreetly, ensure_no_wallet_exists, load_wallet, request_new_password,
+        display_string_discreetly, ensure_no_wallet_exists, request_new_password,
         write_wallet_from_mnemonic_and_password,
     },
     DEFAULT_CACHE_ACCOUNTS,
 };
 use clap::Args;
-use fuels::accounts::wallet::generate_mnemonic_phrase;
-use std::{io::stdin, path::Path};
+use fuels::accounts::signers::private_key::generate_mnemonic_phrase;
+use std::io::stdin;
 
 #[derive(Debug, Args)]
 pub struct New {
@@ -21,18 +21,19 @@ pub struct New {
     pub cache_accounts: Option<usize>,
 }
 
-pub fn new_wallet_cli(wallet_path: &Path, new: New) -> anyhow::Result<()> {
-    ensure_no_wallet_exists(wallet_path, new.force, stdin().lock())?;
+pub async fn new_wallet_cli(ctx: &crate::CliContext, new: New) -> anyhow::Result<()> {
+    ensure_no_wallet_exists(&ctx.wallet_path, new.force, stdin().lock())?;
     let password = request_new_password();
     // Generate a random mnemonic phrase.
     let mnemonic = generate_mnemonic_phrase(&mut rand::thread_rng(), 24)?;
-    write_wallet_from_mnemonic_and_password(wallet_path, &mnemonic, &password)?;
+    write_wallet_from_mnemonic_and_password(&ctx.wallet_path, &mnemonic, &password)?;
 
     derive_and_cache_addresses(
-        &load_wallet(wallet_path)?,
+        ctx,
         &mnemonic,
         0..new.cache_accounts.unwrap_or(DEFAULT_CACHE_ACCOUNTS),
-    )?;
+    )
+    .await?;
 
     let mnemonic_string = format!("Wallet mnemonic phrase: {mnemonic}\n");
     display_string_discreetly(

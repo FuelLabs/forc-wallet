@@ -14,7 +14,7 @@ eth-keystore = { version = "0.5" }
 forc-tracing = "0.67"
 
 # Dependencies from the `fuels-rs` repository:
-fuels = "0.70"
+fuels = "0.71"
 
 futures = "0.3"
 hex = "0.4"
@@ -23,7 +23,6 @@ rand = { version = "0.8", default-features = false }
 rpassword = "7.2"
 serde_json = "1.0"
 termion = "4.0"
-tiny-bip39 = "2.0"
 tokio = { version = "1.44", features = ["full"] }
 url = "2.5"
 
@@ -36,4 +35,6 @@ name = "forc-wallet"
 path = "src/main.rs"
 
 [dev-dependencies]
+fuel-core-client = "0.42"
 tempfile = "3.19"
+wiremock = "0.6"

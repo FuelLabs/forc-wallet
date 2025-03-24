@@ -60,7 +60,7 @@ pub enum Data {
     Hex { hex_string: String },
 }
 
-pub fn cli(wallet_path: &Path, sign: Sign) -> Result<()> {
+pub fn cli(ctx: &crate::CliContext, sign: Sign) -> Result<()> {
     let Sign {
         account,
         private_key,
@@ -75,11 +75,11 @@ pub fn cli(wallet_path: &Path, sign: Sign) -> Result<()> {
         private_key_non_interactive,
     ) {
         // Provided an account index, so we'll request the password.
-        (Some(acc_ix), None, false, None) => wallet_account_cli(wallet_path, acc_ix, data)?,
+        (Some(acc_ix), None, false, None) => wallet_account_cli(ctx, acc_ix, data)?,
         // Provided the password as a flag, so no need for interactive step.
         (Some(acc_ix), Some(pw), false, None) => {
             let msg = msg_from_data(data)?;
-            let sig = sign_msg_with_wallet_account(wallet_path, acc_ix, &msg, &pw)?;
+            let sig = sign_msg_with_wallet_account(&ctx.wallet_path, acc_ix, &msg, &pw)?;
             println!("Signature: {sig}");
         }
         // Provided the private key to sign with directly.
@@ -100,9 +100,13 @@ pub fn cli(wallet_path: &Path, sign: Sign) -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn wallet_account_cli(wallet_path: &Path, account_ix: usize, data: Data) -> Result<()> {
+pub(crate) fn wallet_account_cli(
+    ctx: &crate::CliContext,
+    account_ix: usize,
+    data: Data,
+) -> Result<()> {
     let msg = msg_from_data(data)?;
-    sign_msg_with_wallet_account_cli(wallet_path, account_ix, &msg)
+    sign_msg_with_wallet_account_cli(&ctx.wallet_path, account_ix, &msg)
 }
 
 pub(crate) fn private_key_cli(data: Data) -> Result<()> {

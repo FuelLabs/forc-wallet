@@ -1,13 +1,14 @@
 use anyhow::{anyhow, bail, Context, Ok, Result};
 use eth_keystore::EthKeystore;
 use forc_tracing::println_warning;
-use fuels::accounts::wallet::DEFAULT_DERIVATION_PATH_PREFIX;
 use home::home_dir;
 use std::{
     fs,
     io::{BufRead, Read, Write},
     path::{Path, PathBuf},
 };
+
+pub const DEFAULT_DERIVATION_PATH_PREFIX: &str = "m/44'/1179993420'";
 
 /// The user's fuel directory (stores state related to fuel-core, wallet, etc).
 pub fn user_fuel_dir() -> PathBuf {
@@ -358,6 +359,13 @@ mod tests {
 
 #[cfg(test)]
 pub(crate) mod test_utils {
+    use fuels::accounts::provider::Provider;
+    use serde_json::json;
+    use wiremock::{
+        matchers::{method, path},
+        Mock, MockServer, ResponseTemplate,
+    };
+
     use super::*;
     use std::{panic, path::Path};
 
@@ -374,5 +382,52 @@ pub(crate) mod test_utils {
         write_wallet_from_mnemonic_and_password(&wallet_path, TEST_MNEMONIC, TEST_PASSWORD)
             .unwrap();
         f(tmp_dir.path(), &wallet_path);
+    }
+
+    /// Returns a mock provider with a mock fuel-core server that responds to the nodeInfo graphql query.
+    /// Note: the raw JSON response will need to be updated if the schema changes.
+    pub(crate) async fn mock_provider() -> Provider {
+        let mock_server = MockServer::start().await;
+
+        // Since [fuel_core_client::client::types::NodeInfo] does not implement [serde::Serialize],
+        // we use raw JSON for the response.
+        // If you get an error like "Error making HTTP request: error decoding response body", there has
+        // likely been a change to the schema and the raw JSON response will need to be updated to match
+        // the new schema.
+        let node_info_res_body = json!({
+            "data": {
+                "nodeInfo": {
+                    "utxoValidation": true,
+                    "vmBacktrace": false,
+                    "maxTx": "160000",
+                    "maxGas": "30000000000",
+                    "maxSize": "131072000",
+                    "maxDepth": "32",
+                    "nodeVersion": "0.41.9",
+                    "indexation": {
+                        "balances": false,
+                        "coinsToSpend": false,
+                        "assetMetadata": false
+                    },
+                    "txPoolStats": {
+                        "txCount": "0",
+                        "totalGas": "0",
+                        "totalSize": "0"
+                    }
+                }
+            }
+        });
+
+        let node_info_response = ResponseTemplate::new(200).set_body_json(node_info_res_body);
+
+        Mock::given(method("POST"))
+            .and(path("/v1/graphql"))
+            .respond_with(node_info_response)
+            .mount(&mock_server)
+            .await;
+
+        Provider::connect(mock_server.uri())
+            .await
+            .expect("mock provider")
     }
 }
