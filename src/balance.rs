@@ -1,9 +1,17 @@
+use crate::{
+    account::{
+        derive_account_unlocked, derive_and_cache_addresses, print_balance, print_balance_empty,
+        read_cached_addresses, verify_address_and_update_cache,
+    },
+    format::List,
+    utils::load_wallet,
+    DEFAULT_CACHE_ACCOUNTS,
+};
 use anyhow::{anyhow, Result};
 use clap::Args;
 use fuels::{
-    accounts::{wallet::Wallet, ViewOnlyAccount},
-    prelude::*,
-    types::checksum_address::checksum_encode,
+    accounts::{provider::Provider, wallet::Wallet, ViewOnlyAccount},
+    types::{bech32::Bech32Address, checksum_address::checksum_encode, Address},
 };
 use std::{
     cmp::max,
@@ -11,16 +19,6 @@ use std::{
     path::Path,
 };
 use url::Url;
-
-use crate::{
-    account::{
-        derive_account, derive_and_cache_addresses, print_balance, print_balance_empty,
-        read_cached_addresses, verify_address_and_update_cache,
-    },
-    format::List,
-    utils::load_wallet,
-    DEFAULT_CACHE_ACCOUNTS,
-};
 
 #[derive(Debug, Args)]
 #[group(skip)]
@@ -45,20 +43,22 @@ pub enum AccountVerification {
 /// List of accounts and amount of tokens they hold with different ASSET_IDs.
 pub type AccountBalances = Vec<HashMap<String, u128>>;
 /// A mapping between account index and the bech32 address for that account.
-pub type AccountsMap = BTreeMap<usize, fuel_types::Address>;
+pub type AccountsMap = BTreeMap<usize, Address>;
 
 /// Return a map of accounts after desired verification applied in a map where each key is account
 /// index and each value is the `Bech32Address` of that account.
-pub fn collect_accounts_with_verification(
+pub async fn collect_accounts_with_verification(
     wallet_path: &Path,
     verification: AccountVerification,
+    node_url: &Url,
 ) -> Result<AccountsMap> {
     let wallet = load_wallet(wallet_path)?;
     let mut addresses = read_cached_addresses(&wallet.crypto.ciphertext)?;
     if let AccountVerification::Yes(password) = verification {
         for (&ix, addr) in addresses.iter_mut() {
             let addr_bech32 = Bech32Address::from(*addr);
-            let account = derive_account(wallet_path, ix, &password)?;
+            let provider = Provider::connect(node_url).await?;
+            let account = derive_account_unlocked(wallet_path, ix, &password, &provider)?;
             if verify_address_and_update_cache(
                 ix,
                 &account,
@@ -77,12 +77,12 @@ pub fn collect_accounts_with_verification(
 /// and will use the cached ones.
 ///
 /// This function will override / fix the cached addresses if the user password is requested
-pub fn get_derived_accounts(
-    wallet_path: &Path,
+pub async fn get_derived_accounts(
+    ctx: &crate::CliContext,
     unverified: bool,
     target_accounts: Option<usize>,
 ) -> Result<AccountsMap> {
-    let wallet = load_wallet(wallet_path)?;
+    let wallet = load_wallet(&ctx.wallet_path)?;
     let addresses = if unverified {
         read_cached_addresses(&wallet.crypto.ciphertext)?
     } else {
@@ -93,11 +93,11 @@ pub fn get_derived_accounts(
     if !unverified || addresses.len() < target_accounts {
         let prompt = "Please enter your wallet password to verify accounts: ";
         let password = rpassword::prompt_password(prompt)?;
-        let phrase_recovered = eth_keystore::decrypt_key(wallet_path, password)?;
+        let phrase_recovered = eth_keystore::decrypt_key(&ctx.wallet_path, password)?;
         let phrase = String::from_utf8(phrase_recovered)?;
 
         let range = 0..max(target_accounts, DEFAULT_CACHE_ACCOUNTS);
-        derive_and_cache_addresses(&wallet, &phrase, range)
+        derive_and_cache_addresses(ctx, &phrase, range).await
     } else {
         Ok(addresses)
     }
@@ -135,7 +135,7 @@ pub fn print_account_balances(
 
 pub(crate) async fn list_account_balances(
     node_url: &Url,
-    addresses: &BTreeMap<usize, fuel_types::Address>,
+    addresses: &BTreeMap<usize, Address>,
 ) -> Result<(Vec<HashMap<String, u128>>, BTreeMap<String, u128>)> {
     println!("Connecting to {node_url}");
     let provider = Provider::connect(&node_url).await?;
@@ -147,7 +147,7 @@ pub(crate) async fn list_account_balances(
     }
     let accounts: Vec<_> = addresses
         .values()
-        .map(|addr| Wallet::from_address((*addr).into(), Some(provider.clone())))
+        .map(|addr| Wallet::new_locked(Bech32Address::from(*addr), provider.clone()))
         .collect();
     let account_balances =
         futures::future::try_join_all(accounts.iter().map(|acc| acc.get_balances())).await?;
@@ -165,7 +165,7 @@ pub(crate) async fn list_account_balances(
     Ok((account_balances, total_balance))
 }
 
-pub async fn cli(wallet_path: &Path, balance: &Balance) -> Result<()> {
+pub async fn cli(ctx: &crate::CliContext, balance: &Balance) -> Result<()> {
     let verification = if !balance.account.unverified.unverified {
         let prompt = "Please enter your wallet password to verify accounts: ";
         let password = rpassword::prompt_password(prompt)?;
@@ -173,9 +173,11 @@ pub async fn cli(wallet_path: &Path, balance: &Balance) -> Result<()> {
     } else {
         AccountVerification::No
     };
-    let addresses = collect_accounts_with_verification(wallet_path, verification)?;
-    let node_url = &balance.account.node_url;
-    let (account_balances, total_balance) = list_account_balances(node_url, &addresses).await?;
+
+    let addresses =
+        collect_accounts_with_verification(&ctx.wallet_path, verification, &ctx.node_url).await?;
+    let (account_balances, total_balance) =
+        list_account_balances(&ctx.node_url, &addresses).await?;
 
     if balance.accounts {
         print_account_balances(&addresses, &account_balances)?;
@@ -183,7 +185,7 @@ pub async fn cli(wallet_path: &Path, balance: &Balance) -> Result<()> {
 
     println!("\nTotal:");
     if total_balance.is_empty() {
-        print_balance_empty(&balance.account.node_url);
+        print_balance_empty(&ctx.node_url);
     } else {
         print_balance(&total_balance);
     }

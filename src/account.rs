@@ -7,13 +7,17 @@ use anyhow::{anyhow, bail, Context, Result};
 use clap::{Args, Subcommand};
 use eth_keystore::EthKeystore;
 use forc_tracing::println_warning;
-use fuel_crypto::{PublicKey, SecretKey};
-use fuel_types::{AssetId, Bytes32};
+use fuels::accounts::provider::Provider;
+use fuels::accounts::signers::private_key::PrivateKeySigner;
+use fuels::accounts::wallet::Unlocked;
+use fuels::accounts::ViewOnlyAccount;
+use fuels::crypto::{PublicKey, SecretKey};
 use fuels::types::checksum_address::{checksum_encode, is_checksum_valid};
+use fuels::types::transaction::TxPolicies;
+use fuels::types::{Address, AssetId};
 use fuels::{
-    accounts::wallet::{Wallet, WalletUnlocked},
-    prelude::*,
-    types::bech32::FUEL_BECH32_HRP,
+    accounts::wallet::Wallet,
+    types::bech32::{Bech32Address, FUEL_BECH32_HRP},
 };
 use std::ops::Range;
 use std::{
@@ -24,13 +28,15 @@ use std::{
 };
 use url::Url;
 
+type WalletUnlocked<S> = Wallet<Unlocked<S>>;
+
 #[derive(Debug, Args)]
 pub struct Accounts {
+    #[clap(flatten)]
+    unverified: UnverifiedOpt,
     /// Contains optional flag for displaying all accounts as hex / bytes values.
     ///
     /// pass in --as-hex for this alternative display.
-    #[clap(flatten)]
-    unverified: Unverified,
     #[clap(long)]
     as_bech32: bool,
 }
@@ -42,7 +48,7 @@ pub struct Account {
     /// This index is used directly within the path used to derive the account.
     index: Option<usize>,
     #[clap(flatten)]
-    unverified: Unverified,
+    unverified: UnverifiedOpt,
     #[clap(subcommand)]
     cmd: Option<Command>,
 }
@@ -85,22 +91,9 @@ pub(crate) enum Command {
 }
 
 #[derive(Debug, Args)]
-pub(crate) struct Unverified {
-    /// When enabled, shows account addresses stored in the cache without re-deriving them.
-    ///
-    /// The cache can be found at `~/.fuel/wallets/addresses`.
-    ///
-    /// Useful for non-interactive scripts on trusted systems or integration tests.
-    #[clap(long = "unverified")]
-    pub(crate) unverified: bool,
-}
-
-#[derive(Debug, Args)]
 pub(crate) struct Balance {
-    #[clap(long, default_value_t = crate::network::DEFAULT.parse().unwrap())]
-    pub(crate) node_url: Url,
     #[clap(flatten)]
-    pub(crate) unverified: Unverified,
+    pub(crate) unverified: UnverifiedOpt,
 }
 
 #[derive(Debug, Args)]
@@ -114,8 +107,6 @@ pub(crate) struct Transfer {
     /// Asset ID of the asset to transfer.
     #[clap(long)]
     asset_id: AssetId,
-    #[clap(long, default_value_t = crate::network::DEFAULT.parse().unwrap())]
-    node_url: Url,
     #[clap(long)]
     gas_price: Option<u64>,
     #[clap(long)]
@@ -124,10 +115,21 @@ pub(crate) struct Transfer {
     maturity: Option<u64>,
 }
 
+#[derive(Debug, Args)]
+pub(crate) struct UnverifiedOpt {
+    /// When enabled, shows account addresses stored in the cache without re-deriving them.
+    ///
+    /// The cache can be found at `~/.fuel/wallets/addresses`.
+    ///
+    /// Useful for non-interactive scripts on trusted systems or integration tests.
+    #[clap(long = "unverified")]
+    pub(crate) unverified: bool,
+}
+
 #[derive(Debug, Clone)]
 enum To {
     Bech32Address(Bech32Address),
-    HexAddress(fuel_types::Address),
+    HexAddress(Address),
 }
 
 impl FromStr for To {
@@ -136,7 +138,7 @@ impl FromStr for To {
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         if let Ok(bech32_address) = Bech32Address::from_str(s) {
             return Ok(Self::Bech32Address(bech32_address));
-        } else if let Ok(hex_address) = fuel_types::Address::from_str(s) {
+        } else if let Ok(hex_address) = Address::from_str(s) {
             if !is_checksum_valid(s) {
                 return Err(format!(
                     "Checksum is not valid for address `{}`, the address might not be an account.",
@@ -169,27 +171,27 @@ impl fmt::Display for To {
 }
 
 /// A map from an account's index to its bech32 address.
-type AccountAddresses = BTreeMap<usize, fuel_types::Address>;
+type AccountAddresses = BTreeMap<usize, Address>;
 
-pub async fn cli(wallet_path: &Path, account: Account) -> Result<()> {
+pub async fn cli(ctx: &crate::CliContext, account: Account) -> Result<()> {
     match (account.index, account.cmd) {
-        (None, Some(Command::New)) => new_cli(wallet_path)?,
-        (Some(acc_ix), Some(Command::New)) => new_at_index_cli(wallet_path, acc_ix)?,
-        (Some(acc_ix), None) => print_address(wallet_path, acc_ix, account.unverified.unverified)?,
+        (None, Some(Command::New)) => new_cli(ctx).await?,
+        (Some(acc_ix), Some(Command::New)) => new_at_index_cli(ctx, acc_ix).await?,
+        (Some(acc_ix), None) => print_address(ctx, acc_ix, account.unverified.unverified).await?,
         (Some(acc_ix), Some(Command::Sign(sign_cmd))) => {
-            sign::wallet_account_cli(wallet_path, acc_ix, sign_cmd)?
+            sign::wallet_account_cli(ctx, acc_ix, sign_cmd)?
         }
-        (Some(acc_ix), Some(Command::PrivateKey)) => private_key_cli(wallet_path, acc_ix)?,
+        (Some(acc_ix), Some(Command::PrivateKey)) => private_key_cli(ctx, acc_ix)?,
         (Some(acc_ix), Some(Command::PublicKey(format))) => match format.as_hex {
-            true => hex_address_cli(wallet_path, acc_ix)?,
-            false => public_key_cli(wallet_path, acc_ix)?,
+            true => hex_address_cli(ctx, acc_ix)?,
+            false => public_key_cli(ctx, acc_ix)?,
         },
 
         (Some(acc_ix), Some(Command::Balance(balance))) => {
-            account_balance_cli(wallet_path, acc_ix, &balance).await?
+            account_balance_cli(ctx, acc_ix, &balance).await?
         }
         (Some(acc_ix), Some(Command::Transfer(transfer))) => {
-            transfer_cli(wallet_path, acc_ix, transfer).await?
+            transfer_cli(ctx, acc_ix, transfer).await?
         }
         (None, Some(cmd)) => print_subcmd_index_warning(&cmd),
         (None, None) => print_subcmd_help(),
@@ -198,36 +200,36 @@ pub async fn cli(wallet_path: &Path, account: Account) -> Result<()> {
 }
 
 pub(crate) async fn account_balance_cli(
-    wallet_path: &Path,
+    ctx: &crate::CliContext,
     acc_ix: usize,
     balance: &Balance,
 ) -> Result<()> {
-    let wallet = load_wallet(wallet_path)?;
+    let wallet = load_wallet(&ctx.wallet_path)?;
+    let provider = Provider::connect(&ctx.node_url).await?;
     let mut cached_addrs = read_cached_addresses(&wallet.crypto.ciphertext)?;
     let cached_addr = cached_addrs
         .remove(&acc_ix)
         .ok_or_else(|| anyhow!("No cached address for account {acc_ix}"))?;
-    let mut account = if balance.unverified.unverified {
+
+    let account = if balance.unverified.unverified {
         let cached_addr = Bech32Address::from(cached_addr);
-        Wallet::from_address(cached_addr.clone(), None)
+        Wallet::new_locked(cached_addr, provider)
     } else {
         let prompt = format!("Please enter your wallet password to verify account {acc_ix}: ");
         let password = rpassword::prompt_password(prompt)?;
-        let account = derive_account(wallet_path, acc_ix, &password)?;
+        let account = derive_account_unlocked(&ctx.wallet_path, acc_ix, &password, &provider)?;
         let cached_addr = Bech32Address::from(cached_addr);
         verify_address_and_update_cache(acc_ix, &account, &cached_addr, &wallet.crypto.ciphertext)?;
-        account
+        account.lock()
     };
-    println!("Connecting to {}", balance.node_url);
+    println!("Connecting to {}", &ctx.node_url);
     println!("Fetching the balance of the following account:",);
     let account_adr = checksum_encode(&format!("0x{}", account.address()))?;
     println!("  {acc_ix:>3}: {}", account_adr);
-    let provider = Provider::connect(&balance.node_url).await?;
-    account.set_provider(provider);
     let account_balance: BTreeMap<_, _> = account.get_balances().await?.into_iter().collect();
     println!("\nAccount {acc_ix}:");
     if account_balance.is_empty() {
-        print_balance_empty(&balance.node_url);
+        print_balance_empty(&ctx.node_url);
     } else {
         print_balance(&account_balance);
     }
@@ -292,8 +294,8 @@ pub(crate) fn print_balance(balance: &BTreeMap<String, u128>) {
 }
 
 /// Prints a list of all known (cached) accounts for the wallet at the given path.
-pub fn print_accounts_cli(wallet_path: &Path, accounts: Accounts) -> Result<()> {
-    let wallet = load_wallet(wallet_path)?;
+pub async fn print_accounts_cli(ctx: &crate::CliContext, accounts: Accounts) -> Result<()> {
+    let wallet = load_wallet(&ctx.wallet_path)?;
     let addresses = read_cached_addresses(&wallet.crypto.ciphertext)?;
     if accounts.unverified.unverified {
         println!("Account addresses (unverified, printed from cache):");
@@ -311,8 +313,9 @@ pub fn print_accounts_cli(wallet_path: &Path, accounts: Accounts) -> Result<()> 
     } else {
         let prompt = "Please enter your wallet password to verify cached accounts: ";
         let password = rpassword::prompt_password(prompt)?;
+        let provider = Provider::connect(&ctx.node_url).await?;
         for &ix in addresses.keys() {
-            let account = derive_account(wallet_path, ix, &password)?;
+            let account = derive_account_unlocked(&ctx.wallet_path, ix, &password, &provider)?;
             let account_addr = account.address();
             match accounts.as_bech32 {
                 false => {
@@ -363,8 +366,12 @@ fn print_subcmd_index_warning(cmd: &Command) {
 }
 
 /// Print the address of the wallet's account at the given index.
-pub fn print_address(wallet_path: &Path, account_ix: usize, unverified: bool) -> Result<()> {
-    let wallet = load_wallet(wallet_path)?;
+pub async fn print_address(
+    ctx: &crate::CliContext,
+    account_ix: usize,
+    unverified: bool,
+) -> Result<()> {
+    let wallet = load_wallet(&ctx.wallet_path)?;
     if unverified {
         let addresses = read_cached_addresses(&wallet.crypto.ciphertext)?;
         match addresses.get(&account_ix) {
@@ -374,10 +381,10 @@ pub fn print_address(wallet_path: &Path, account_ix: usize, unverified: bool) ->
     } else {
         let prompt = format!("Please enter your wallet password to verify account {account_ix}: ");
         let password = rpassword::prompt_password(prompt)?;
-        let account = derive_account(wallet_path, account_ix, &password)?;
+        let provider = Provider::connect(&ctx.node_url).await?;
+        let account = derive_account_unlocked(&ctx.wallet_path, account_ix, &password, &provider)?;
         let account_addr = account.address();
-        let checksum_addr =
-            checksum_encode(&format!("0x{}", fuel_types::Address::from(account_addr)))?;
+        let checksum_addr = checksum_encode(&format!("0x{}", Address::from(account_addr)))?;
         println!("Account {account_ix} address: {checksum_addr}");
         cache_address(&wallet.crypto.ciphertext, account_ix, account_addr)?;
     }
@@ -403,27 +410,30 @@ fn next_derivation_index(addrs: &AccountAddresses) -> usize {
 }
 
 /// Derive an account at the first index succeeding the greatest known existing index.
-fn derive_account_unlocked(
+pub(crate) fn derive_account_unlocked(
     wallet_path: &Path,
     account_ix: usize,
     password: &str,
-) -> Result<WalletUnlocked> {
+    provider: &Provider,
+) -> Result<WalletUnlocked<PrivateKeySigner>> {
     let secret_key = derive_secret_key(wallet_path, account_ix, password)?;
-    let wallet = WalletUnlocked::new_from_private_key(secret_key, None);
+    let wallet = WalletUnlocked::new(PrivateKeySigner::new(secret_key), provider.clone());
     Ok(wallet)
 }
 
-pub fn derive_and_cache_addresses(
-    wallet: &EthKeystore,
+pub async fn derive_and_cache_addresses(
+    ctx: &crate::CliContext,
     mnemonic: &str,
     range: Range<usize>,
-) -> anyhow::Result<BTreeMap<usize, fuel_types::Address>> {
+) -> anyhow::Result<BTreeMap<usize, Address>> {
+    let wallet = load_wallet(&ctx.wallet_path)?;
+    let provider = Provider::connect(&ctx.node_url).await?;
     range
         .into_iter()
         .map(|acc_ix| {
             let derive_path = get_derivation_path(acc_ix);
             let secret_key = SecretKey::new_from_mnemonic_phrase_with_path(mnemonic, &derive_path)?;
-            let account = WalletUnlocked::new_from_private_key(secret_key, None);
+            let account = WalletUnlocked::new(PrivateKeySigner::new(secret_key), provider.clone());
             cache_address(&wallet.crypto.ciphertext, acc_ix, account.address())?;
 
             Ok(account.address().to_owned().into())
@@ -432,18 +442,15 @@ pub fn derive_and_cache_addresses(
         .map(|x| x.into_iter().enumerate().collect())
 }
 
-pub(crate) fn derive_account(
+fn new_at_index(
+    keystore: &EthKeystore,
     wallet_path: &Path,
     account_ix: usize,
-    password: &str,
-) -> Result<Wallet> {
-    Ok(derive_account_unlocked(wallet_path, account_ix, password)?.lock())
-}
-
-fn new_at_index(keystore: &EthKeystore, wallet_path: &Path, account_ix: usize) -> Result<String> {
+    provider: &Provider,
+) -> Result<String> {
     let prompt = format!("Please enter your wallet password to derive account {account_ix}: ");
     let password = rpassword::prompt_password(prompt)?;
-    let account = derive_account(wallet_path, account_ix, &password)?;
+    let account = derive_account_unlocked(wallet_path, account_ix, &password, provider)?;
     let account_addr = account.address();
     cache_address(&keystore.crypto.ciphertext, account_ix, account_addr)?;
     let checksum_addr = checksum_encode(&Address::from(account_addr).to_string())?;
@@ -451,60 +458,62 @@ fn new_at_index(keystore: &EthKeystore, wallet_path: &Path, account_ix: usize) -
     Ok(checksum_addr)
 }
 
-pub fn new_at_index_cli(wallet_path: &Path, account_ix: usize) -> Result<()> {
-    let keystore = load_wallet(wallet_path)?;
-    new_at_index(&keystore, wallet_path, account_ix)?;
+pub async fn new_at_index_cli(ctx: &crate::CliContext, account_ix: usize) -> Result<()> {
+    let keystore = load_wallet(&ctx.wallet_path)?;
+    let provider = Provider::connect(&ctx.node_url).await?;
+    new_at_index(&keystore, &ctx.wallet_path, account_ix, &provider)?;
     Ok(())
 }
 
-pub(crate) fn new_cli(wallet_path: &Path) -> Result<()> {
-    let keystore = load_wallet(wallet_path)?;
+pub(crate) async fn new_cli(ctx: &crate::CliContext) -> Result<()> {
+    let keystore = load_wallet(&ctx.wallet_path)?;
     let addresses = read_cached_addresses(&keystore.crypto.ciphertext)?;
     let account_ix = next_derivation_index(&addresses);
-    new_at_index(&keystore, wallet_path, account_ix)?;
+    let provider = Provider::connect(&ctx.node_url).await?;
+    new_at_index(&keystore, &ctx.wallet_path, account_ix, &provider)?;
     Ok(())
 }
 
-pub(crate) fn private_key_cli(wallet_path: &Path, account_ix: usize) -> Result<()> {
+pub(crate) fn private_key_cli(ctx: &crate::CliContext, account_ix: usize) -> Result<()> {
     let prompt = format!(
         "Please enter your wallet password to display account {account_ix}'s private key: "
     );
     let password = rpassword::prompt_password(prompt)?;
-    let secret_key = derive_secret_key(wallet_path, account_ix, &password)?;
+    let secret_key = derive_secret_key(&ctx.wallet_path, account_ix, &password)?;
     let secret_key_string = format!("Secret key for account {account_ix}: {secret_key}\n");
     display_string_discreetly(&secret_key_string, "### Press any key to complete. ###")?;
     Ok(())
 }
 
 /// Prints the public key of given account index.
-pub(crate) fn public_key_cli(wallet_path: &Path, account_ix: usize) -> Result<()> {
+pub(crate) fn public_key_cli(ctx: &crate::CliContext, account_ix: usize) -> Result<()> {
     let prompt =
         format!("Please enter your wallet password to display account {account_ix}'s public key: ");
     let password = rpassword::prompt_password(prompt)?;
-    let secret_key = derive_secret_key(wallet_path, account_ix, &password)?;
+    let secret_key = derive_secret_key(&ctx.wallet_path, account_ix, &password)?;
     let public_key = PublicKey::from(&secret_key);
     println!("Public key for account {account_ix}: {public_key}");
     Ok(())
 }
 
 /// Prints the plain address for the given account index
-pub(crate) fn hex_address_cli(wallet_path: &Path, account_ix: usize) -> Result<()> {
+pub(crate) fn hex_address_cli(ctx: &crate::CliContext, account_ix: usize) -> Result<()> {
     let prompt = format!(
         "Please enter your wallet password to display account {account_ix}'s plain address: "
     );
     let password = rpassword::prompt_password(prompt)?;
-    let secret_key = derive_secret_key(wallet_path, account_ix, &password)?;
+    let secret_key = derive_secret_key(&ctx.wallet_path, account_ix, &password)?;
     let public_key = PublicKey::from(&secret_key);
     let hashed = public_key.hash();
     let bech = Bech32Address::new(FUEL_BECH32_HRP, hashed);
-    let plain_address: fuel_types::Address = bech.into();
+    let plain_address: Address = bech.into();
     println!("Plain address for {}: {}", account_ix, plain_address);
     Ok(())
 }
 
 /// Transfers assets from account at a given account index to a target address.
 pub(crate) async fn transfer_cli(
-    wallet_path: &Path,
+    ctx: &crate::CliContext,
     acc_ix: usize,
     transfer: Transfer,
 ) -> Result<()> {
@@ -514,7 +523,7 @@ pub(crate) async fn transfer_cli(
         "Preparing to transfer:\n  Amount: {}\n  Asset ID: 0x{}\n  To: {}\n",
         transfer.amount, transfer.asset_id, transfer.to
     );
-    let provider = Provider::connect(&transfer.node_url).await?;
+    let provider = Provider::connect(&ctx.node_url).await?;
 
     let to = match transfer.to {
         To::Bech32Address(bech32_addr) => bech32_addr,
@@ -524,7 +533,7 @@ pub(crate) async fn transfer_cli(
             // At this point we want to query the provider to see if the
             // acount is actually something we can transfer to.
             let addr = checksum_encode(&format!("0x{hex_addr}"))?;
-            let to_addr = Bytes32::from_str(&addr).map_err(|e| anyhow!("{e}"))?;
+            let to_addr = fuels::types::Bytes32::from_str(&addr).map_err(|e| anyhow!("{e}"))?;
             if !provider.is_user_account(to_addr).await? {
                 bail!(format!("{addr} is not a user account. Aborting transfer."))
             }
@@ -536,11 +545,11 @@ pub(crate) async fn transfer_cli(
         "Please enter your wallet password to unlock account {acc_ix} and to initiate transfer: "
     );
     let password = rpassword::prompt_password(prompt)?;
-    let mut account = derive_account_unlocked(wallet_path, acc_ix, &password)?;
+    let mut account = derive_account_unlocked(&ctx.wallet_path, acc_ix, &password, &provider)?;
     account.set_provider(provider);
     println!("Transferring...");
 
-    let (tx_id, receipts) = account
+    let tx_response = account
         .transfer(
             &to,
             transfer.amount,
@@ -550,12 +559,13 @@ pub(crate) async fn transfer_cli(
                 None,
                 transfer.maturity,
                 None,
+                None,
                 transfer.gas_limit,
             ),
         )
         .await?;
 
-    let block_explorer_url = match transfer.node_url.host_str() {
+    let block_explorer_url = match ctx.node_url.host_str() {
         host if host == crate::network::MAINNET.parse::<Url>().unwrap().host_str() => {
             crate::explorer::DEFAULT
         }
@@ -565,10 +575,12 @@ pub(crate) async fn transfer_cli(
         _ => "",
     };
 
-    let tx_explorer_url = format!("{block_explorer_url}/tx/0x{tx_id}");
+    let tx_explorer_url = format!("{block_explorer_url}/tx/0x{}", tx_response.tx_id);
     println!(
-        "\nTransfer complete!\nSummary:\n  Transaction ID: 0x{tx_id}\n  Receipts: {:#?}\n  Explorer: {tx_explorer_url}\n",
-        receipts
+        "\nTransfer complete!\nSummary:\n  Transaction ID: 0x{}\n  Receipts: {:#?}\n  Explorer: {}\n",
+        tx_response.tx_id,
+        tx_response.tx_status.receipts,
+        tx_explorer_url
     );
 
     Ok(())
@@ -634,7 +646,7 @@ pub(crate) fn read_cached_addresses(wallet_ciphertext: &[u8]) -> Result<AccountA
             let account_addr_bech32: Bech32Address = account_addr_str
                 .parse()
                 .context("failed to parse cached account address as a bech32 address")?;
-            let account_addr: fuel_types::Address = account_addr_bech32.into();
+            let account_addr: Address = account_addr_bech32.into();
             Ok((account_ix, account_addr))
         })
         .collect()
@@ -642,14 +654,35 @@ pub(crate) fn read_cached_addresses(wallet_ciphertext: &[u8]) -> Result<AccountA
 
 #[cfg(test)]
 mod tests {
-    use crate::account;
-    use crate::utils::test_utils::{with_tmp_dir_and_wallet, TEST_PASSWORD};
+    use super::*;
+    use crate::utils::test_utils::{
+        mock_provider, with_tmp_dir_and_wallet, TEST_MNEMONIC, TEST_PASSWORD,
+    };
+    use crate::utils::write_wallet_from_mnemonic_and_password;
+    use fuels::types::Address;
 
-    #[test]
-    fn create_new_account() {
-        with_tmp_dir_and_wallet(|_dir, wallet_path| {
-            account::derive_account(wallet_path, 0, TEST_PASSWORD).unwrap();
-        });
+    #[tokio::test]
+    async fn create_new_account() {
+        let mock_provider = mock_provider().await;
+
+        let tmp_dir = tempfile::TempDir::new().unwrap();
+        let wallet_path = tmp_dir.path().join("wallet.json");
+        write_wallet_from_mnemonic_and_password(&wallet_path, TEST_MNEMONIC, TEST_PASSWORD)
+            .unwrap();
+
+        let wallet = derive_account_unlocked(&wallet_path, 0, TEST_PASSWORD, &mock_provider)
+            .expect("wallet unlocked");
+        let wallet_addr = wallet.address();
+        let wallet_addr_str = wallet_addr.to_string();
+        assert_eq!(
+            wallet_addr_str,
+            "fuel1j9zsg4yt45adrcky3xlr4a5rah5ync5xhms2xjtyfm0teyfx000q94t6el"
+        );
+        let wallet_hash = wallet_addr.hash();
+        assert_eq!(
+            wallet_hash.to_string(),
+            "914504548bad3ad1e2c489be3af683ede849e286bee0a349644edebc91267bde"
+        );
     }
 
     #[test]
@@ -657,8 +690,7 @@ mod tests {
         with_tmp_dir_and_wallet(|_dir, wallet_path| {
             // derive account with account index 0
             let account_ix = 0;
-            let private_key =
-                account::derive_secret_key(wallet_path, account_ix, TEST_PASSWORD).unwrap();
+            let private_key = derive_secret_key(wallet_path, account_ix, TEST_PASSWORD).unwrap();
             assert_eq!(
                 private_key.to_string(),
                 "961bf9754dd036dd13b1d543b3c0f74062bc4ac668ea89d38ce8d712c591f5cf"
@@ -670,9 +702,9 @@ mod tests {
         let address = "fuel1j78es08cyyz5n75jugal7p759ccs323etnykzpndsvhzu6399yqqpjmmd2";
         let bech32 = <fuels::types::bech32::Bech32Address as std::str::FromStr>::from_str(address)
             .expect("failed to create Bech32 address from string");
-        let plain_address: fuel_types::Address = bech32.into();
+        let plain_address: Address = bech32.into();
         assert_eq!(
-            <fuel_types::Address as std::str::FromStr>::from_str(
+            <Address as std::str::FromStr>::from_str(
                 "978f983cf8210549fa92e23bff07d42e3108aa395cc961066d832e2e6a252900"
             )
             .expect("RIP"),

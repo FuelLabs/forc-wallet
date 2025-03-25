@@ -1,3 +1,7 @@
+use std::path::PathBuf;
+
+use url::Url;
+
 pub mod account;
 pub mod balance;
 pub mod format;
@@ -22,4 +26,9 @@ pub mod explorer {
     pub const DEFAULT: &str = MAINNET;
     pub const TESTNET: &str = "https://app-testnet.fuel.network";
     pub const MAINNET: &str = "https://app.fuel.network";
+}
+
+pub struct CliContext {
+    pub wallet_path: PathBuf,
+    pub node_url: Url,
 }

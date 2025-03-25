@@ -1,15 +1,14 @@
 use crate::{
     account::derive_and_cache_addresses,
     utils::{
-        ensure_no_wallet_exists, load_wallet, request_new_password,
-        write_wallet_from_mnemonic_and_password,
+        ensure_no_wallet_exists, request_new_password, write_wallet_from_mnemonic_and_password,
     },
     DEFAULT_CACHE_ACCOUNTS,
 };
 use anyhow::{bail, Result};
 use clap::Args;
-use fuels::accounts::wallet::WalletUnlocked;
-use std::{io::stdin, path::Path};
+use fuels::{accounts::signers::derivation::DEFAULT_DERIVATION_PATH, crypto::SecretKey};
+use std::io::stdin;
 
 #[derive(Debug, Args)]
 pub struct Import {
@@ -21,27 +20,27 @@ pub struct Import {
     pub cache_accounts: Option<usize>,
 }
 
-/// Check if given mnemonic is valid by trying to create a `WalletUnlocked` from it
+/// Check if given mnemonic is valid by trying to create a [SecretKey] from it
 fn check_mnemonic(mnemonic: &str) -> Result<()> {
-    // Check users's phrase by trying to create a wallet from it
-    if WalletUnlocked::new_from_mnemonic_phrase(mnemonic, None).is_err() {
+    // Check users's phrase by trying to create secret key from it
+    if SecretKey::new_from_mnemonic_phrase_with_path(mnemonic, DEFAULT_DERIVATION_PATH).is_err() {
         bail!("Cannot generate a wallet from provided mnemonics, please check your mnemonic phrase")
     }
     Ok(())
 }
 
-pub fn import_wallet_cli(wallet_path: &Path, import: Import) -> Result<()> {
-    ensure_no_wallet_exists(wallet_path, import.force, stdin().lock())?;
-
+pub async fn import_wallet_cli(ctx: &crate::CliContext, import: Import) -> Result<()> {
+    ensure_no_wallet_exists(&ctx.wallet_path, import.force, stdin().lock())?;
     let mnemonic = rpassword::prompt_password("Please enter your mnemonic phrase: ")?;
     check_mnemonic(&mnemonic)?;
     let password = request_new_password();
-    write_wallet_from_mnemonic_and_password(wallet_path, &mnemonic, &password)?;
+    write_wallet_from_mnemonic_and_password(&ctx.wallet_path, &mnemonic, &password)?;
     derive_and_cache_addresses(
-        &load_wallet(wallet_path)?,
+        ctx,
         &mnemonic,
         0..import.cache_accounts.unwrap_or(DEFAULT_CACHE_ACCOUNTS),
-    )?;
+    )
+    .await?;
     Ok(())
 }
 
