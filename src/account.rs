@@ -224,12 +224,7 @@ pub(crate) async fn account_balance_cli(
     println!("  {acc_ix:>3}: {}", account_adr);
     let provider = Provider::connect(&balance.node_url).await?;
     account.set_provider(provider);
-    let account_balance: BTreeMap<_, _> = account
-        .get_balances()
-        .await?
-        .into_iter()
-        .map(|(ix, val)| (ix, u128::from(val)))
-        .collect();
+    let account_balance: BTreeMap<_, _> = account.get_balances().await?.into_iter().collect();
     println!("\nAccount {acc_ix}:");
     if account_balance.is_empty() {
         print_balance_empty(&balance.node_url);
@@ -264,17 +259,9 @@ pub(crate) fn verify_address_and_update_cache(
 }
 
 pub(crate) fn print_balance_empty(node_url: &Url) {
-    let beta_2_url = crate::network::BETA_2.parse::<Url>().unwrap();
-    let beta_3_url = crate::network::BETA_3.parse::<Url>().unwrap();
-    let beta_4_url = crate::network::BETA_4.parse::<Url>().unwrap();
-    let beta_5_url = crate::network::BETA_5.parse::<Url>().unwrap();
     let testnet_url = crate::network::TESTNET.parse::<Url>().unwrap();
 
     let faucet_url = match node_url.host_str() {
-        host if host == beta_2_url.host_str() => crate::network::BETA_2_FAUCET,
-        host if host == beta_3_url.host_str() => crate::network::BETA_3_FAUCET,
-        host if host == beta_4_url.host_str() => crate::network::BETA_4_FAUCET,
-        host if host == beta_5_url.host_str() => crate::network::BETA_5_FAUCET,
         host if host == testnet_url.host_str() => crate::network::TESTNET_FAUCET,
         _ => return println!("  Account empty."),
     };
@@ -574,18 +561,6 @@ pub(crate) async fn transfer_cli(
         }
         host if host == crate::network::TESTNET.parse::<Url>().unwrap().host_str() => {
             crate::explorer::TESTNET
-        }
-        host if host == crate::network::BETA_5.parse::<Url>().unwrap().host_str() => {
-            crate::explorer::BETA_5
-        }
-        host if host == crate::network::BETA_4.parse::<Url>().unwrap().host_str() => {
-            crate::explorer::BETA_4
-        }
-        host if host == crate::network::BETA_3.parse::<Url>().unwrap().host_str() => {
-            crate::explorer::BETA_3
-        }
-        host if host == crate::network::BETA_2.parse::<Url>().unwrap().host_str() => {
-            crate::explorer::BETA_2
         }
         _ => "",
     };
