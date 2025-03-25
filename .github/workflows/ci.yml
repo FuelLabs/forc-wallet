@@ -29,6 +29,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions: # Write access to push changes to pages
       contents: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
       - name: Install latest Rust
@@ -51,7 +52,6 @@ jobs:
           coverage-files: lcov.info
           minimum-coverage: 0 # for now we are not enforcing any minimum coverage.
           artifact-name: code-coverage-report
-          github-token: ${{ secrets.GITHUB_TOKEN }}
           update-comment: true
 
   lint-toml-files:
