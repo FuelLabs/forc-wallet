@@ -14,7 +14,7 @@ eth-keystore = { version = "0.5" }
 forc-tracing = "0.67"
 
 # Dependencies from the `fuels-rs` repository:
-fuels = { git = "https://github.com/fuellabs/fuels-rs", branch = "master" }
+fuels = "0.72"
 
 futures = "0.3"
 hex = "0.4"
