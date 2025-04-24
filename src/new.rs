@@ -1,10 +1,10 @@
 use crate::{
+    DEFAULT_CACHE_ACCOUNTS,
     account::derive_and_cache_addresses,
     utils::{
         display_string_discreetly, ensure_no_wallet_exists, request_new_password,
         write_wallet_from_mnemonic_and_password,
     },
-    DEFAULT_CACHE_ACCOUNTS,
 };
 use clap::Args;
 use fuels::accounts::signers::private_key::generate_mnemonic_phrase;

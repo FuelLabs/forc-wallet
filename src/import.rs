@@ -1,11 +1,11 @@
 use crate::{
+    DEFAULT_CACHE_ACCOUNTS,
     account::derive_and_cache_addresses,
     utils::{
         ensure_no_wallet_exists, request_new_password, write_wallet_from_mnemonic_and_password,
     },
-    DEFAULT_CACHE_ACCOUNTS,
 };
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use clap::Args;
 use fuels::{accounts::signers::derivation::DEFAULT_DERIVATION_PATH, crypto::SecretKey};
 use std::io::stdin;

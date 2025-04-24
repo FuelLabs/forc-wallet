@@ -1,5 +1,5 @@
 use crate::{
-    account::{print_balance, print_balance_empty, UnverifiedOpt},
+    account::{UnverifiedOpt, print_balance, print_balance_empty},
     balance::{get_derived_accounts, list_account_balances, print_account_balances},
 };
 use anyhow::Result;

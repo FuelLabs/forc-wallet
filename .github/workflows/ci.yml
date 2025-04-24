@@ -12,8 +12,8 @@ env:
   CARGO_TERM_COLOR: always
   RUSTFLAGS: -D warnings
   REGISTRY: ghcr.io
-  RUST_VERSION: 1.82.0
-  NIGHTLY_RUST_VERSION: nightly-2024-10-28
+  RUST_VERSION: 1.86.0
+  NIGHTLY_RUST_VERSION: nightly-2025-04-20
 
 jobs:
   cancel-previous-runs:

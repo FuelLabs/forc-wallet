@@ -3,14 +3,14 @@ use crate::sign;
 use crate::utils::{
     display_string_discreetly, get_derivation_path, load_wallet, user_fuel_wallets_accounts_dir,
 };
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use clap::{Args, Subcommand};
 use eth_keystore::EthKeystore;
 use forc_tracing::println_warning;
+use fuels::accounts::ViewOnlyAccount;
 use fuels::accounts::provider::Provider;
 use fuels::accounts::signers::private_key::PrivateKeySigner;
 use fuels::accounts::wallet::Unlocked;
-use fuels::accounts::ViewOnlyAccount;
 use fuels::crypto::{PublicKey, SecretKey};
 use fuels::types::checksum_address::{checksum_encode, is_checksum_valid};
 use fuels::types::transaction::TxPolicies;
@@ -578,9 +578,7 @@ pub(crate) async fn transfer_cli(
     let tx_explorer_url = format!("{block_explorer_url}/tx/0x{}", tx_response.tx_id);
     println!(
         "\nTransfer complete!\nSummary:\n  Transaction ID: 0x{}\n  Receipts: {:#?}\n  Explorer: {}\n",
-        tx_response.tx_id,
-        tx_response.tx_status.receipts,
-        tx_explorer_url
+        tx_response.tx_id, tx_response.tx_status.receipts, tx_explorer_url
     );
 
     Ok(())
@@ -656,7 +654,7 @@ pub(crate) fn read_cached_addresses(wallet_ciphertext: &[u8]) -> Result<AccountA
 mod tests {
     use super::*;
     use crate::utils::test_utils::{
-        mock_provider, with_tmp_dir_and_wallet, TEST_MNEMONIC, TEST_PASSWORD,
+        TEST_MNEMONIC, TEST_PASSWORD, mock_provider, with_tmp_dir_and_wallet,
     };
     use crate::utils::write_wallet_from_mnemonic_and_password;
     use fuels::types::Address;
