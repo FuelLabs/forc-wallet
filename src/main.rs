@@ -2,15 +2,15 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use forc_tracing::{init_tracing_subscriber, println_error};
 use forc_wallet::{
+    CliContext,
     account::{self, Account, Accounts},
     balance::{self, Balance},
-    import::{import_wallet_cli, Import},
-    list::{list_wallet_cli, List},
+    import::{Import, import_wallet_cli},
+    list::{List, list_wallet_cli},
     network::DEFAULT as DEFAULT_NODE_URL,
-    new::{new_wallet_cli, New},
+    new::{New, new_wallet_cli},
     sign::{self, Sign},
     utils::default_wallet_path,
-    CliContext,
 };
 use std::path::PathBuf;
 use url::Url;

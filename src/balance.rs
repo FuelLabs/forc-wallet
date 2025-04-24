@@ -1,17 +1,17 @@
 use crate::{
+    DEFAULT_CACHE_ACCOUNTS,
     account::{
         derive_account_unlocked, derive_and_cache_addresses, print_balance, print_balance_empty,
         read_cached_addresses, verify_address_and_update_cache,
     },
     format::List,
     utils::load_wallet,
-    DEFAULT_CACHE_ACCOUNTS,
 };
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use clap::Args;
 use fuels::{
-    accounts::{provider::Provider, wallet::Wallet, ViewOnlyAccount},
-    types::{bech32::Bech32Address, checksum_address::checksum_encode, Address},
+    accounts::{ViewOnlyAccount, provider::Provider, wallet::Wallet},
+    types::{Address, bech32::Bech32Address, checksum_address::checksum_encode},
 };
 use std::{
     cmp::max,

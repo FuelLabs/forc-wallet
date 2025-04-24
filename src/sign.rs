@@ -1,5 +1,5 @@
 use crate::account;
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use clap::{Args, Subcommand};
 use fuels::crypto::{Message, SecretKey, Signature};
 use fuels::types::Bytes32;
@@ -186,7 +186,7 @@ fn bytes_from_hex_str(mut hex_str: &str) -> Result<Vec<u8>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::utils::test_utils::{with_tmp_dir_and_wallet, TEST_PASSWORD};
+    use crate::utils::test_utils::{TEST_PASSWORD, with_tmp_dir_and_wallet};
     use fuels::crypto::Message;
 
     #[test]
@@ -200,7 +200,10 @@ mod tests {
             let account_ix = 0;
             let sig =
                 sign_msg_with_wallet_account(wallet_path, account_ix, &msg, TEST_PASSWORD).unwrap();
-            assert_eq!(sig.to_string(), "bcf4651f072130aaf8925610e1d719b76e25b19b0a86779d3f4294964f1607cc95eb6c58eb37bf0510f618bd284decdf936c48ec6722df5472084e4098d54620");
+            assert_eq!(
+                sig.to_string(),
+                "bcf4651f072130aaf8925610e1d719b76e25b19b0a86779d3f4294964f1607cc95eb6c58eb37bf0510f618bd284decdf936c48ec6722df5472084e4098d54620"
+            );
         });
     }
 

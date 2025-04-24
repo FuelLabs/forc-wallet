@@ -1,4 +1,4 @@
-use anyhow::{anyhow, bail, Context, Ok, Result};
+use anyhow::{Context, Ok, Result, anyhow, bail};
 use eth_keystore::EthKeystore;
 use forc_tracing::println_warning;
 use home::home_dir;
@@ -362,8 +362,8 @@ pub(crate) mod test_utils {
     use fuels::accounts::provider::Provider;
     use serde_json::json;
     use wiremock::{
-        matchers::{method, path},
         Mock, MockServer, ResponseTemplate,
+        matchers::{method, path},
     };
 
     use super::*;
