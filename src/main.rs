@@ -54,7 +54,7 @@ enum Command {
     Import(Import),
     /// Export a wallet as a mnemonic phrase.
     ///
-    /// If a `--path` is specified, the wallet will be read from this location.
+    /// If a `--path` is specified, the wallet will be read from that location.
     Export,
     /// Lists all accounts derived for the wallet so far.
     ///
