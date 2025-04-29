@@ -5,6 +5,7 @@ use forc_wallet::{
     CliContext,
     account::{self, Account, Accounts},
     balance::{self, Balance},
+    export::export_wallet_cli,
     import::{Import, import_wallet_cli},
     list::{List, list_wallet_cli},
     network::DEFAULT as DEFAULT_NODE_URL,
@@ -51,6 +52,10 @@ enum Command {
     /// If a '--fore' is specified, will automatically removes the existing wallet at the same
     /// path.
     Import(Import),
+    /// Export a wallet as a mnemonic phrase.
+    ///
+    /// If a `--path` is specified, the wallet will be read from that location.
+    Export,
     /// Lists all accounts derived for the wallet so far.
     ///
     /// Note that this only includes accounts that have been previously derived
@@ -85,6 +90,12 @@ EXAMPLES:
 
     # Import a new wallet from a mnemonic phrase.
     forc wallet import
+
+    # Export wallet as a mnemonic phrase from default path.
+    forc wallet import
+
+    # Export wallet as a mnemonic phrase read from the given path.
+    forc wallet import --path /path/to/wallet
 
     # Import a new wallet from a mnemonic phrase and automatically replace the existing wallet if it's at the same path.
     forc wallet import --force
@@ -150,6 +161,7 @@ async fn run() -> Result<()> {
         Command::New(new) => new_wallet_cli(&ctx, new).await?,
         Command::List(list) => list_wallet_cli(&ctx, list).await?,
         Command::Import(import) => import_wallet_cli(&ctx, import).await?,
+        Command::Export => export_wallet_cli(&ctx.wallet_path)?,
         Command::Accounts(accounts) => account::print_accounts_cli(&ctx, accounts).await?,
         Command::Account(account) => account::cli(&ctx, account).await?,
         Command::Sign(sign) => sign::cli(&ctx, sign)?,
