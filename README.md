@@ -16,7 +16,7 @@ $ forc-wallet --version
 forc-wallet 0.2.2
 ```
 
-For usage in [custom toolchains](https://fuellabs.github.io/fuelup/master/concepts/toolchains.html#custom-toolchains):
+For usage in [custom toolchains](http://install.fuel.network/master/concepts/toolchains.html#custom-toolchains):
 
 ```sh
 fuelup component add forc-wallet
