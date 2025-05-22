@@ -531,7 +531,7 @@ pub(crate) async fn transfer_cli(
             // Check if `to` is an account, we know that checksum is valid at
             // this point. Otherwise, `To` won't even parse from user input.
             // At this point we want to query the provider to see if the
-            // acount is actually something we can transfer to.
+            // account is actually something we can transfer to.
             let addr = checksum_encode(&format!("0x{hex_addr}"))?;
             let to_addr = fuels::types::Bytes32::from_str(&addr).map_err(|e| anyhow!("{e}"))?;
             if !provider.is_user_account(to_addr).await? {
