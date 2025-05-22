@@ -4,12 +4,12 @@ use anyhow::Result;
 
 #[derive(PartialEq, Eq)]
 enum Value {
-    Seperator,
+    Separator,
     NewLine,
     Entry(String, String),
 }
 
-/// Simple helper to print key-value entries where the keys are all alligned.
+/// Simple helper to print key-value entries where the keys are all aligned.
 ///
 /// Here is an example of how it looks:
 ///
@@ -38,17 +38,17 @@ impl List {
     }
 
     pub fn add_seperator(&mut self) {
-        if self.0.last() == Some(&Value::Seperator) {
+        if self.0.last() == Some(&Value::Separator) {
             return;
         }
-        self.0.push(Value::Seperator);
+        self.0.push(Value::Separator);
     }
 
     pub fn longest_title(&self) -> usize {
         self.0
             .iter()
             .map(|value| match value {
-                Value::Seperator => 0,
+                Value::Separator => 0,
                 Value::NewLine => 0,
                 Value::Entry(title, _) => title.len(),
             })
@@ -64,7 +64,7 @@ impl Display for List {
             .0
             .iter()
             .map(|entry| match entry {
-                Value::Seperator => None,
+                Value::Separator => None,
                 Value::NewLine => Some("".to_owned()),
                 Value::Entry(title, value) => {
                     let padding = " ".repeat(longest_key - title.len());
@@ -79,11 +79,11 @@ impl Display for List {
             .max()
             .unwrap_or(0);
 
-        let seperator = "-".repeat(longest_entry);
+        let separator = "-".repeat(longest_entry);
 
         let formatted = entries
             .into_iter()
-            .map(|entry| entry.map(|s| s.to_string()).unwrap_or(seperator.clone()))
+            .map(|entry| entry.map(|s| s.to_string()).unwrap_or(separator.clone()))
             .collect::<Vec<_>>()
             .join("\n");
 

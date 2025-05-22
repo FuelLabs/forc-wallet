@@ -116,7 +116,7 @@ pub fn print_account_balances(
             continue;
         }
 
-        list.add_seperator();
+        list.add_separator();
         list.add(
             format!("Account {ix}"),
             checksum_encode(&format!("0x{}", accounts_map[ix]))?,
@@ -127,7 +127,7 @@ pub fn print_account_balances(
             list.add("Asset ID", asset_id);
             list.add("Amount", amount.to_string());
         }
-        list.add_seperator();
+        list.add_separator();
     }
     println!("{}", list);
     Ok(())
