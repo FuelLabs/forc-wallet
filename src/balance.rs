@@ -11,7 +11,7 @@ use anyhow::{Result, anyhow};
 use clap::Args;
 use fuels::{
     accounts::{ViewOnlyAccount, provider::Provider, wallet::Wallet},
-    types::{Address, bech32::Bech32Address, checksum_address::checksum_encode},
+    types::{Address, checksum_address::checksum_encode},
 };
 use std::{
     cmp::max,
@@ -42,11 +42,11 @@ pub enum AccountVerification {
 
 /// List of accounts and amount of tokens they hold with different ASSET_IDs.
 pub type AccountBalances = Vec<HashMap<String, u128>>;
-/// A mapping between account index and the bech32 address for that account.
+/// A mapping between account index and the address for that account.
 pub type AccountsMap = BTreeMap<usize, Address>;
 
 /// Return a map of accounts after desired verification applied in a map where each key is account
-/// index and each value is the `Bech32Address` of that account.
+/// index and each value is the `Address` of that account.
 pub async fn collect_accounts_with_verification(
     wallet_path: &Path,
     verification: AccountVerification,
@@ -56,16 +56,10 @@ pub async fn collect_accounts_with_verification(
     let mut addresses = read_cached_addresses(&wallet.crypto.ciphertext)?;
     if let AccountVerification::Yes(password) = verification {
         for (&ix, addr) in addresses.iter_mut() {
-            let addr_bech32 = Bech32Address::from(*addr);
             let provider = Provider::connect(node_url).await?;
             let account = derive_account_unlocked(wallet_path, ix, &password, &provider)?;
-            if verify_address_and_update_cache(
-                ix,
-                &account,
-                &addr_bech32,
-                &wallet.crypto.ciphertext,
-            )? {
-                *addr = account.address().clone().into();
+            if verify_address_and_update_cache(ix, &account, addr, &wallet.crypto.ciphertext)? {
+                *addr = account.address();
             }
         }
     }
@@ -147,7 +141,7 @@ pub(crate) async fn list_account_balances(
     }
     let accounts: Vec<_> = addresses
         .values()
-        .map(|addr| Wallet::new_locked(Bech32Address::from(*addr), provider.clone()))
+        .map(|addr| Wallet::new_locked(*addr, provider.clone()))
         .collect();
     let account_balances =
         futures::future::try_join_all(accounts.iter().map(|acc| acc.get_balances())).await?;
