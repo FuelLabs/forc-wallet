@@ -10,7 +10,7 @@ use forc_tracing::println_warning;
 use fuels::accounts::ViewOnlyAccount;
 use fuels::accounts::provider::Provider;
 use fuels::accounts::signers::private_key::PrivateKeySigner;
-use fuels::accounts::wallet::Unlocked;
+use fuels::accounts::wallet::{Unlocked, Wallet};
 use fuels::crypto::{PublicKey, SecretKey};
 use fuels::types::checksum_address::checksum_encode;
 use fuels::types::transaction::TxPolicies;
