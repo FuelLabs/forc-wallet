@@ -14,14 +14,14 @@ enum Value {
 /// Here is an example of how it looks:
 ///
 /// --------------------------------------------------------------------------
-/// account 0: fuel12sdaglkadsgmoaeigm49309k403ydxtqmzuaqtzdjlsww5t2jmg9skutn8n
+/// account 0: 0x0008faCa0e0280192dbA692156280C5410043f63a48d49C6a1d901de8A29a4aa
 /// Asset ID : 0000000000000000000000000000000000000000000000000000000000000000
 /// Amount   : 499999800
 ///
 /// Asset ID : 0000000000000000000000000000000000000000000000000000000000000001
 /// Amount   : 359989610
 /// --------------------------------------------------------------------------
-/// account 1: fuel29asdfjoiajg934344iw9e8jfasoiaeigjaergokjaeoigjaeg9ij39ijg34
+/// account 1: 0x002D7487aeFb0238D2e12c63eaB99B545876e2F2E5cdA90aDFD2dC40BD6B49ff
 /// Asset ID : 0000000000000000000000000000000000000000000000000000000000000000
 /// Amount   : 268983615
 #[derive(Default)]

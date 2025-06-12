@@ -10,21 +10,16 @@ use forc_tracing::println_warning;
 use fuels::accounts::ViewOnlyAccount;
 use fuels::accounts::provider::Provider;
 use fuels::accounts::signers::private_key::PrivateKeySigner;
-use fuels::accounts::wallet::Unlocked;
+use fuels::accounts::wallet::{Unlocked, Wallet};
 use fuels::crypto::{PublicKey, SecretKey};
-use fuels::types::checksum_address::{checksum_encode, is_checksum_valid};
+use fuels::types::checksum_address::checksum_encode;
 use fuels::types::transaction::TxPolicies;
 use fuels::types::{Address, AssetId};
-use fuels::{
-    accounts::wallet::Wallet,
-    types::bech32::{Bech32Address, FUEL_BECH32_HRP},
-};
 use std::ops::Range;
 use std::{
     collections::BTreeMap,
-    fmt, fs,
+    fs,
     path::{Path, PathBuf},
-    str::FromStr,
 };
 use url::Url;
 
@@ -34,11 +29,6 @@ type WalletUnlocked<S> = Wallet<Unlocked<S>>;
 pub struct Accounts {
     #[clap(flatten)]
     unverified: UnverifiedOpt,
-    /// Contains optional flag for displaying all accounts as hex / bytes values.
-    ///
-    /// pass in --as-hex for this alternative display.
-    #[clap(long)]
-    as_bech32: bool,
 }
 
 #[derive(Debug, Args)]
@@ -98,9 +88,9 @@ pub(crate) struct Balance {
 
 #[derive(Debug, Args)]
 pub(crate) struct Transfer {
-    /// The address (in bech32 or hex) of the account to transfer assets to.
+    /// The address of the account to transfer assets to.
     #[clap(long)]
-    to: To,
+    to: Address,
     /// Amount (in u64) of assets to transfer.
     #[clap(long)]
     amount: u64,
@@ -126,51 +116,7 @@ pub(crate) struct UnverifiedOpt {
     pub(crate) unverified: bool,
 }
 
-#[derive(Debug, Clone)]
-enum To {
-    Bech32Address(Bech32Address),
-    HexAddress(Address),
-}
-
-impl FromStr for To {
-    type Err = String;
-
-    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        if let Ok(bech32_address) = Bech32Address::from_str(s) {
-            return Ok(Self::Bech32Address(bech32_address));
-        } else if let Ok(hex_address) = Address::from_str(s) {
-            if !is_checksum_valid(s) {
-                return Err(format!(
-                    "Checksum is not valid for address `{}`, the address might not be an account.",
-                    s
-                ));
-            }
-            return Ok(Self::HexAddress(hex_address));
-        }
-
-        Err(format!(
-            "Invalid address '{}': address must either be in bech32 or hex",
-            s
-        ))
-    }
-}
-
-impl fmt::Display for To {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            To::Bech32Address(bech32_addr) => write!(f, "{bech32_addr}"),
-            To::HexAddress(hex_addr) => {
-                // This `unwrap` is fine, because only way to create a `To` is
-                // `from_str` and providing an invalid checksum, or non-hex
-                // addr is already handled by that routine.
-                let hex_addr = checksum_encode(&format!("0x{hex_addr}")).unwrap();
-                write!(f, "{hex_addr}")
-            }
-        }
-    }
-}
-
-/// A map from an account's index to its bech32 address.
+/// A map from an account's index to its address.
 type AccountAddresses = BTreeMap<usize, Address>;
 
 pub async fn cli(ctx: &crate::CliContext, account: Account) -> Result<()> {
@@ -212,13 +158,11 @@ pub(crate) async fn account_balance_cli(
         .ok_or_else(|| anyhow!("No cached address for account {acc_ix}"))?;
 
     let account = if balance.unverified.unverified {
-        let cached_addr = Bech32Address::from(cached_addr);
         Wallet::new_locked(cached_addr, provider)
     } else {
         let prompt = format!("Please enter your wallet password to verify account {acc_ix}: ");
         let password = rpassword::prompt_password(prompt)?;
         let account = derive_account_unlocked(&ctx.wallet_path, acc_ix, &password, &provider)?;
-        let cached_addr = Bech32Address::from(cached_addr);
         verify_address_and_update_cache(acc_ix, &account, &cached_addr, &wallet.crypto.ciphertext)?;
         account.lock()
     };
@@ -242,13 +186,10 @@ pub(crate) async fn account_balance_cli(
 pub(crate) fn verify_address_and_update_cache(
     acc_ix: usize,
     account: &Wallet,
-    expected_addr: &Bech32Address,
+    expected_addr: &Address,
     wallet_ciphertext: &[u8],
 ) -> Result<bool> {
     let addr = account.address();
-    if addr == expected_addr {
-        return Ok(true);
-    }
     println_warning(&format!(
         "Cached address for account {} differs from derived address.\n\
 {:>2}Cached: {}
@@ -256,7 +197,7 @@ pub(crate) fn verify_address_and_update_cache(
 {:>2}Updating cache with newly derived address.",
         acc_ix, "", expected_addr, "", addr, "",
     ));
-    cache_address(wallet_ciphertext, acc_ix, addr)?;
+    cache_address(wallet_ciphertext, acc_ix, &addr)?;
     Ok(false)
 }
 
@@ -301,15 +242,7 @@ pub async fn print_accounts_cli(ctx: &crate::CliContext, accounts: Accounts) -> 
         println!("Account addresses (unverified, printed from cache):");
         addresses
             .iter()
-            .for_each(|(ix, addr)| match accounts.as_bech32 {
-                false => {
-                    println!("[{ix}] {addr}")
-                }
-                true => {
-                    let bytes_addr: Bech32Address = Bech32Address::from(*addr);
-                    println!("[{ix}] {bytes_addr}");
-                }
-            });
+            .for_each(|(ix, addr)| println!("[{ix}] {addr}"));
     } else {
         let prompt = "Please enter your wallet password to verify cached accounts: ";
         let password = rpassword::prompt_password(prompt)?;
@@ -317,19 +250,8 @@ pub async fn print_accounts_cli(ctx: &crate::CliContext, accounts: Accounts) -> 
         for &ix in addresses.keys() {
             let account = derive_account_unlocked(&ctx.wallet_path, ix, &password, &provider)?;
             let account_addr = account.address();
-            match accounts.as_bech32 {
-                false => {
-                    let account_addr: Address = account.address().into();
-                    let account_addr = checksum_encode(&format!("0x{account_addr}"))?;
-                    println!("[{ix}] {account_addr}")
-                }
-                true => {
-                    let bytes_addr: Bech32Address = Bech32Address::from(account_addr);
-                    println!("[{ix}] {bytes_addr}");
-                }
-            }
-
-            cache_address(&wallet.crypto.ciphertext, ix, account_addr)?;
+            println!("[{ix}] {account_addr}");
+            cache_address(&wallet.crypto.ciphertext, ix, &account_addr)?;
         }
     }
     Ok(())
@@ -384,9 +306,9 @@ pub async fn print_address(
         let provider = Provider::connect(&ctx.node_url).await?;
         let account = derive_account_unlocked(&ctx.wallet_path, account_ix, &password, &provider)?;
         let account_addr = account.address();
-        let checksum_addr = checksum_encode(&format!("0x{}", Address::from(account_addr)))?;
+        let checksum_addr = checksum_encode(&format!("0x{}", account_addr))?;
         println!("Account {account_ix} address: {checksum_addr}");
-        cache_address(&wallet.crypto.ciphertext, account_ix, account_addr)?;
+        cache_address(&wallet.crypto.ciphertext, account_ix, &account_addr)?;
     }
     Ok(())
 }
@@ -434,9 +356,9 @@ pub async fn derive_and_cache_addresses(
             let derive_path = get_derivation_path(acc_ix);
             let secret_key = SecretKey::new_from_mnemonic_phrase_with_path(mnemonic, &derive_path)?;
             let account = WalletUnlocked::new(PrivateKeySigner::new(secret_key), provider.clone());
-            cache_address(&wallet.crypto.ciphertext, acc_ix, account.address())?;
+            cache_address(&wallet.crypto.ciphertext, acc_ix, &account.address())?;
 
-            Ok(account.address().to_owned().into())
+            Ok(account.address().to_owned())
         })
         .collect::<Result<Vec<_>, _>>()
         .map(|x| x.into_iter().enumerate().collect())
@@ -452,8 +374,8 @@ fn new_at_index(
     let password = rpassword::prompt_password(prompt)?;
     let account = derive_account_unlocked(wallet_path, account_ix, &password, provider)?;
     let account_addr = account.address();
-    cache_address(&keystore.crypto.ciphertext, account_ix, account_addr)?;
-    let checksum_addr = checksum_encode(&Address::from(account_addr).to_string())?;
+    cache_address(&keystore.crypto.ciphertext, account_ix, &account_addr)?;
+    let checksum_addr = checksum_encode(&account_addr.to_string())?;
     println!("Wallet address: {checksum_addr}");
     Ok(checksum_addr)
 }
@@ -505,8 +427,7 @@ pub(crate) fn hex_address_cli(ctx: &crate::CliContext, account_ix: usize) -> Res
     let secret_key = derive_secret_key(&ctx.wallet_path, account_ix, &password)?;
     let public_key = PublicKey::from(&secret_key);
     let hashed = public_key.hash();
-    let bech = Bech32Address::new(FUEL_BECH32_HRP, hashed);
-    let plain_address: Address = bech.into();
+    let plain_address: Address = (*hashed).into();
     println!("Plain address for {}: {}", account_ix, plain_address);
     Ok(())
 }
@@ -525,21 +446,7 @@ pub(crate) async fn transfer_cli(
     );
     let provider = Provider::connect(&ctx.node_url).await?;
 
-    let to = match transfer.to {
-        To::Bech32Address(bech32_addr) => bech32_addr,
-        To::HexAddress(hex_addr) => {
-            // Check if `to` is an account, we know that checksum is valid at
-            // this point. Otherwise, `To` won't even parse from user input.
-            // At this point we want to query the provider to see if the
-            // acount is actually something we can transfer to.
-            let addr = checksum_encode(&format!("0x{hex_addr}"))?;
-            let to_addr = fuels::types::Bytes32::from_str(&addr).map_err(|e| anyhow!("{e}"))?;
-            if !provider.is_user_account(to_addr).await? {
-                bail!(format!("{addr} is not a user account. Aborting transfer."))
-            }
-            Bech32Address::from(hex_addr)
-        }
-    };
+    let to = transfer.to;
 
     let prompt = format!(
         "Please enter your wallet password to unlock account {acc_ix} and to initiate transfer: "
@@ -551,7 +458,7 @@ pub(crate) async fn transfer_cli(
 
     let tx_response = account
         .transfer(
-            &to,
+            to,
             transfer.amount,
             transfer.asset_id,
             TxPolicies::new(
@@ -607,7 +514,7 @@ fn address_path(wallet_ciphertext: &[u8], account_ix: usize) -> PathBuf {
 pub fn cache_address(
     wallet_ciphertext: &[u8],
     account_ix: usize,
-    account_addr: &Bech32Address,
+    account_addr: &Address,
 ) -> Result<()> {
     let path = address_path(wallet_ciphertext, account_ix);
     if path.exists() && !path.is_file() {
@@ -641,10 +548,9 @@ pub(crate) fn read_cached_addresses(wallet_ciphertext: &[u8]) -> Result<AccountA
                 .context("failed to parse account index from file name")?;
             let account_addr_str = std::fs::read_to_string(&path)
                 .context("failed to read account address from cache")?;
-            let account_addr_bech32: Bech32Address = account_addr_str
+            let account_addr: Address = account_addr_str
                 .parse()
-                .context("failed to parse cached account address as a bech32 address")?;
-            let account_addr: Address = account_addr_bech32.into();
+                .map_err(|e| anyhow!("failed to parse cached account address: {e}"))?;
             Ok((account_ix, account_addr))
         })
         .collect()
@@ -658,6 +564,7 @@ mod tests {
     };
     use crate::utils::write_wallet_from_mnemonic_and_password;
     use fuels::types::Address;
+    use std::str::FromStr;
 
     #[tokio::test]
     async fn create_new_account() {
@@ -674,11 +581,11 @@ mod tests {
         let wallet_addr_str = wallet_addr.to_string();
         assert_eq!(
             wallet_addr_str,
-            "fuel1j9zsg4yt45adrcky3xlr4a5rah5ync5xhms2xjtyfm0teyfx000q94t6el"
+            "914504548bad3ad1e2c489be3af683ede849e286bee0a349644edebc91267bde"
         );
-        let wallet_hash = wallet_addr.hash();
+        // Test wallet address in hex format
         assert_eq!(
-            wallet_hash.to_string(),
+            format!("{:x}", wallet_addr),
             "914504548bad3ad1e2c489be3af683ede849e286bee0a349644edebc91267bde"
         );
     }
@@ -696,17 +603,10 @@ mod tests {
         });
     }
     #[test]
-    fn derive_plain_address() {
-        let address = "fuel1j78es08cyyz5n75jugal7p759ccs323etnykzpndsvhzu6399yqqpjmmd2";
-        let bech32 = <fuels::types::bech32::Bech32Address as std::str::FromStr>::from_str(address)
-            .expect("failed to create Bech32 address from string");
-        let plain_address: Address = bech32.into();
-        assert_eq!(
-            <Address as std::str::FromStr>::from_str(
-                "978f983cf8210549fa92e23bff07d42e3108aa395cc961066d832e2e6a252900"
-            )
-            .expect("RIP"),
-            plain_address
-        )
+    fn derive_address() {
+        let address_hex = "978f983cf8210549fa92e23bff07d42e3108aa395cc961066d832e2e6a252900";
+        let plain_address =
+            Address::from_str(address_hex).expect("failed to create Address from hex string");
+        assert_eq!(format!("{:x}", plain_address), address_hex)
     }
 }
