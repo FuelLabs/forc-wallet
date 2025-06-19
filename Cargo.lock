@@ -1051,11 +1051,12 @@ checksum = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
 
 [[package]]
 name = "forc-tracing"
-version = "0.67.0"
+version = "0.68.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c81ec9672413a0cadedb2791aa6208c415523f7f9a430bc8516da00587439ce6"
+checksum = "c36a046da28526264755d87c0b4dfd6e13a5153eb00d271d3a34b8ab1412f224"
 dependencies = [
  "ansiterm",
+ "regex",
  "tracing",
  "tracing-subscriber",
 ]
