@@ -59,7 +59,7 @@ enum Command {
     /// Lists all accounts derived for the wallet so far.
     ///
     /// Note that this only includes accounts that have been previously derived
-    /// *locally* and still exist within the user's `~/.fuel/wallets/accoutns`
+    /// *locally* and still exist within the user's `~/.fuel/wallets/accounts`
     /// cache. If this wallet was recently imported, you may need to re-derive
     /// your accounts.
     ///
