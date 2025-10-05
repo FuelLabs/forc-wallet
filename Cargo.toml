@@ -35,6 +35,6 @@ name = "forc-wallet"
 path = "src/main.rs"
 
 [dev-dependencies]
-fuel-core-client = "0.44.0"
+fuel-core-client = "0.46.0"
 tempfile = "3.19"
 wiremock = "0.6"
