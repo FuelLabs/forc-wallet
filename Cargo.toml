@@ -1,6 +1,6 @@
 [package]
 name = "forc-wallet"
-version = "0.15.1"
+version = "0.15.2"
 edition = "2024"
 homepage = "https://fuel.network/"
 license = "Apache-2.0"
@@ -14,7 +14,7 @@ eth-keystore = { version = "0.5" }
 forc-tracing = "0.68"
 
 # Dependencies from the `fuels-rs` repository:
-fuels = "0.74"
+fuels = "0.75"
 
 futures = "0.3"
 hex = "0.4"
@@ -35,6 +35,6 @@ name = "forc-wallet"
 path = "src/main.rs"
 
 [dev-dependencies]
-fuel-core-client = "0.44.0"
+fuel-core-client = "0.46.0"
 tempfile = "3.19"
 wiremock = "0.6"
