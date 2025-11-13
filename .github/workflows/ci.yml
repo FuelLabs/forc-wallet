@@ -255,11 +255,7 @@ jobs:
           cp "target/${{ matrix.job.target }}/release/forc-wallet" "$ARTIFACT"
           tar -czvf $ZIP_FILE_NAME "$ARTIFACT"
       - name: Upload release archive
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
+        uses: softprops/action-gh-release@v2
+        if: github.ref_type == 'tag'
         with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ./${{ env.ZIP_FILE_NAME }}
-          asset_name: ${{ env.ZIP_FILE_NAME }}
-          asset_content_type: application/gzipa
+          files: ${{ env.ZIP_FILE_NAME }}
