@@ -94,7 +94,7 @@ pub fn cli(ctx: &crate::CliContext, sign: Sign) -> Result<()> {
         _ => bail!(
             "Unexpected set of options passed to `forc wallet sign`.\n  \
                  To sign with a wallet account, use `forc wallet sign --account <index> <data>`\n  \
-                 To sign with a private key, use `forc wallet sign --private <data>`",
+                 To sign with a private key, use `forc wallet sign --private-key <data>`",
         ),
     }
     Ok(())
