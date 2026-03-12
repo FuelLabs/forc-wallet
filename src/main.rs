@@ -40,8 +40,8 @@ enum Command {
     ///
     /// If a `--path` is specified, the wallet will be created at this location.
     ///
-    /// If a '--fore' is specified, will automatically removes the existing wallet at the same
-    /// path.
+    /// If a `--force` is specified, the existing wallet at the same path will be removed
+    /// automatically.
     New(New),
     /// List all wallets in the default wallet directory.
     List(List),
@@ -49,8 +49,8 @@ enum Command {
     ///
     /// If a `--path` is specified, the wallet will be imported to this location.
     ///
-    /// If a '--fore' is specified, will automatically removes the existing wallet at the same
-    /// path.
+    /// If a `--force` is specified, the existing wallet at the same path will be removed
+    /// automatically.
     Import(Import),
     /// Export a wallet as a mnemonic phrase.
     ///
@@ -92,10 +92,10 @@ EXAMPLES:
     forc wallet import
 
     # Export wallet as a mnemonic phrase from default path.
-    forc wallet import
+    forc wallet export
 
     # Export wallet as a mnemonic phrase read from the given path.
-    forc wallet import --path /path/to/wallet
+    forc wallet export --path /path/to/wallet
 
     # Import a new wallet from a mnemonic phrase and automatically replace the existing wallet if it's at the same path.
     forc wallet import --force
